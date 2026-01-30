@@ -140,6 +140,86 @@
           </q-item-section>
           <q-item-section>Packs</q-item-section>
         </q-item>
+
+        <q-separator class="q-my-sm" />
+
+        <q-item-label header>Routes</q-item-label>
+
+        <q-item to="/" exact clickable v-ripple>
+          <q-item-section avatar>
+            <q-icon name="home" />
+          </q-item-section>
+          <q-item-section>Home</q-item-section>
+        </q-item>
+
+        <q-item to="/editor" clickable v-ripple>
+          <q-item-section avatar>
+            <q-icon name="edit" />
+          </q-item-section>
+          <q-item-section>Editor</q-item-section>
+        </q-item>
+
+        <q-item to="/readme" clickable v-ripple>
+          <q-item-section avatar>
+            <q-icon name="description" />
+          </q-item-section>
+          <q-item-section>README</q-item-section>
+        </q-item>
+
+        <q-item to="/about" clickable v-ripple>
+          <q-item-section avatar>
+            <q-icon name="info" />
+          </q-item-section>
+          <q-item-section>About</q-item-section>
+        </q-item>
+
+        <q-item
+          clickable
+          tag="a"
+          target="_blank"
+          href="https://github.com/AndreaFrederica/jei-web"
+          v-ripple
+        >
+          <q-item-section avatar>
+            <q-icon name="code" />
+          </q-item-section>
+          <q-item-section>GitHub</q-item-section>
+        </q-item>
+
+        <q-item clickable tag="a" target="_blank" href="https://blog.sirrus.cc" v-ripple>
+          <q-item-section avatar>
+            <q-icon name="article" />
+          </q-item-section>
+          <q-item-section>Blog</q-item-section>
+        </q-item>
+
+        <q-item clickable tag="a" target="_blank" href="https://wiki.sirrus.cc" v-ripple>
+          <q-item-section avatar>
+            <q-icon name="menu_book" />
+          </q-item-section>
+          <q-item-section>Wiki</q-item-section>
+        </q-item>
+
+        <q-item clickable tag="a" target="_blank" href="https://anh.sirrus.cc" v-ripple>
+          <q-item-section avatar>
+            <q-icon name="auto_stories" />
+          </q-item-section>
+          <q-item-section>小说助手</q-item-section>
+        </q-item>
+
+        <q-item to="/license" clickable v-ripple>
+          <q-item-section avatar>
+            <q-icon name="gavel" />
+          </q-item-section>
+          <q-item-section>License</q-item-section>
+        </q-item>
+
+        <q-item to="/third-party-licenses" clickable v-ripple>
+          <q-item-section avatar>
+            <q-icon name="assignment" />
+          </q-item-section>
+          <q-item-section>Third-Party Licenses</q-item-section>
+        </q-item>
       </q-list>
     </q-drawer>
 

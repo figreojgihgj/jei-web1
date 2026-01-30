@@ -7,12 +7,15 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "gen:about": "node scripts/generate-about-md.mjs",
     "lint": "eslint -c ./eslint.config.js \"./src*/**/*.{ts,js,cjs,mjs,vue}\"",
     "format": "prettier --write \"**/*.{js,ts,vue,scss,html,md,json}\" --ignore-path .gitignore",
     "test": "echo \"No test specified\" && exit 0",
+    "predev": "pnpm run gen:about",
     "dev": "quasar dev",
+    "prebuild": "pnpm run gen:about",
     "build": "quasar build",
-    "postinstall": "quasar prepare"
+    "postinstall": "pnpm run gen:about && quasar prepare"
   },
   "dependencies": {
     "@quasar/extras": "^1.16.4",

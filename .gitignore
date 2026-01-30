@@ -33,3 +33,4 @@ yarn-error.log*
 .env.local*
 
 .history
+src\assets\about.generated.md

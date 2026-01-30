@@ -92,9 +92,24 @@ function setTheme(mode: DarkMode) {
 
 const linksList: EssentialLinkProps[] = [
   {
+    title: 'Home',
+    icon: 'home',
+    link: '/',
+  },
+  {
     title: 'Editor',
     icon: 'edit',
     link: '/editor',
+  },
+  {
+    title: 'README',
+    icon: 'description',
+    link: '/readme',
+  },
+  {
+    title: 'About',
+    icon: 'info',
+    link: '/about',
   },
   {
     title: 'GitHub',
@@ -124,13 +139,13 @@ const linksList: EssentialLinkProps[] = [
     title: 'License',
     caption: 'Mozilla Public License 2.0',
     icon: 'gavel',
-    link: 'https://github.com/AndreaFrederica/jei-web/blob/master/LICENSE',
+    link: '/license',
   },
   {
     title: 'Third-Party Licenses',
     caption: 'factoriolab-zmd (MIT)',
-    icon: 'description',
-    link: 'https://github.com/AndreaFrederica/jei-web/blob/master/THIRD-PARTY_LICENSES.md',
+    icon: 'assignment',
+    link: '/third-party-licenses',
   },
 ];
 
