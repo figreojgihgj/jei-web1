@@ -891,6 +891,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import type { ItemDef, ItemKey, PackData } from 'src/jei/types';
 import { loadPack } from 'src/jei/pack/loader';
 import {
@@ -913,6 +914,10 @@ import { autoPlanSelections } from 'src/jei/planner/planner';
 import { useSettingsStore } from 'src/stores/settings';
 
 const settingsStore = useSettingsStore();
+const route = useRoute();
+const router = useRouter();
+const applyingRoute = ref(false);
+const syncingUrl = ref(false);
 
 const loading = ref(true);
 const error = ref('');
@@ -999,12 +1004,49 @@ const itemDefsByKeyHash = computed<Record<string, ItemDef>>(() => {
   return Object.fromEntries(map.entries());
 });
 
+const currentItemKey = computed<ItemKey | null>(
+  () => navStack.value[navStack.value.length - 1] ?? null,
+);
+
 // Markdown 渲染器
 const md = new MarkdownIt({
   html: true,
   linkify: true,
   typographer: true,
 });
+
+const currentItemDef = computed<ItemDef | null>(() => {
+  const key = currentItemKey.value;
+  if (!key) return null;
+  const h = itemKeyHash(key);
+  return index.value?.itemsByKeyHash.get(h) ?? null;
+});
+
+const currentItemTitle = computed(() => {
+  const def = currentItemDef.value;
+  const key = currentItemKey.value;
+  if (def) return `${def.name} (${def.key.id})`;
+  if (!key) return '';
+  return key.id;
+});
+
+// 更新网页标题
+watch(
+  () => {
+    const packId = pack.value?.manifest.packId;
+    const packLabel = packOptions.value.find((p) => p.value === packId)?.label ?? packId ?? '';
+    const title = currentItemTitle.value;
+    return { title, packLabel };
+  },
+  ({ title, packLabel }) => {
+    if (title) {
+      document.title = `${title} ${packLabel} - JEI-WEB`;
+    } else {
+      document.title = 'JEI-WEB';
+    }
+  },
+  { immediate: true },
+);
 
 // 渲染物品描述为 HTML
 const renderedDescription = computed(() => {
@@ -1072,6 +1114,103 @@ const pageCount = computed(() => {
   return Math.max(1, Math.ceil(total / size));
 });
 
+const validTabs = new Set(['recipes', 'uses', 'wiki', 'planner'] as const);
+type JeiTab = 'recipes' | 'uses' | 'wiki' | 'planner';
+
+function parseTab(v: unknown): JeiTab | null {
+  if (typeof v !== 'string') return null;
+  return validTabs.has(v as JeiTab) ? (v as JeiTab) : null;
+}
+
+function routeKeyHash(): string | null {
+  const p = route.params.keyHash;
+  if (typeof p === 'string' && p) return p;
+  const q = route.query.item;
+  if (typeof q === 'string' && q) return q;
+  return null;
+}
+
+function routeTab(): JeiTab | null {
+  const p = route.params.tab;
+  const t = parseTab(p);
+  if (t) return t;
+  return parseTab(route.query.tab);
+}
+
+function applyRouteState() {
+  if (applyingRoute.value) return;
+  const keyHash = routeKeyHash();
+  const tab = routeTab();
+  const packId = typeof route.query.pack === 'string' ? route.query.pack : null;
+
+  applyingRoute.value = true;
+  try {
+    if (packId && packId !== activePackId.value) {
+      activePackId.value = packId;
+      return;
+    }
+
+    if (!keyHash) {
+      closeDialog();
+      activeTab.value = tab ?? activeTab.value;
+      return;
+    }
+
+    const def = index.value?.itemsByKeyHash.get(keyHash);
+    if (!def) return;
+
+    selectedKeyHash.value = keyHash;
+    navStack.value = [def.key];
+    const finalTab = tab ?? 'recipes';
+    activeTab.value = finalTab;
+    if (finalTab === 'planner' && pack.value && index.value) {
+      const auto = autoPlanSelections({
+        pack: pack.value,
+        index: index.value,
+        rootItemKey: def.key,
+      });
+      plannerInitialState.value = {
+        loadKey: `auto:${itemKeyHash(def.key)}:${Date.now()}`,
+        targetAmount: 1,
+        selectedRecipeIdByItemKeyHash: auto.selectedRecipeIdByItemKeyHash,
+        selectedItemIdByTagId: auto.selectedItemIdByTagId,
+      };
+    } else {
+      plannerInitialState.value = null;
+    }
+    dialogOpen.value = settingsStore.recipeViewMode === 'dialog';
+  } finally {
+    applyingRoute.value = false;
+  }
+}
+
+async function syncUrl(mode: 'replace' | 'push') {
+  if (applyingRoute.value || syncingUrl.value) return;
+  syncingUrl.value = true;
+  try {
+    const packId = activePackId.value;
+    const currentKey = currentItemKey.value;
+    if (!currentKey) {
+      if (routeKeyHash()) return;
+      const next = { path: '/', query: packId ? { pack: packId } : {} };
+      if (mode === 'push') await router.push(next);
+      else await router.replace(next);
+      return;
+    }
+
+    const keyHash = itemKeyHash(currentKey);
+    const tab = activeTab.value;
+    const next = {
+      path: `/item/${encodeURIComponent(keyHash)}/${tab}`,
+      query: packId ? { pack: packId } : {},
+    };
+    if (mode === 'push') await router.push(next);
+    else await router.replace(next);
+  } finally {
+    syncingUrl.value = false;
+  }
+}
+
 watch(
   () => [filterText.value, activePackId.value] as const,
   () => {
@@ -1091,6 +1230,34 @@ watch(
   (mode) => {
     if (mode === 'panel') dialogOpen.value = false;
     if (mode === 'dialog' && navStack.value.length) dialogOpen.value = true;
+  },
+);
+
+watch(
+  () =>
+    [
+      route.params.keyHash,
+      route.params.tab,
+      route.query.item,
+      route.query.tab,
+      route.query.pack,
+    ] as const,
+  () => {
+    void applyRouteState();
+  },
+  { immediate: true },
+);
+
+watch(
+  () =>
+    [
+      activePackId.value,
+      currentItemKey.value,
+      activeTab.value,
+      settingsStore.recipeViewMode,
+    ] as const,
+  () => {
+    void syncUrl('replace');
   },
 );
 
@@ -1384,7 +1551,9 @@ async function reloadPack(packId: string) {
   error.value = '';
   loading.value = true;
   try {
+    applyingRoute.value = true;
     closeDialog();
+    applyingRoute.value = false;
     historyKeyHashes.value = [];
     const p = await loadPack(packId);
     pack.value = p;
@@ -1398,6 +1567,7 @@ async function reloadPack(packId: string) {
     loading.value = false;
     await nextTick();
     recomputePageSize();
+    applyRouteState();
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e);
     loading.value = false;
@@ -1408,7 +1578,7 @@ async function loadPacksIndex() {
   try {
     const res = await fetch('/packs/index.json');
     if (!res.ok) return;
-    const data = await res.json() as { packs?: Array<{ packId: string; label: string }> };
+    const data = (await res.json()) as { packs?: Array<{ packId: string; label: string }> };
     if (Array.isArray(data.packs)) {
       packOptions.value = data.packs.map((p) => ({ label: p.label, value: p.packId }));
 
@@ -1421,25 +1591,6 @@ async function loadPacksIndex() {
     // 静默失败，使用默认值
   }
 }
-
-const currentItemKey = computed<ItemKey | null>(
-  () => navStack.value[navStack.value.length - 1] ?? null,
-);
-
-const currentItemDef = computed<ItemDef | null>(() => {
-  const key = currentItemKey.value;
-  if (!key) return null;
-  const h = itemKeyHash(key);
-  return index.value?.itemsByKeyHash.get(h) ?? null;
-});
-
-const currentItemTitle = computed(() => {
-  const def = currentItemDef.value;
-  const key = currentItemKey.value;
-  if (def) return `${def.name} (${def.key.id})`;
-  if (!key) return '';
-  return key.id;
-});
 
 const recipesById = computed(() => index.value?.recipesById ?? new Map());
 const recipeTypesByKey = computed(() => index.value?.recipeTypesByKey ?? new Map());
@@ -1680,6 +1831,7 @@ function openDialogByKeyHash(
   plannerInitialState.value = null;
   dialogOpen.value = settingsStore.recipeViewMode === 'dialog';
   pushHistoryKeyHash(keyHash);
+  void syncUrl('push');
 }
 
 function openDialogByItemKey(key: ItemKey) {
@@ -1687,6 +1839,7 @@ function openDialogByItemKey(key: ItemKey) {
   activeTab.value = 'recipes';
   plannerInitialState.value = null;
   pushHistoryKeyHash(itemKeyHash(key));
+  void syncUrl('push');
 }
 
 function openMachineItem(machineItemId: string) {
@@ -1701,11 +1854,13 @@ function openMachineItem(machineItemId: string) {
 function goBackInDialog() {
   if (navStack.value.length <= 1) return;
   navStack.value = navStack.value.slice(0, -1);
+  void syncUrl('replace');
 }
 
 function closeDialog() {
   dialogOpen.value = false;
   navStack.value = [];
+  void syncUrl('replace');
 }
 
 function onKeyDown(e: KeyboardEvent) {
