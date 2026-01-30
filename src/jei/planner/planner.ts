@@ -384,13 +384,21 @@ export function buildRequirementTree(args: {
   index: JeiIndex;
   rootItemKey: ItemKey;
   targetAmount: number;
+  targetUnit?: 'items' | 'per_second' | 'per_minute' | 'per_hour';
   selectedRecipeIdByItemKeyHash: Map<string, string>;
   selectedItemIdByTagId: Map<string, ItemId>;
   maxDepth?: number;
 }): BuildTreeResult {
   const { pack, index, rootItemKey, selectedRecipeIdByItemKeyHash, selectedItemIdByTagId } = args;
   const maxDepth = args.maxDepth ?? 20;
-  const targetAmount = finiteNumberOr(args.targetAmount, 1);
+  const rawTargetAmount = finiteNumberOr(args.targetAmount, 1);
+  const targetUnit = args.targetUnit ?? 'items';
+  const targetAmount =
+    targetUnit === 'per_second'
+      ? rawTargetAmount * 60
+      : targetUnit === 'per_hour'
+        ? rawTargetAmount / 60
+        : rawTargetAmount;
   const defaultNs = pack.manifest.gameId;
 
   let seq = 0;
@@ -559,4 +567,262 @@ export function buildRequirementTree(args: {
 
   const root = buildForItem(rootItemKey, targetAmount, 0);
   return { root, leafItemTotals, leafFluidTotals, catalysts };
+}
+
+// ============================================================================
+// Enhanced planner with machine count and rate calculations
+// ============================================================================
+
+/**
+ * Base requirement node type for type checking
+ */
+export type BaseRequirementNode = RequirementNode extends infer T ? T : never;
+
+/**
+ * Enhanced requirement node with rate information
+ * This is a union type that mirrors RequirementNode but with additional properties
+ */
+export type EnhancedRequirementNode =
+  | {
+    kind: 'item';
+    nodeId: string;
+    itemKey: ItemKey;
+    amount: number;
+    unit?: string;
+    recipeIdUsed?: string;
+    recipeTypeKeyUsed?: string;
+    machineItemId?: ItemId;
+    machineName?: string;
+    children: RequirementNode[];
+    catalysts: StackItem[];
+    cycle: boolean;
+    cycleSeed?: boolean;
+    // Enhanced properties
+    perSecond?: number;
+    perMinute?: number;
+    perHour?: number;
+    machines?: number;
+    machineCount?: number;
+    recipeTime?: number;
+    power?: number;
+    pollution?: number;
+  }
+  | {
+    kind: 'fluid';
+    nodeId: string;
+    id: string;
+    amount: number;
+    unit?: string;
+    // Enhanced properties for fluids
+    perSecond?: number;
+    perMinute?: number;
+    perHour?: number;
+  };
+
+/**
+ * Get recipe processing time in seconds
+ * For AEF format, recipe time is typically stored in params
+ */
+export function getRecipeTime(recipe: Recipe, recipeType: RecipeTypeDef | undefined): number {
+  // Check for time in recipe params (AEF format)
+  if (recipe.params) {
+    // Common time parameter names in AEF
+    const timeParams = ['time', 'duration', 'processTime', 'processingTime'];
+    for (const param of timeParams) {
+      if (param in recipe.params) {
+        const value = finiteNumberOr(recipe.params[param], 0);
+        if (value > 0) {
+          // AEF typically uses ticks (20 ticks = 1 second)
+          // Or sometimes seconds directly, need to detect
+          // If value > 100, it's likely in ticks
+          return value > 100 ? value / 20 : value;
+        }
+      }
+    }
+  }
+
+  // Check for recipe type defaults
+  if (recipeType?.defaults) {
+    const defaultTime = finiteNumberOr(recipeType.defaults.time, 0);
+    if (defaultTime > 0) {
+      return defaultTime > 100 ? defaultTime / 20 : defaultTime;
+    }
+  }
+
+  // Default recipe time (200 ticks = 10 seconds for vanilla Minecraft smelting)
+  // For crafting recipes, typically 0.2s (4 ticks)
+  return 0.2;
+}
+
+/**
+ * Calculate machines needed for a recipe
+ */
+export function calculateMachinesForRecipe(
+  targetAmount: number,
+  recipe: Recipe,
+  recipeType: RecipeTypeDef | undefined,
+  itemKey: ItemKey
+): {
+  machines: number;
+  perSecond: number;
+  perMinute: number;
+  perHour: number;
+} | null {
+  const outputPerCraft = perCraftOutputAmountFor(recipe, recipeType, itemKey);
+  if (outputPerCraft <= 0) return null;
+
+  const recipeTime = getRecipeTime(recipe, recipeType);
+
+  // Machines = (targetAmount / outputPerCraft) * recipeTime
+  // This gives us machines needed to produce targetAmount per second
+  // But usually targetAmount is a total count, so we need to divide by time
+
+  // For total production: machines = targetAmount * recipeTime / outputPerCraft / 60
+  // (60 is the number of seconds per minute, standard factorio rate)
+
+  const machines = (targetAmount * recipeTime) / outputPerCraft / 60;
+  const perSecond = (machines * outputPerCraft) / recipeTime;
+  const perMinute = perSecond * 60;
+  const perHour = perSecond * 3600;
+
+  return {
+    machines,
+    perSecond,
+    perMinute,
+    perHour,
+  };
+}
+
+/**
+ * Enhanced tree builder with rate information
+ */
+export interface EnhancedBuildTreeResult extends BuildTreeResult {
+  root: EnhancedRequirementNode;
+  // Additional rate information
+  totals: {
+    machines: Map<ItemId, number>;
+    perSecond: Map<string, number>;
+    power: number;
+    pollution: number;
+  };
+}
+
+export function buildEnhancedRequirementTree(args: {
+  pack: PackData;
+  index: JeiIndex;
+  rootItemKey: ItemKey;
+  targetAmount: number;
+  selectedRecipeIdByItemKeyHash: Map<string, string>;
+  selectedItemIdByTagId: Map<string, ItemId>;
+  maxDepth?: number;
+  targetUnit?: 'items' | 'per_second' | 'per_minute' | 'per_hour';
+}): EnhancedBuildTreeResult {
+  // First build the basic tree
+  const baseResult = buildRequirementTree(args);
+
+  const totals = {
+    machines: new Map<ItemId, number>(),
+    perSecond: new Map<string, number>(),
+    power: 0,
+    pollution: 0,
+  };
+
+  // Enhance nodes with rate information
+  const enhanceNode = (node: RequirementNode): EnhancedRequirementNode => {
+    if (node.kind === 'item') {
+      // This is an item node
+      const enhanced: EnhancedRequirementNode & { kind: 'item' } = { ...node };
+
+      if (node.recipeIdUsed && node.machineItemId) {
+        const recipe = args.index.recipesById.get(node.recipeIdUsed);
+        if (recipe) {
+          const recipeType = args.index.recipeTypesByKey.get(recipe.type);
+          const recipeTime = getRecipeTime(recipe, recipeType);
+          const outputPerCraft = perCraftOutputAmountFor(recipe, recipeType, node.itemKey);
+
+          if (outputPerCraft > 0 && recipeTime > 0) {
+            // Get machine defaults for power/pollution calculations
+            const machinePower = (recipeType?.defaults?.power as number) ?? 100;
+            const machinePollution = (recipeType?.defaults?.pollution as number) ?? 0;
+            const machineSpeed = (recipeType?.defaults?.speed as number) ?? 1;
+
+            // Calculate machines needed (adjusted by machine speed)
+            const adjustedTime = recipeTime / (machineSpeed || 1);
+            const machines = (node.amount * adjustedTime) / outputPerCraft / 60;
+            enhanced.machines = machines;
+            const machineCount = machines > 0 ? Math.ceil(machines - 1e-9) : 0;
+            enhanced.machineCount = machineCount;
+            enhanced.recipeTime = recipeTime;
+
+            // Calculate rates
+            const perSecond = (machines * outputPerCraft) / adjustedTime;
+            enhanced.perSecond = perSecond;
+            enhanced.perMinute = perSecond * 60;
+            enhanced.perHour = perSecond * 3600;
+
+            // Calculate power and pollution for this step
+            const stepPower = machineCount * machinePower;
+            const stepPollution = machineCount * machinePollution;
+            enhanced.power = stepPower;
+            enhanced.pollution = stepPollution;
+
+            // Track totals
+            const prevMachines = totals.machines.get(node.machineItemId) ?? 0;
+            totals.machines.set(node.machineItemId, prevMachines + machineCount);
+
+            // Track per second totals by item ID
+            const prevPerSecond = totals.perSecond.get(node.itemKey.id) ?? 0;
+            totals.perSecond.set(node.itemKey.id, prevPerSecond + perSecond);
+
+            // Track total power and pollution
+            totals.power += stepPower;
+            totals.pollution += stepPollution;
+          }
+        }
+      }
+
+      // Recursively enhance children
+      enhanced.children = node.children.map(enhanceNode);
+      return enhanced;
+    } else {
+      // This is a fluid node - return as-is for now
+      return node;
+    }
+  };
+
+  const root = enhanceNode(baseResult.root);
+
+  return {
+    ...baseResult,
+    root,
+    totals,
+  };
+}
+
+/**
+ * Format number for display with appropriate precision
+ */
+export function formatPlannerAmount(n: number, decimals: number = 2): string {
+  if (!Number.isFinite(n)) return '0';
+  if (Math.abs(n) < 0.001 && n !== 0) {
+    return n.toExponential(decimals);
+  }
+  const rounded = Math.round(n * 10 ** decimals) / 10 ** decimals;
+  return rounded.toLocaleString('en-US', { maximumFractionDigits: decimals });
+}
+
+/**
+ * Get display label for rate unit
+ */
+export function getRateUnitLabel(unit: 'items' | 'per_second' | 'per_minute' | 'per_hour'): string {
+  switch (unit) {
+    case 'items':
+      return 'items';
+    case 'per_second':
+      return '/s';
+    case 'per_minute':
+      return '/min';
+    case 'per_hour':
+      return '/h';
+  }
 }

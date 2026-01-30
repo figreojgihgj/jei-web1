@@ -1153,7 +1153,13 @@
     "tags": [
       "machine",
       "machine"
-    ]
+    ],
+    "machine": {
+      "power": 20,
+      "speed": 1,
+      "moduleSlots": 0,
+      "beaconSlots": 0
+    }
   },
   {
     "key": {
@@ -1169,7 +1175,13 @@
     "tags": [
       "machine",
       "machine"
-    ]
+    ],
+    "machine": {
+      "power": 20,
+      "speed": 1,
+      "moduleSlots": 0,
+      "beaconSlots": 0
+    }
   },
   {
     "key": {
@@ -1185,7 +1197,13 @@
     "tags": [
       "machine",
       "machine"
-    ]
+    ],
+    "machine": {
+      "power": 20,
+      "speed": 1,
+      "moduleSlots": 0,
+      "beaconSlots": 0
+    }
   },
   {
     "key": {
@@ -1201,7 +1219,13 @@
     "tags": [
       "machine",
       "machine"
-    ]
+    ],
+    "machine": {
+      "power": 5,
+      "speed": 1,
+      "moduleSlots": 0,
+      "beaconSlots": 0
+    }
   },
   {
     "key": {
@@ -1217,7 +1241,13 @@
     "tags": [
       "machine",
       "machine"
-    ]
+    ],
+    "machine": {
+      "power": 5,
+      "speed": 1,
+      "moduleSlots": 0,
+      "beaconSlots": 0
+    }
   },
   {
     "key": {
@@ -1233,7 +1263,13 @@
     "tags": [
       "machine",
       "machine"
-    ]
+    ],
+    "machine": {
+      "power": 5,
+      "speed": 1,
+      "moduleSlots": 0,
+      "beaconSlots": 0
+    }
   },
   {
     "key": {
@@ -1249,7 +1285,13 @@
     "tags": [
       "machine",
       "machine"
-    ]
+    ],
+    "machine": {
+      "power": 10,
+      "speed": 1,
+      "moduleSlots": 0,
+      "beaconSlots": 0
+    }
   },
   {
     "key": {
@@ -1265,7 +1307,13 @@
     "tags": [
       "machine",
       "machine"
-    ]
+    ],
+    "machine": {
+      "power": 50,
+      "speed": 1,
+      "moduleSlots": 0,
+      "beaconSlots": 0
+    }
   },
   {
     "key": {
@@ -1281,7 +1329,13 @@
     "tags": [
       "machine",
       "machine"
-    ]
+    ],
+    "machine": {
+      "power": 20,
+      "speed": 1,
+      "moduleSlots": 0,
+      "beaconSlots": 0
+    }
   },
   {
     "key": {
@@ -1297,7 +1351,13 @@
     "tags": [
       "machine",
       "machine"
-    ]
+    ],
+    "machine": {
+      "power": 100,
+      "speed": 1,
+      "moduleSlots": 0,
+      "beaconSlots": 0
+    }
   },
   {
     "key": {
@@ -1313,7 +1373,13 @@
     "tags": [
       "machine",
       "machine"
-    ]
+    ],
+    "machine": {
+      "power": 10,
+      "speed": 1,
+      "moduleSlots": 0,
+      "beaconSlots": 0
+    }
   },
   {
     "key": {
@@ -1329,7 +1395,13 @@
     "tags": [
       "machine",
       "machine"
-    ]
+    ],
+    "machine": {
+      "power": 10,
+      "speed": 1,
+      "moduleSlots": 0,
+      "beaconSlots": 0
+    }
   },
   {
     "key": {
@@ -1345,7 +1417,13 @@
     "tags": [
       "machine",
       "machine"
-    ]
+    ],
+    "machine": {
+      "power": 100,
+      "speed": 1,
+      "moduleSlots": 0,
+      "beaconSlots": 0
+    }
   },
   {
     "key": {
@@ -1361,7 +1439,13 @@
     "tags": [
       "machine",
       "machine"
-    ]
+    ],
+    "machine": {
+      "power": 100,
+      "speed": 1,
+      "moduleSlots": 0,
+      "beaconSlots": 0
+    }
   },
   {
     "key": {
@@ -1377,7 +1461,13 @@
     "tags": [
       "machine",
       "machine"
-    ]
+    ],
+    "machine": {
+      "power": 10,
+      "speed": 1,
+      "moduleSlots": 0,
+      "beaconSlots": 0
+    }
   },
   {
     "key": {
@@ -1393,7 +1483,13 @@
     "tags": [
       "machine",
       "machine"
-    ]
+    ],
+    "machine": {
+      "power": 50,
+      "speed": 1,
+      "moduleSlots": 0,
+      "beaconSlots": 0
+    }
   },
   {
     "key": {
@@ -1409,7 +1505,13 @@
     "tags": [
       "machine",
       "machine"
-    ]
+    ],
+    "machine": {
+      "power": 20,
+      "speed": 1,
+      "moduleSlots": 0,
+      "beaconSlots": 0
+    }
   },
   {
     "key": {
@@ -1425,7 +1527,13 @@
     "tags": [
       "machine",
       "machine"
-    ]
+    ],
+    "machine": {
+      "power": 10,
+      "speed": 1,
+      "moduleSlots": 0,
+      "beaconSlots": 0
+    }
   },
   {
     "key": {
@@ -1441,7 +1549,13 @@
     "tags": [
       "machine",
       "machine"
-    ]
+    ],
+    "machine": {
+      "power": 50,
+      "speed": 1,
+      "moduleSlots": 0,
+      "beaconSlots": 0
+    }
   },
   {
     "key": {
@@ -1457,7 +1571,10 @@
     "tags": [
       "belt-and-pipe",
       "belt"
-    ]
+    ],
+    "belt": {
+      "speed": 15
+    }
   },
   {
     "key": {
