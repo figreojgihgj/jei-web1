@@ -11,6 +11,8 @@
               variant="slot"
               :show-name="settingsStore.recipeSlotShowName"
               @item-click="emit('item-click', $event)"
+              @item-mouseenter="emit('item-mouseenter', $event)"
+              @item-mouseleave="emit('item-mouseleave')"
             />
           </div>
         </div>
@@ -43,6 +45,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'item-click', itemKey: ItemKey): void;
+  (e: 'item-mouseenter', keyHash: string): void;
+  (e: 'item-mouseleave'): void;
 }>();
 
 const settingsStore = useSettingsStore();

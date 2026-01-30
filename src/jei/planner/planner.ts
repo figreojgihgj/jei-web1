@@ -240,7 +240,7 @@ export function autoPlanSelections(args: {
     return { chosenRecipeId, recipe, recipeType };
   };
 
-  const isLegalCycle = (cycleStartHash: string) => {
+  const isGrowthCycle = (cycleStartHash: string) => {
     const cycleStart = stackHashes.indexOf(cycleStartHash);
     const cycleKeys = cycleStart >= 0 ? stackKeys.slice(cycleStart) : [];
     if (!cycleKeys.length) return false;
@@ -287,7 +287,10 @@ export function autoPlanSelections(args: {
   const planItem = (key: ItemKey, depth: number): boolean => {
     if (depth > maxDepth) return true;
     const h = itemKeyHash(key);
-    if (stackHashes.includes(h)) return isLegalCycle(h);
+    if (stackHashes.includes(h)) {
+      // Found a cycle - check if it's a growth cycle
+      return isGrowthCycle(h);
+    }
 
     stackHashes.push(h);
     stackKeys.push(key);
@@ -361,10 +364,9 @@ export function autoPlanSelections(args: {
     }
 
     if (!ok) {
-      const checkpoint = ops.length;
-      setRecipe(h, sorted[0] ?? options[0]!);
-      rollbackTo(checkpoint);
-      ok = true;
+      stackHashes.pop();
+      stackKeys.pop();
+      return false;
     }
 
     stackHashes.pop();

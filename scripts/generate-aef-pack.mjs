@@ -220,8 +220,8 @@ function main() {
       producerId === 'unknown'
         ? 'Unknown'
         : rawItemNameById.get(producerId) ??
-          categoryNameById.get(producerId) ??
-          producerId;
+        categoryNameById.get(producerId) ??
+        producerId;
 
     // Get machine properties from the items data
     const machineProps = machinePropsById.get(producerId);
@@ -325,7 +325,7 @@ function main() {
   writeJson(path.join(outDir, 'manifest.json'), {
     packId: 'aef',
     gameId: 'aef',
-    displayName: 'Arknights: Endfield',
+    displayName: 'Arknights:Endfield',
     version,
     files: {
       items: 'items.json',

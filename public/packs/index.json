@@ -1,0 +1,12 @@
+{
+  "packs": [
+    {
+      "packId": "aef",
+      "label": "Arknights:Endfield"
+    },
+    {
+      "packId": "demo",
+      "label": "Demo Game Pack"
+    }
+  ]
+}

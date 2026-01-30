@@ -43,6 +43,8 @@
                         variant="slot"
                         :show-name="false"
                         :show-subtitle="false"
+                        @item-mouseenter="emit('item-mouseenter', $event)"
+                        @item-mouseleave="emit('item-mouseleave')"
                       />
                       <div
                         v-if="scope.opt.inputs.length > 8"
@@ -68,6 +70,8 @@
                         :recipe-type="scope.opt.recipeType"
                         :item-defs-by-key-hash="itemDefsByKeyHash"
                         @item-click="emit('item-click', $event)"
+                        @item-mouseenter="emit('item-mouseenter', $event)"
+                        @item-mouseleave="emit('item-mouseleave')"
                       />
                     </q-card>
                     <div v-else class="text-caption">没有找到该配方的详情。</div>
@@ -90,6 +94,8 @@
                 "
                 :item-defs-by-key-hash="itemDefsByKeyHash"
                 @item-click="emit('item-click', $event)"
+                @item-mouseenter="emit('item-mouseenter', $event)"
+                @item-mouseleave="emit('item-mouseleave')"
               />
             </q-card>
           </div>
@@ -203,6 +209,8 @@
                         :show-name="false"
                         :show-subtitle="false"
                         @item-click="emit('item-click', $event)"
+                        @item-mouseenter="emit('item-mouseenter', $event)"
+                        @item-mouseleave="emit('item-mouseleave')"
                       />
                       <stack-view
                         v-else
@@ -215,6 +223,8 @@
                         variant="slot"
                         :show-name="false"
                         :show-subtitle="false"
+                        @item-mouseenter="emit('item-mouseenter', $event)"
+                        @item-mouseleave="emit('item-mouseleave')"
                       />
                     </div>
                     <div class="planner__tree-name">
@@ -249,6 +259,8 @@
                         variant="slot"
                         :show-name="false"
                         :show-subtitle="false"
+                        @item-mouseenter="emit('item-mouseenter', $event)"
+                        @item-mouseleave="emit('item-mouseleave')"
                       />
                       <div class="planner__machines-text monospace">
                         {{ nodeMachinesText(row.node) }}
@@ -294,6 +306,8 @@
                     :item-defs-by-key-hash="itemDefsByKeyHash"
                     :show-subtitle="true"
                     @item-click="emit('item-click', $event)"
+                    @item-mouseenter="emit('item-mouseenter', $event)"
+                    @item-mouseleave="emit('item-mouseleave')"
                   />
                   <q-btn
                     v-if="row.node.kind === 'item' && row.node.machineItemId"
@@ -308,6 +322,8 @@
                       variant="slot"
                       :show-name="false"
                       :show-subtitle="false"
+                      @item-mouseenter="emit('item-mouseenter', $event)"
+                      @item-mouseleave="emit('item-mouseleave')"
                     />
                     <q-tooltip>{{
                       row.node.machineName ?? row.node.recipeTypeKeyUsed ?? row.node.machineItemId
@@ -331,6 +347,8 @@
                     "
                     :item-defs-by-key-hash="itemDefsByKeyHash"
                     :show-subtitle="true"
+                    @item-mouseenter="emit('item-mouseenter', $event)"
+                    @item-mouseleave="emit('item-mouseleave')"
                   />
                   <q-badge
                     v-if="row.node.kind === 'item' && row.node.cycle"
@@ -425,6 +443,8 @@
                       variant="slot"
                       :show-name="false"
                       :show-subtitle="false"
+                      @item-mouseenter="emit('item-mouseenter', $event)"
+                      @item-mouseleave="emit('item-mouseleave')"
                     />
                   </div>
                   <div class="planner__flow-node-text" @click.stop @mousedown.stop @dblclick.stop>
@@ -450,6 +470,8 @@
                       variant="slot"
                       :show-name="false"
                       :show-subtitle="false"
+                      @item-mouseenter="emit('item-mouseenter', $event)"
+                      @item-mouseleave="emit('item-mouseleave')"
                     />
                     <q-tooltip>{{ p.data.machineName ?? p.data.machineItemId }}</q-tooltip>
                   </div>
@@ -512,6 +534,8 @@
                       :show-name="false"
                       :show-subtitle="false"
                       @item-click="emit('item-click', $event)"
+                      @item-mouseenter="emit('item-mouseenter', $event)"
+                      @item-mouseleave="emit('item-mouseleave')"
                     />
                     <span>{{ props.row.name }}</span>
                   </div>
@@ -540,6 +564,8 @@
                         :show-name="false"
                         :show-subtitle="false"
                         @item-click="emit('item-click', $event)"
+                        @item-mouseenter="emit('item-mouseenter', $event)"
+                        @item-mouseleave="emit('item-mouseleave')"
                       />
                       <span>{{ props.row.name }}</span>
                     </div>
@@ -572,6 +598,8 @@
                         :show-name="false"
                         :show-subtitle="false"
                         @item-click="emit('item-click', $event)"
+                        @item-mouseenter="emit('item-mouseenter', $event)"
+                        @item-mouseleave="emit('item-mouseleave')"
                       />
                       <span>{{ props.row.name }}</span>
                     </div>
@@ -671,6 +699,8 @@ const emit = defineEmits<{
   (e: 'item-click', itemKey: ItemKey): void;
   (e: 'save-plan', payload: PlannerSavePayload): void;
   (e: 'state-change', payload: PlannerLiveState): void;
+  (e: 'item-mouseenter', keyHash: string): void;
+  (e: 'item-mouseleave'): void;
 }>();
 
 const selectedRecipeIdByItemKeyHash = ref<Map<string, string>>(new Map());

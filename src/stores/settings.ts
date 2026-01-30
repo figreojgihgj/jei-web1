@@ -3,10 +3,11 @@ import { defineStore } from 'pinia';
 export const useSettingsStore = defineStore('settings', {
   state: () => {
     const defaults = {
-      historyLimit: 12,
+      historyLimit: 6,
       debugLayout: false,
-      recipeViewMode: 'dialog' as 'dialog' | 'panel',
+      recipeViewMode: 'panel' as 'dialog' | 'panel',
       recipeSlotShowName: true,
+      selectedPack: 'aef',
     };
     try {
       const raw = localStorage.getItem('jei.settings');
@@ -20,6 +21,7 @@ export const useSettingsStore = defineStore('settings', {
           typeof parsed.recipeSlotShowName === 'boolean'
             ? parsed.recipeSlotShowName
             : defaults.recipeSlotShowName,
+        selectedPack: typeof parsed.selectedPack === 'string' ? parsed.selectedPack : defaults.selectedPack,
       };
     } catch {
       return defaults;
@@ -42,6 +44,10 @@ export const useSettingsStore = defineStore('settings', {
       this.recipeSlotShowName = enabled;
       this.save();
     },
+    setSelectedPack(packId: string) {
+      this.selectedPack = packId;
+      this.save();
+    },
     save() {
       localStorage.setItem(
         'jei.settings',
@@ -50,6 +56,7 @@ export const useSettingsStore = defineStore('settings', {
           debugLayout: this.debugLayout,
           recipeViewMode: this.recipeViewMode,
           recipeSlotShowName: this.recipeSlotShowName,
+          selectedPack: this.selectedPack,
         }),
       );
     },

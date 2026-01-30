@@ -140,6 +140,8 @@
               @item-click="openDialogByItemKey"
               @save-plan="savePlannerPlan"
               @state-change="onPlannerStateChange"
+              @item-mouseenter="hoveredKeyHash = $event"
+              @item-mouseleave="hoveredKeyHash = null"
             />
             <!-- Wiki 标签页内容 -->
             <div v-if="activeTab === 'wiki'" class="q-pa-md">
@@ -166,7 +168,10 @@
                   <div class="col column q-gutter-sm">
                     <div class="text-caption text-grey-8">物品 ID</div>
                     <div class="text-body2">{{ currentItemDef.key.id }}</div>
-                    <div v-if="currentItemDef.key.meta !== undefined" class="text-caption text-grey-8 q-mt-sm">
+                    <div
+                      v-if="currentItemDef.key.meta !== undefined"
+                      class="text-caption text-grey-8 q-mt-sm"
+                    >
                       Meta
                     </div>
                     <div v-if="currentItemDef.key.meta !== undefined" class="text-body2">
@@ -191,7 +196,10 @@
                 </div>
               </div>
             </div>
-            <div v-show="activeTab === 'recipes' || activeTab === 'uses'" class="jei-dialog__type-tabs">
+            <div
+              v-show="activeTab === 'recipes' || activeTab === 'uses'"
+              class="jei-dialog__type-tabs"
+            >
               <div v-if="activeRecipeGroups.length" class="jei-type-layout">
                 <div v-if="typeMachineIcons.length" class="jei-type-sidebar">
                   <q-btn
@@ -242,10 +250,17 @@
                       <!-- "全部"分组：按配方类型分组显示 -->
                       <template v-if="g.isAll">
                         <div class="column q-gutter-lg">
-                          <div v-for="subGroup in allRecipeGroups" :key="subGroup.typeKey" class="column q-gutter-md">
+                          <div
+                            v-for="subGroup in allRecipeGroups"
+                            :key="subGroup.typeKey"
+                            class="column q-gutter-md"
+                          >
                             <div class="row items-center q-gutter-sm text-subtitle2">
                               <span>{{ subGroup.label }}</span>
-                              <div v-if="subGroup.machines.length" class="row items-center q-gutter-xs">
+                              <div
+                                v-if="subGroup.machines.length"
+                                class="row items-center q-gutter-xs"
+                              >
                                 <q-icon name="precision_manufacturing" size="16px" color="grey-7" />
                                 <stack-view
                                   v-for="m in subGroup.machines"
@@ -262,13 +277,23 @@
                             </div>
                             <q-separator />
                             <div class="column q-gutter-md">
-                              <q-card v-for="rid in subGroup.recipeIds" :key="rid" flat bordered class="q-pa-md">
+                              <q-card
+                                v-for="rid in subGroup.recipeIds"
+                                :key="rid"
+                                flat
+                                bordered
+                                class="q-pa-md"
+                              >
                                 <recipe-viewer
                                   v-if="recipesById.get(rid)"
                                   :recipe="recipesById.get(rid)"
-                                  :recipe-type="recipeTypesByKey.get(recipesById.get(rid)?.type || '')"
+                                  :recipe-type="
+                                    recipeTypesByKey.get(recipesById.get(rid)?.type || '')
+                                  "
                                   :item-defs-by-key-hash="itemDefsByKeyHash"
                                   @item-click="openDialogByItemKey"
+                                  @item-mouseenter="hoveredKeyHash = $event"
+                                  @item-mouseleave="hoveredKeyHash = null"
                                 />
                               </q-card>
                             </div>
@@ -278,13 +303,21 @@
                       <!-- 普通分组：直接显示配方列表 -->
                       <template v-else>
                         <div class="column q-gutter-md">
-                          <q-card v-for="rid in g.recipeIds" :key="rid" flat bordered class="q-pa-md">
+                          <q-card
+                            v-for="rid in g.recipeIds"
+                            :key="rid"
+                            flat
+                            bordered
+                            class="q-pa-md"
+                          >
                             <recipe-viewer
                               v-if="recipesById.get(rid)"
                               :recipe="recipesById.get(rid)"
                               :recipe-type="recipeTypesByKey.get(recipesById.get(rid)?.type || '')"
                               :item-defs-by-key-hash="itemDefsByKeyHash"
                               @item-click="openDialogByItemKey"
+                              @item-mouseenter="hoveredKeyHash = $event"
+                              @item-mouseleave="hoveredKeyHash = null"
                             />
                           </q-card>
                         </div>
@@ -505,7 +538,11 @@
           />
           <q-select
             v-model="filterForm.itemId"
-            :options="availableItemIdsFiltered.length > 0 ? availableItemIdsFiltered : availableItemIds.slice(0, 50)"
+            :options="
+              availableItemIdsFiltered.length > 0
+                ? availableItemIdsFiltered
+                : availableItemIds.slice(0, 50)
+            "
             dense
             outlined
             clearable
@@ -519,7 +556,9 @@
           />
           <q-select
             v-model="filterForm.gameId"
-            :options="availableGameIdsFiltered.length > 0 ? availableGameIdsFiltered : availableGameIds"
+            :options="
+              availableGameIdsFiltered.length > 0 ? availableGameIdsFiltered : availableGameIds
+            "
             dense
             outlined
             clearable
@@ -662,6 +701,8 @@
             @item-click="openDialogByItemKey"
             @save-plan="savePlannerPlan"
             @state-change="onPlannerStateChange"
+            @item-mouseenter="hoveredKeyHash = $event"
+            @item-mouseleave="hoveredKeyHash = null"
           />
           <!-- Wiki 标签页内容 -->
           <div v-if="activeTab === 'wiki'" class="q-pa-md">
@@ -688,7 +729,10 @@
                 <div class="col column q-gutter-sm">
                   <div class="text-caption text-grey-8">物品 ID</div>
                   <div class="text-body2">{{ currentItemDef.key.id }}</div>
-                  <div v-if="currentItemDef.key.meta !== undefined" class="text-caption text-grey-8 q-mt-sm">
+                  <div
+                    v-if="currentItemDef.key.meta !== undefined"
+                    class="text-caption text-grey-8 q-mt-sm"
+                  >
                     Meta
                   </div>
                   <div v-if="currentItemDef.key.meta !== undefined" class="text-body2">
@@ -713,7 +757,10 @@
               </div>
             </div>
           </div>
-          <div v-show="activeTab === 'recipes' || activeTab === 'uses'" class="jei-dialog__type-tabs">
+          <div
+            v-show="activeTab === 'recipes' || activeTab === 'uses'"
+            class="jei-dialog__type-tabs"
+          >
             <div v-if="activeRecipeGroups.length" class="jei-type-layout">
               <div v-if="typeMachineIcons.length" class="jei-type-sidebar">
                 <q-btn
@@ -764,10 +811,17 @@
                     <!-- "全部"分组：按配方类型分组显示 -->
                     <template v-if="g.isAll">
                       <div class="column q-gutter-lg">
-                        <div v-for="subGroup in allRecipeGroups" :key="subGroup.typeKey" class="column q-gutter-md">
+                        <div
+                          v-for="subGroup in allRecipeGroups"
+                          :key="subGroup.typeKey"
+                          class="column q-gutter-md"
+                        >
                           <div class="row items-center q-gutter-sm text-subtitle2">
                             <span>{{ subGroup.label }}</span>
-                            <div v-if="subGroup.machines.length" class="row items-center q-gutter-xs">
+                            <div
+                              v-if="subGroup.machines.length"
+                              class="row items-center q-gutter-xs"
+                            >
                               <q-icon name="precision_manufacturing" size="16px" color="grey-7" />
                               <stack-view
                                 v-for="m in subGroup.machines"
@@ -784,13 +838,23 @@
                           </div>
                           <q-separator />
                           <div class="column q-gutter-md">
-                            <q-card v-for="rid in subGroup.recipeIds" :key="rid" flat bordered class="q-pa-md">
+                            <q-card
+                              v-for="rid in subGroup.recipeIds"
+                              :key="rid"
+                              flat
+                              bordered
+                              class="q-pa-md"
+                            >
                               <recipe-viewer
                                 v-if="recipesById.get(rid)"
                                 :recipe="recipesById.get(rid)"
-                                :recipe-type="recipeTypesByKey.get(recipesById.get(rid)?.type || '')"
+                                :recipe-type="
+                                  recipeTypesByKey.get(recipesById.get(rid)?.type || '')
+                                "
                                 :item-defs-by-key-hash="itemDefsByKeyHash"
                                 @item-click="openDialogByItemKey"
+                                @item-mouseenter="hoveredKeyHash = $event"
+                                @item-mouseleave="hoveredKeyHash = null"
                               />
                             </q-card>
                           </div>
@@ -807,6 +871,8 @@
                             :recipe-type="recipeTypesByKey.get(recipesById.get(rid)?.type || '')"
                             :item-defs-by-key-hash="itemDefsByKeyHash"
                             @item-click="openDialogByItemKey"
+                            @item-mouseenter="hoveredKeyHash = $event"
+                            @item-mouseleave="hoveredKeyHash = null"
                           />
                         </q-card>
                       </div>
@@ -854,11 +920,18 @@ const error = ref('');
 const pack = ref<PackData | null>(null);
 const index = ref<JeiIndex | null>(null);
 
-const activePackId = ref<'aef' | 'demo'>('aef');
-const packOptions = [
-  { label: 'Arknights: Endfield', value: 'aef' },
+type PackOption = { label: string; value: string };
+
+const packOptions = ref<PackOption[]>([
+  { label: 'Arknights:Endfield', value: 'aef' },
   { label: 'demo', value: 'demo' },
-];
+]);
+
+// 使用 settings store 的 selectedPack 作为当前选中的 pack
+const activePackId = computed({
+  get: () => settingsStore.selectedPack,
+  set: (v) => settingsStore.setSelectedPack(v),
+});
 
 const selectedKeyHash = ref<string | null>(null);
 const hoveredKeyHash = ref<string | null>(null);
@@ -1206,7 +1279,7 @@ const paddedHistoryItems = computed(() => {
 onMounted(async () => {
   try {
     loading.value = true;
-    await reloadPack(activePackId.value);
+    await Promise.all([loadPacksIndex(), reloadPack(activePackId.value)]);
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e);
   } finally {
@@ -1302,6 +1375,7 @@ function onWindowResize() {
 
 watch(activePackId, async (next) => {
   debugLog('pack: change', { next });
+  // store 的 setter 会自动保存到 localStorage
   await reloadPack(next);
   void recomputePageSize(); // 切 pack 后重新计算一次
 });
@@ -1327,6 +1401,24 @@ async function reloadPack(packId: string) {
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e);
     loading.value = false;
+  }
+}
+
+async function loadPacksIndex() {
+  try {
+    const res = await fetch('/packs/index.json');
+    if (!res.ok) return;
+    const data = await res.json() as { packs?: Array<{ packId: string; label: string }> };
+    if (Array.isArray(data.packs)) {
+      packOptions.value = data.packs.map((p) => ({ label: p.label, value: p.packId }));
+
+      // 如果 store 中的 packId 不在新列表中，切换到第一个
+      if (!packOptions.value.some((o) => o.value === settingsStore.selectedPack)) {
+        settingsStore.setSelectedPack(packOptions.value[0]?.value ?? '');
+      }
+    }
+  } catch {
+    // 静默失败，使用默认值
   }
 }
 
@@ -1576,7 +1668,10 @@ watch(
   { immediate: true },
 );
 
-function openDialogByKeyHash(keyHash: string, tab: 'recipes' | 'uses' | 'wiki' | 'planner' = 'recipes') {
+function openDialogByKeyHash(
+  keyHash: string,
+  tab: 'recipes' | 'uses' | 'wiki' | 'planner' = 'recipes',
+) {
   const def = index.value?.itemsByKeyHash.get(keyHash);
   if (!def) return;
   selectedKeyHash.value = keyHash;
@@ -1863,9 +1958,9 @@ function filterItemIds(val: string, update: (callback: () => void) => void) {
   }
   update(() => {
     const needle = val.toLowerCase();
-    availableItemIdsFiltered.value = availableItemIds.value.filter(
-      v => v.toLowerCase().includes(needle)
-    ).slice(0, 50);
+    availableItemIdsFiltered.value = availableItemIds.value
+      .filter((v) => v.toLowerCase().includes(needle))
+      .slice(0, 50);
   });
 }
 
@@ -1878,8 +1973,8 @@ function filterGameIds(val: string, update: (callback: () => void) => void) {
   }
   update(() => {
     const needle = val.toLowerCase();
-    availableGameIdsFiltered.value = availableGameIds.value.filter(
-      v => v.toLowerCase().includes(needle)
+    availableGameIdsFiltered.value = availableGameIds.value.filter((v) =>
+      v.toLowerCase().includes(needle),
     );
   });
 }
@@ -1889,16 +1984,18 @@ function filterTags(val: string, update: (callback: () => void) => void, idx: nu
     update(() => {
       // 排除已选择的标签
       const selected = new Set(filterForm.value.tags.filter((_, i) => i !== idx));
-      availableTagsFiltered.value = availableTags.value.filter(t => !selected.has(t)).slice(0, 50);
+      availableTagsFiltered.value = availableTags.value
+        .filter((t) => !selected.has(t))
+        .slice(0, 50);
     });
     return;
   }
   update(() => {
     const needle = val.toLowerCase();
     const selected = new Set(filterForm.value.tags.filter((_, i) => i !== idx));
-    availableTagsFiltered.value = availableTags.value.filter(
-      v => v.toLowerCase().includes(needle) && !selected.has(v)
-    ).slice(0, 50);
+    availableTagsFiltered.value = availableTags.value
+      .filter((v) => v.toLowerCase().includes(needle) && !selected.has(v))
+      .slice(0, 50);
   });
 }
 
@@ -1976,12 +2073,13 @@ function matchesSearch(def: ItemDef, search: ParsedSearch): boolean {
     const tags = index.value?.tagIdsByItemId.get(def.key.id);
     if (!tags) return false;
     // 使用包含匹配：检查是否有任何标签包含搜索词
-    const matchFound = Array.from(tags).some(tagId => tagId.toLowerCase().includes(t.toLowerCase()));
+    const matchFound = Array.from(tags).some((tagId) =>
+      tagId.toLowerCase().includes(t.toLowerCase()),
+    );
     if (!matchFound) return false;
   }
   return true;
 }
-
 </script>
 
 <style scoped>

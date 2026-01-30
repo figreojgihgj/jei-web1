@@ -6,6 +6,8 @@
       'stack-view--slot': props.variant === 'slot',
     }"
     @click="onClick"
+    @mouseenter="onMouseEnter"
+    @mouseleave="onMouseLeave"
   >
     <div class="stack-view__main">
       <q-img v-if="iconSrc" :src="iconSrc" :ratio="1" fit="contain" class="stack-view__icon" />
@@ -60,6 +62,8 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (e: 'item-click', itemKey: ItemKey): void;
+  (e: 'item-mouseenter', keyHash: string): void;
+  (e: 'item-mouseleave'): void;
 }>();
 
 const stacks = computed<Stack[]>(() => {
@@ -233,6 +237,17 @@ function onClick() {
   if (s.meta !== undefined) key.meta = s.meta;
   if (s.nbt !== undefined) key.nbt = s.nbt;
   emit('item-click', key);
+}
+
+function onMouseEnter() {
+  const s = stack.value;
+  if (!s || s.kind !== 'item') return;
+  const keyHash = stackItemKeyHash(s);
+  emit('item-mouseenter', keyHash);
+}
+
+function onMouseLeave() {
+  emit('item-mouseleave');
 }
 </script>
 
