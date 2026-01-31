@@ -17,9 +17,11 @@
     >
       <!-- 上下文菜单 -->
       <q-menu
+        v-if="contextMenuTarget"
         ref="contextMenuRef"
         v-model="contextMenuOpen"
         :target="contextMenuTarget"
+        @hide="contextMenuTarget = undefined"
         content-style="z-index: 9999"
       >
         <q-list dense style="min-width: 150px">
