@@ -446,7 +446,7 @@
                 :zoom-on-double-click="false"
                 :min-zoom="0.2"
                 :max-zoom="2"
-                :pan-on-drag="true"
+                :pan-on-drag="[1, 2]"
                 no-pan-class-name="nopan"
                 no-drag-class-name="nodrag"
               >
@@ -460,6 +460,7 @@
                       @click="emit('item-click', p.data.itemKey)"
                     >
                       <stack-view
+                        class="nodrag nopan"
                         :content="{
                           kind: 'item',
                           id: p.data.itemKey.id,
@@ -495,6 +496,7 @@
                     </div>
                     <div v-if="p.data.machineItemId" class="planner__flow-node-machine">
                       <stack-view
+                        class="nodrag nopan"
                         :content="{ kind: 'item', id: p.data.machineItemId, amount: 1 }"
                         :item-defs-by-key-hash="itemDefsByKeyHash"
                         variant="slot"
@@ -581,7 +583,7 @@
                 :zoom-on-double-click="false"
                 :min-zoom="0.2"
                 :max-zoom="2"
-                :pan-on-drag="true"
+                :pan-on-drag="[1, 2]"
                 no-pan-class-name="nopan"
                 no-drag-class-name="nodrag"
               >
@@ -613,6 +615,7 @@
                       @click="emit('item-click', p.data.itemKey)"
                     >
                       <stack-view
+                        class="nodrag nopan"
                         :content="{
                           kind: 'item',
                           id: p.data.itemKey.id,
@@ -662,6 +665,7 @@
                     <div class="planner__flow-node-icon">
                       <stack-view
                         v-if="p.data.machineItemId"
+                        class="nodrag nopan"
                         :content="{ kind: 'item', id: p.data.machineItemId, amount: 1 }"
                         :item-defs-by-key-hash="itemDefsByKeyHash"
                         variant="slot"
@@ -686,6 +690,7 @@
                       @click="emit('item-click', p.data.outputItemKey)"
                     >
                       <stack-view
+                        class="nodrag nopan"
                         :content="{
                           kind: 'item',
                           id: p.data.outputItemKey.id,
@@ -1417,6 +1422,7 @@ const flow = computed(() => {
         id: `${node.nodeId}->${c.nodeId}:${idx}`,
         source: node.nodeId,
         target: c.nodeId,
+        zIndex: 2000,
         type: 'smoothstep',
       });
       walkEdges(c);
@@ -1538,7 +1544,9 @@ const lineFlow = computed(() => {
       id: e.id,
       source: e.source,
       target: e.target,
-      type: 'smoothstep',
+      zIndex: 2000,
+      type: 'default',
+      curvature: 0.35,
       label,
       labelBgPadding: [6, 3],
       labelBgBorderRadius: 6,
@@ -1590,10 +1598,10 @@ const lineFlow = computed(() => {
     });
   });
 
-  const nodeW = 300;
+  const nodeW = 320;
   const nodeH = 64;
-  const gapX = 30;
-  const gapY = 22;
+  const gapX = 60;
+  const gapY = 34;
   const pad = 18;
 
   const ids = nodes.map((n) => n.id);
@@ -2292,18 +2300,12 @@ const flowBackgroundPatternColor = computed(() =>
   border-radius: 0 !important;
 }
 
-/* 确保连线在节点上层 */
-:deep(.vue-flow__edges) {
-  z-index: 50;
-  pointer-events: none;
-}
-
-:deep(.vue-flow__nodes) {
-  z-index: 10;
-}
-
 :deep(.vue-flow__edge-path) {
   stroke-linecap: round;
+}
+
+:deep(.vue-flow__node) {
+  cursor: default;
 }
 
 .planner__flow-node {
