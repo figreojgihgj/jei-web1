@@ -410,6 +410,8 @@
                   (v) => (targetUnit = v as (typeof unitOptions)[number]['value'])
                 "
               />
+              <q-toggle v-model="graphShowFluids" dense label="显示流体" />
+              <q-toggle v-model="graphMergeRawMaterials" dense label="合并原材料" />
               <q-space />
               <q-btn
                 flat
@@ -438,25 +440,33 @@
             >
               <VueFlow
                 id="planner-flow"
-                :nodes="flowNodes"
-                :edges="flowEdges"
-                :nodes-draggable="false"
+                :nodes="flowNodesStyled"
+                :edges="flowEdgesStyled"
+                :nodes-draggable="true"
                 :nodes-connectable="false"
-                :elements-selectable="false"
+                :elements-selectable="true"
                 :zoom-on-double-click="false"
                 :min-zoom="0.2"
                 :max-zoom="2"
                 :pan-on-drag="true"
                 no-pan-class-name="nopan"
                 no-drag-class-name="nodrag"
+                @node-click="(evt) => (selectedGraphNodeId = evt.node.id)"
+                @node-drag-start="(evt) => (selectedGraphNodeId = evt.node.id)"
+                @node-drag-stop="onGraphNodeDragStop"
+                @pane-click="() => (selectedGraphNodeId = null)"
               >
                 <Background :gap="20" :pattern-color="flowBackgroundPatternColor" />
                 <Controls />
                 <MiniMap />
                 <template #node-itemNode="p">
-                  <div class="planner__flow-node nodrag nopan">
+                  <div
+                    class="planner__flow-node"
+                    :class="{ 'planner__flow-node--selected': selectedGraphNodeId === p.id }"
+                    @click.stop="selectedGraphNodeId = p.id"
+                  >
                     <div
-                      class="planner__flow-node-icon cursor-pointer"
+                      class="planner__flow-node-icon cursor-pointer nodrag nopan"
                       @click="emit('item-click', p.data.itemKey)"
                     >
                       <stack-view
@@ -478,7 +488,10 @@
                         @item-mouseleave="emit('item-mouseleave')"
                       />
                     </div>
-                    <div class="planner__flow-node-text" @click.stop @mousedown.stop @dblclick.stop>
+                    <div
+                      class="planner__flow-node-text nopan"
+                      @click.stop="selectedGraphNodeId = p.id"
+                    >
                       <div class="planner__flow-node-title">{{ p.data.title }}</div>
                       <div class="planner__flow-node-sub">
                         {{ p.data.subtitle }}
@@ -494,7 +507,11 @@
                         </q-badge>
                       </div>
                     </div>
-                    <div v-if="p.data.machineItemId" class="planner__flow-node-machine">
+                    <div
+                      v-if="p.data.machineItemId"
+                      class="planner__flow-node-machine nodrag nopan"
+                      @click.stop="selectedGraphNodeId = p.id"
+                    >
                       <stack-view
                         class="nodrag nopan"
                         :content="{ kind: 'item', id: p.data.machineItemId, amount: 1 }"
@@ -510,8 +527,15 @@
                   </div>
                 </template>
                 <template #node-fluidNode="p">
-                  <div class="planner__flow-node planner__flow-node--fluid nodrag nopan">
-                    <div class="planner__flow-node-text" @mousedown.stop @dblclick.stop>
+                  <div
+                    class="planner__flow-node planner__flow-node--fluid"
+                    :class="{ 'planner__flow-node--selected': selectedGraphNodeId === p.id }"
+                    @click.stop="selectedGraphNodeId = p.id"
+                  >
+                    <div
+                      class="planner__flow-node-text nopan"
+                      @click.stop="selectedGraphNodeId = p.id"
+                    >
                       <div class="planner__flow-node-title">{{ p.data.title }}</div>
                       <div class="planner__flow-node-sub">{{ p.data.subtitle }}</div>
                     </div>
@@ -576,22 +600,30 @@
               <VueFlow
                 id="planner-line-flow"
                 :nodes="lineFlowNodes"
-                :edges="lineFlowEdges"
-                :nodes-draggable="false"
+                :edges="lineFlowEdgesStyled"
+                :nodes-draggable="true"
                 :nodes-connectable="false"
-                :elements-selectable="false"
+                :elements-selectable="true"
                 :zoom-on-double-click="false"
                 :min-zoom="0.2"
                 :max-zoom="2"
                 :pan-on-drag="true"
                 no-pan-class-name="nopan"
                 no-drag-class-name="nodrag"
+                @node-click="(evt) => (selectedLineNodeId = evt.node.id)"
+                @node-drag-start="(evt) => (selectedLineNodeId = evt.node.id)"
+                @node-drag-stop="onLineNodeDragStop"
+                @pane-click="() => (selectedLineNodeId = null)"
               >
                 <Background :gap="20" :pattern-color="flowBackgroundPatternColor" />
                 <Controls />
                 <MiniMap />
                 <template #node-lineItemNode="p">
-                  <div class="planner__flow-node nodrag nopan">
+                  <div
+                    class="planner__flow-node nopan"
+                    :class="{ 'planner__flow-node--selected': selectedLineNodeId === p.id }"
+                    @click.stop="selectedLineNodeId = p.id"
+                  >
                     <Handle
                       v-for="i in p.data.inPorts"
                       :id="`t${i - 1}`"
@@ -615,7 +647,7 @@
                       @click="emit('item-click', p.data.itemKey)"
                     >
                       <stack-view
-                        class="nodrag nopan"
+                        class="nopan"
                         :content="{
                           kind: 'item',
                           id: p.data.itemKey.id,
@@ -633,7 +665,11 @@
                         @item-mouseleave="emit('item-mouseleave')"
                       />
                     </div>
-                    <div class="planner__flow-node-text" @click.stop @mousedown.stop @dblclick.stop>
+                    <div
+                      class="planner__flow-node-text"
+                      @click.stop="selectedLineNodeId = p.id"
+                      @dblclick.stop
+                    >
                       <div class="planner__flow-node-title">{{ p.data.title }}</div>
                       <div class="planner__flow-node-sub">
                         {{ p.data.subtitle }}
@@ -643,7 +679,11 @@
                   </div>
                 </template>
                 <template #node-lineMachineNode="p">
-                  <div class="planner__flow-node planner__flow-node--machine nodrag nopan">
+                  <div
+                    class="planner__flow-node planner__flow-node--machine nopan"
+                    :class="{ 'planner__flow-node--selected': selectedLineNodeId === p.id }"
+                    @click.stop="selectedLineNodeId = p.id"
+                  >
                     <Handle
                       v-for="i in p.data.inPorts"
                       :id="`t${i - 1}`"
@@ -671,7 +711,7 @@
                     <div class="planner__flow-node-icon">
                       <stack-view
                         v-if="p.data.machineItemId"
-                        class="nodrag nopan"
+                        class="nopan"
                         :content="{ kind: 'item', id: p.data.machineItemId, amount: 1 }"
                         :item-defs-by-key-hash="itemDefsByKeyHash"
                         variant="slot"
@@ -682,7 +722,11 @@
                       />
                       <div v-else class="planner__flow-node-icon-fallback">M</div>
                     </div>
-                    <div class="planner__flow-node-text" @click.stop @mousedown.stop @dblclick.stop>
+                    <div
+                      class="planner__flow-node-text"
+                      @click.stop="selectedLineNodeId = p.id"
+                      @dblclick.stop
+                    >
                       <div class="planner__flow-node-title">{{ p.data.title }}</div>
                       <div class="planner__flow-node-sub">
                         {{ p.data.subtitle }}
@@ -696,7 +740,7 @@
                       @click="emit('item-click', p.data.outputItemKey)"
                     >
                       <stack-view
-                        class="nodrag nopan"
+                        class="nopan"
                         :content="{
                           kind: 'item',
                           id: p.data.outputItemKey.id,
@@ -719,7 +763,11 @@
                   </div>
                 </template>
                 <template #node-lineFluidNode="p">
-                  <div class="planner__flow-node planner__flow-node--fluid nodrag nopan">
+                  <div
+                    class="planner__flow-node planner__flow-node--fluid nopan"
+                    :class="{ 'planner__flow-node--selected': selectedLineNodeId === p.id }"
+                    @click.stop="selectedLineNodeId = p.id"
+                  >
                     <Handle
                       v-for="i in p.data.inPorts"
                       :id="`t${i - 1}`"
@@ -744,7 +792,11 @@
                           p.data.outPorts === 1 ? '50%' : `${((i - 0.5) / p.data.outPorts) * 100}%`,
                       }"
                     />
-                    <div class="planner__flow-node-text" @mousedown.stop @dblclick.stop>
+                    <div
+                      class="planner__flow-node-text"
+                      @click.stop="selectedLineNodeId = p.id"
+                      @dblclick.stop
+                    >
                       <div class="planner__flow-node-title">{{ p.data.title }}</div>
                       <div class="planner__flow-node-sub">{{ p.data.subtitle }}</div>
                     </div>
@@ -983,6 +1035,13 @@ const collapsed = ref<Set<string>>(new Set());
 const lineCollapseIntermediate = ref(true);
 const graphPageFull = ref(false);
 const linePageFull = ref(false);
+const graphShowFluids = ref(true);
+const graphMergeRawMaterials = ref(false);
+
+const selectedGraphNodeId = ref<string | null>(null);
+const graphNodePositions = ref(new Map<string, { x: number; y: number }>());
+const selectedLineNodeId = ref<string | null>(null);
+const lineNodePositions = ref(new Map<string, { x: number; y: number }>());
 
 const $q = useQuasar();
 
@@ -1003,6 +1062,18 @@ function toggleLineFullscreen() {
   const el = lineFlowWrapEl.value;
   if (!el) return;
   $q.fullscreen.toggle(el).catch(() => undefined);
+}
+
+function onLineNodeDragStop(evt: { node: Node }) {
+  const next = new Map(lineNodePositions.value);
+  next.set(evt.node.id, { ...evt.node.position });
+  lineNodePositions.value = next;
+}
+
+function onGraphNodeDragStop(evt: { node: Node }) {
+  const next = new Map(graphNodePositions.value);
+  next.set(evt.node.id, { ...evt.node.position });
+  graphNodePositions.value = next;
 }
 
 function handleFullscreenChange() {
@@ -1430,6 +1501,8 @@ const flow = computed(() => {
   const walkEdges = (node: FlowNode) => {
     if (node.kind !== 'item') return;
     node.children.forEach((c: FlowNode, idx: number) => {
+      // 过滤掉不可见的流体节点
+      if (c.kind === 'fluid' && !graphShowFluids.value) return;
       edges.push({
         id: `${node.nodeId}->${c.nodeId}:${idx}`,
         source: node.nodeId,
@@ -1442,11 +1515,191 @@ const flow = computed(() => {
   };
   walkEdges(root);
 
+  // 合并原材料逻辑
+  if (graphMergeRawMaterials.value) {
+    const rawMaterialsMap = new Map<string, { nodes: FlowNode[]; totalAmount: number }>();
+    const rawMaterialNodeIds = new Set<string>();
+
+    const collectRawMaterials = (node: FlowNode) => {
+      if (node.kind !== 'item') return;
+      const visibleChildren = node.children.filter(
+        (c: FlowNode) => c.kind !== 'fluid' || graphShowFluids.value,
+      );
+      const isRaw = visibleChildren.length === 0;
+
+      if (isRaw) {
+        const key = itemKeyHash(node.itemKey);
+        rawMaterialNodeIds.add(node.nodeId);
+
+        if (!rawMaterialsMap.has(key)) {
+          rawMaterialsMap.set(key, { nodes: [], totalAmount: 0 });
+        }
+        const entry = rawMaterialsMap.get(key)!;
+        entry.nodes.push(node);
+        entry.totalAmount += nodeDisplayAmount(node);
+      } else {
+        visibleChildren.forEach((c: FlowNode) => collectRawMaterials(c));
+      }
+    };
+
+    collectRawMaterials(root);
+
+    // 创建合并后的节点并更新边
+    const mergedNodeIdMap = new Map<string, string>();
+    rawMaterialsMap.forEach((entry, key) => {
+      const firstNode = entry.nodes[0]!;
+      const mergedId = `merged:${key}`;
+
+      // 为所有相同的原材料节点创建映射
+      entry.nodes.forEach((n) => mergedNodeIdMap.set(n.nodeId, mergedId));
+
+      // 替换第一个节点为合并节点
+      const nodeIndex = nodes.findIndex((n) => n.id === firstNode.nodeId);
+      if (nodeIndex !== -1) {
+        const unitSuffix =
+          targetUnit.value === 'per_second'
+            ? '/s'
+            : targetUnit.value === 'per_hour'
+              ? '/h'
+              : targetUnit.value === 'per_minute'
+                ? '/min'
+                : '';
+        const subtitle = unitSuffix
+          ? `${formatAmount(entry.totalAmount)}${unitSuffix}`
+          : `${formatAmount(entry.totalAmount)}`;
+
+        nodes[nodeIndex] = {
+          ...nodes[nodeIndex]!,
+          id: mergedId,
+          data: {
+            ...(nodes[nodeIndex]!.data as FlowItemData),
+            subtitle,
+          },
+        };
+      }
+
+      // 移除其他重复的节点
+      for (let i = 1; i < entry.nodes.length; i++) {
+        const idx = nodes.findIndex((n) => n.id === entry.nodes[i]!.nodeId);
+        if (idx !== -1) {
+          nodes.splice(idx, 1);
+        }
+      }
+    });
+
+    // 更新边以指向合并后的节点
+    edges.forEach((edge) => {
+      if (mergedNodeIdMap.has(edge.target)) {
+        edge.target = mergedNodeIdMap.get(edge.target)!;
+      }
+    });
+
+    // 移除重复的边
+    const uniqueEdges = new Map<string, Edge>();
+    edges.forEach((edge) => {
+      const key = `${edge.source}->${edge.target}`;
+      if (!uniqueEdges.has(key)) {
+        uniqueEdges.set(key, { ...edge, id: key });
+      }
+    });
+    edges.length = 0;
+    edges.push(...uniqueEdges.values());
+  }
+
   return { nodes, edges };
 });
 
-const flowNodes = computed(() => flow.value.nodes);
-const flowEdges = computed(() => flow.value.edges);
+const flowNodesStyled = computed(() => {
+  return flow.value.nodes.map((node) => {
+    const saved = graphNodePositions.value.get(node.id);
+    return {
+      ...node,
+      draggable: true,
+      selectable: true,
+      ...(saved ? { position: saved } : {}),
+    };
+  });
+});
+
+const flowEdgesStyled = computed(() => {
+  const selectedId = selectedGraphNodeId.value;
+  if (!selectedId) {
+    return flow.value.edges.map((edge) => ({
+      ...edge,
+      ...(edge.style !== undefined ? { style: edge.style } : {}),
+      ...(edge.zIndex !== undefined ? { zIndex: edge.zIndex } : {}),
+    }));
+  }
+
+  const outEdgesBySource = new Map<string, Edge[]>();
+  const inEdgesByTarget = new Map<string, Edge[]>();
+  flow.value.edges.forEach((edge) => {
+    if (!outEdgesBySource.has(edge.source)) outEdgesBySource.set(edge.source, []);
+    if (!inEdgesByTarget.has(edge.target)) inEdgesByTarget.set(edge.target, []);
+    outEdgesBySource.get(edge.source)!.push(edge);
+    inEdgesByTarget.get(edge.target)!.push(edge);
+  });
+
+  const downstreamEdgeIds = new Set<string>();
+  const upstreamEdgeIds = new Set<string>();
+
+  const walkDownstream = (start: string) => {
+    const visited = new Set<string>();
+    const queue = [start];
+    visited.add(start);
+    while (queue.length) {
+      const cur = queue.shift()!;
+      (outEdgesBySource.get(cur) ?? []).forEach((edge) => {
+        downstreamEdgeIds.add(edge.id);
+        if (!visited.has(edge.target)) {
+          visited.add(edge.target);
+          queue.push(edge.target);
+        }
+      });
+    }
+  };
+
+  const walkUpstream = (start: string) => {
+    const visited = new Set<string>();
+    const queue = [start];
+    visited.add(start);
+    while (queue.length) {
+      const cur = queue.shift()!;
+      (inEdgesByTarget.get(cur) ?? []).forEach((edge) => {
+        upstreamEdgeIds.add(edge.id);
+        if (!visited.has(edge.source)) {
+          visited.add(edge.source);
+          queue.push(edge.source);
+        }
+      });
+    }
+  };
+
+  walkDownstream(selectedId);
+  walkUpstream(selectedId);
+
+  return flow.value.edges.map((edge) => {
+    const connected = edge.source === selectedId || edge.target === selectedId;
+    const inPath = downstreamEdgeIds.has(edge.id) || upstreamEdgeIds.has(edge.id);
+    const style = connected
+      ? { ...(edge.style ?? {}), stroke: 'var(--q-primary)', strokeWidth: 3, opacity: 1 }
+      : inPath
+        ? { ...(edge.style ?? {}), stroke: 'var(--q-secondary)', strokeWidth: 2.5, opacity: 0.9 }
+        : { ...(edge.style ?? {}), opacity: 0.2 };
+    const result: Edge = {
+      ...edge,
+      style,
+    };
+    if (connected) {
+      result.zIndex = 3000;
+    } else if (inPath) {
+      result.zIndex = 2500;
+    } else if (edge.zIndex !== undefined) {
+      result.zIndex = edge.zIndex;
+    }
+    return result;
+  });
+});
 
 type LineFlowItemData = {
   itemKey: ItemKey;
@@ -1590,24 +1843,6 @@ const lineFlow = computed(() => {
     const outPorts = outList.length ? Math.min(MAX_PORTS, Math.max(1, outList.length)) : 0;
     (n.data as LineFlowItemData | LineFlowMachineData | LineFlowFluidData).inPorts = inPorts;
     (n.data as LineFlowItemData | LineFlowMachineData | LineFlowFluidData).outPorts = outPorts;
-  });
-  nodes.forEach((n) => {
-    const inList = (inEdgesByTarget.get(n.id) ?? []).slice().sort((a, b) => {
-      const sa = titleById.get(a.source) ?? a.source;
-      const sb = titleById.get(b.source) ?? b.source;
-      return sa.localeCompare(sb);
-    });
-    const outList = (outEdgesBySource.get(n.id) ?? []).slice().sort((a, b) => {
-      const ta = titleById.get(a.target) ?? a.target;
-      const tb = titleById.get(b.target) ?? b.target;
-      return ta.localeCompare(tb);
-    });
-    inList.forEach((e, idx) => {
-      e.targetHandle = `t${idx % MAX_PORTS}`;
-    });
-    outList.forEach((e, idx) => {
-      e.sourceHandle = `s${idx % MAX_PORTS}`;
-    });
   });
 
   const nodeW = 320;
@@ -1828,12 +2063,43 @@ const lineFlow = computed(() => {
     };
   });
 
-  const mainMaxX = Math.max(pad, ...mainIds.map((id) => xById.get(id) ?? pad));
+  const nodeById = new Map(nodes.map((n) => [n.id, n] as const));
+
+  const relaxYByLayer = (passes: number) => {
+    const minGap = nodeH + gapY;
+    for (let pass = 0; pass < passes; pass += 1) {
+      idsByLayer.forEach((list) => {
+        const desired = list.map((id) => {
+          const neighbors = [...(mainInp.get(id) ?? []), ...(mainOut.get(id) ?? [])].filter(
+            (nId) => !cycleNodeIds.has(nId),
+          );
+          const avgY = neighbors.length
+            ? neighbors.reduce((s, nId) => s + (nodeById.get(nId)?.position.y ?? 0), 0) /
+              neighbors.length
+            : (nodeById.get(id)?.position.y ?? pad);
+          return { id, desired: avgY };
+        });
+
+        desired.sort((a, b) => a.desired - b.desired);
+
+        let y = pad;
+        desired.forEach((d) => {
+          const n = nodeById.get(d.id);
+          if (!n) return;
+          y = Math.max(y, d.desired);
+          n.position.y = y;
+          y += minGap;
+        });
+      });
+    }
+  };
+
+  relaxYByLayer(2);
+
   const cycleComponents = Array.from(cycleCompIds.values())
     .map((cid) => comps[cid]!)
     .filter((c) => c.length);
 
-  const nodeById = new Map(nodes.map((n) => [n.id, n] as const));
   const outWithin = new Map<string, string[]>();
   cycleNodeIds.forEach((id) => outWithin.set(id, []));
   edges.forEach((e) => {
@@ -1842,15 +2108,6 @@ const lineFlow = computed(() => {
   });
 
   const occupied: Array<{ x0: number; y0: number; x1: number; y1: number }> = [];
-  nodes.forEach((n) => {
-    if (cycleNodeIds.has(n.id)) return;
-    occupied.push({
-      x0: n.position.x,
-      y0: n.position.y,
-      x1: n.position.x + nodeW,
-      y1: n.position.y + nodeH,
-    });
-  });
 
   const intersects = (
     a: { x0: number; y0: number; x1: number; y1: number },
@@ -1858,9 +2115,34 @@ const lineFlow = computed(() => {
   ) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
 
   let fallbackY = pad;
-  cycleComponents
-    .sort((a, b) => a.length - b.length)
-    .forEach((comp) => {
+  const leftLaneX = pad - (nodeW + 140);
+  const cycleWithConsumerY = cycleComponents.map((comp) => {
+    const compSet = new Set(comp);
+    const consumerCenters: Array<{ x: number; y: number }> = [];
+    edges.forEach((e) => {
+      if (!compSet.has(e.source) || compSet.has(e.target)) return;
+      const t = nodeById.get(e.target);
+      if (!t) return;
+      if (cycleNodeIds.has(t.id)) return;
+      consumerCenters.push({
+        x: t.position.x + nodeW / 2,
+        y: t.position.y + nodeH / 2,
+      });
+    });
+    const avgY = consumerCenters.length
+      ? consumerCenters.reduce((s, p) => s + p.y, 0) / consumerCenters.length
+      : null;
+    return { comp, avgY };
+  });
+
+  cycleWithConsumerY
+    .sort((a, b) => {
+      if (a.avgY === null && b.avgY === null) return a.comp.length - b.comp.length;
+      if (a.avgY === null) return 1;
+      if (b.avgY === null) return -1;
+      return a.avgY - b.avgY;
+    })
+    .forEach(({ comp, avgY }) => {
       const compSet = new Set(comp);
       const start = comp
         .slice()
@@ -1882,33 +2164,8 @@ const lineFlow = computed(() => {
 
       const r = Math.max(160, order.length * 24);
 
-      const consumerCenters: Array<{ x: number; y: number }> = [];
-      edges.forEach((e) => {
-        if (!compSet.has(e.source) || compSet.has(e.target)) return;
-        const t = nodeById.get(e.target);
-        if (!t) return;
-        if (cycleNodeIds.has(t.id)) return;
-        consumerCenters.push({
-          x: t.position.x + nodeW / 2,
-          y: t.position.y + nodeH / 2,
-        });
-      });
-
-      const fallbackX = mainMaxX + nodeW + 140;
-      const minConsumerX = consumerCenters.length
-        ? Math.min(...consumerCenters.map((p) => p.x - nodeW / 2))
-        : null;
-      const avgConsumerY = consumerCenters.length
-        ? consumerCenters.reduce((s, p) => s + p.y, 0) / consumerCenters.length
-        : null;
-
-      const gapToConsumer = 80;
-      const centerX = (() => {
-        if (minConsumerX === null) return fallbackX + r + nodeW / 2;
-        const desired = minConsumerX - gapToConsumer - r - nodeW;
-        return Math.max(pad + r, desired);
-      })();
-      let centerY = avgConsumerY ?? fallbackY + r + nodeH / 2;
+      const centerX = leftLaneX;
+      let centerY = avgY ?? fallbackY + r + nodeH / 2;
 
       const ringBox = (cx: number, cy: number) => ({
         x0: cx - r,
@@ -1935,13 +2192,139 @@ const lineFlow = computed(() => {
         };
       });
 
-      if (avgConsumerY === null) fallbackY = box.y1 + 90;
+      if (avgY === null) fallbackY = box.y1 + 90;
     });
+  const saved = lineNodePositions.value;
+  if (saved.size) {
+    nodes.forEach((n) => {
+      const pos = saved.get(n.id);
+      if (pos) n.position = { ...pos };
+    });
+  }
+
+  const posById = new Map(nodes.map((n) => [n.id, n.position] as const));
+  nodes.forEach((n) => {
+    const nx = posById.get(n.id)?.x ?? 0;
+    const inList = (inEdgesByTarget.get(n.id) ?? []).slice().sort((a, b) => {
+      const ay = posById.get(a.source)?.y ?? 0;
+      const by = posById.get(b.source)?.y ?? 0;
+      if (ay !== by) return ay - by;
+      const ax = posById.get(a.source)?.x ?? 0;
+      const bx = posById.get(b.source)?.x ?? 0;
+      return Math.abs(bx - nx) - Math.abs(ax - nx);
+    });
+    const outList = (outEdgesBySource.get(n.id) ?? []).slice().sort((a, b) => {
+      const ay = posById.get(a.target)?.y ?? 0;
+      const by = posById.get(b.target)?.y ?? 0;
+      if (ay !== by) return ay - by;
+      const ax = posById.get(a.target)?.x ?? 0;
+      const bx = posById.get(b.target)?.x ?? 0;
+      return Math.abs(bx - nx) - Math.abs(ax - nx);
+    });
+    inList.forEach((e, idx) => {
+      e.targetHandle = `t${idx % MAX_PORTS}`;
+    });
+    outList.forEach((e, idx) => {
+      e.sourceHandle = `s${idx % MAX_PORTS}`;
+    });
+  });
+
   return { nodes, edges };
 });
 
-const lineFlowNodes = computed(() => lineFlow.value.nodes);
+const lineFlowNodes = computed(() => lineFlow.value.nodes.map((n) => ({ ...n, draggable: true })));
 const lineFlowEdges = computed(() => lineFlow.value.edges);
+const lineFlowEdgesStyled = computed(() => {
+  const selectedId = selectedLineNodeId.value;
+  const edges = lineFlowEdges.value;
+  const nodes = lineFlowNodes.value;
+  if (!selectedId) return edges.map((edge) => ({ ...edge }));
+
+  const outEdgesBySource = new Map<string, Edge[]>();
+  const inEdgesByTarget = new Map<string, Edge[]>();
+  edges.forEach((edge) => {
+    if (!outEdgesBySource.has(edge.source)) outEdgesBySource.set(edge.source, []);
+    if (!inEdgesByTarget.has(edge.target)) inEdgesByTarget.set(edge.target, []);
+    outEdgesBySource.get(edge.source)!.push(edge);
+    inEdgesByTarget.get(edge.target)!.push(edge);
+  });
+
+  const downstreamEdgeIds = new Set<string>();
+  const upstreamEdgeIds = new Set<string>();
+  const downstreamNodeIds = new Set<string>();
+
+  const walkDownstream = (start: string) => {
+    const visited = new Set<string>();
+    const queue = [start];
+    visited.add(start);
+    downstreamNodeIds.add(start);
+    while (queue.length) {
+      const cur = queue.shift()!;
+      (outEdgesBySource.get(cur) ?? []).forEach((edge) => {
+        downstreamEdgeIds.add(edge.id);
+        if (!visited.has(edge.target)) {
+          visited.add(edge.target);
+          downstreamNodeIds.add(edge.target);
+          queue.push(edge.target);
+        }
+      });
+    }
+  };
+
+  const walkUpstream = (start: string) => {
+    const visited = new Set<string>();
+    const queue = [start];
+    visited.add(start);
+    while (queue.length) {
+      const cur = queue.shift()!;
+      (inEdgesByTarget.get(cur) ?? []).forEach((edge) => {
+        upstreamEdgeIds.add(edge.id);
+        if (!visited.has(edge.source)) {
+          visited.add(edge.source);
+          queue.push(edge.source);
+        }
+      });
+    }
+  };
+
+  walkDownstream(selectedId);
+  walkUpstream(selectedId);
+
+  const rootItemIds = new Set(
+    nodes
+      .filter((n) => n.type === 'lineItemNode' && (n.data as LineFlowItemData).isRoot)
+      .map((n) => n.id),
+  );
+  const itemIds = new Set(nodes.filter((n) => n.type === 'lineItemNode').map((n) => n.id));
+  const incomingFromMachine = new Set<string>();
+  edges.forEach((e) => {
+    if (e.source.startsWith('m:') && itemIds.has(e.target)) incomingFromMachine.add(e.target);
+  });
+  const leafItemIds = new Set(Array.from(itemIds).filter((id) => !incomingFromMachine.has(id)));
+
+  return edges.map((edge) => {
+    const connected = edge.source === selectedId || edge.target === selectedId;
+    const inPath = downstreamEdgeIds.has(edge.id) || upstreamEdgeIds.has(edge.id);
+    const toRoot = rootItemIds.has(edge.target) && downstreamNodeIds.has(edge.target);
+    const fromLeaf = leafItemIds.has(edge.source);
+
+    const style = toRoot
+      ? { ...(edge.style ?? {}), stroke: '#7e57c2', strokeWidth: 2.4, opacity: 0.95 }
+      : connected
+        ? { ...(edge.style ?? {}), stroke: 'var(--q-primary)', strokeWidth: 3, opacity: 1 }
+        : inPath
+          ? { ...(edge.style ?? {}), stroke: 'var(--q-secondary)', strokeWidth: 2.5, opacity: 0.9 }
+          : fromLeaf
+            ? { ...(edge.style ?? {}), stroke: '#f9a825', strokeWidth: 2.2, opacity: 0.85 }
+            : { ...(edge.style ?? {}), opacity: 0.2 };
+
+    return {
+      ...edge,
+      style,
+      ...(edge.zIndex !== undefined ? { zIndex: edge.zIndex } : {}),
+    };
+  });
+});
 
 const leafColumns = [
   { name: 'name', label: '物品', field: 'name', align: 'left' as const },
@@ -2331,6 +2714,11 @@ const flowBackgroundPatternColor = computed(() =>
   background: white;
   min-width: 220px;
   max-width: 320px;
+}
+
+.planner__flow-node--selected {
+  border-color: var(--q-primary);
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.25);
 }
 
 .planner__flow-node--fluid {

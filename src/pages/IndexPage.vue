@@ -305,6 +305,13 @@ type SavedPlan = {
   selectedRecipeIdByItemKeyHash: Record<string, string>;
   selectedItemIdByTagId: Record<string, string>;
   createdAt: number;
+  kind?: 'advanced';
+  targets?: Array<{
+    itemKey: ItemKey;
+    itemName?: string;
+    rate: number;
+    unit: 'per_second' | 'per_minute' | 'per_hour';
+  }>;
 };
 
 const savedPlans = ref<SavedPlan[]>([]);
@@ -1321,6 +1328,12 @@ function openDialogByKeyHash(
 ) {
   const def = index.value?.itemsByKeyHash.get(keyHash);
   if (!def) return;
+
+  // 如果当前在高级计划器，切换到合成查看器
+  if (centerTab.value === 'advanced') {
+    centerTab.value = 'recipe';
+  }
+
   selectedKeyHash.value = keyHash;
   navStack.value = [def.key];
   activeTab.value = tab;
@@ -1332,6 +1345,11 @@ function openDialogByKeyHash(
 }
 
 function openDialogByItemKey(key: ItemKey) {
+  // 如果当前在高级计划器，切换到合成查看器
+  if (centerTab.value === 'advanced') {
+    centerTab.value = 'recipe';
+  }
+
   navStack.value = [...navStack.value, key];
   activeTab.value = 'recipes';
   plannerInitialState.value = null;
@@ -1510,6 +1528,33 @@ function loadPlans(packId: string): SavedPlan[] {
         const selectedItemIdByTagId =
           (obj.selectedItemIdByTagId as Record<string, string> | undefined) ?? {};
         const createdAt = typeof obj.createdAt === 'number' ? obj.createdAt : 0;
+        const kind = obj.kind === 'advanced' ? 'advanced' : undefined;
+        const targetsRaw = Array.isArray(obj.targets)
+          ? (obj.targets as Array<Record<string, unknown>>)
+          : [];
+        const targets = targetsRaw
+          .map((t) => {
+            const itemKey = t.itemKey as ItemKey | undefined;
+            const rate = typeof t.rate === 'number' ? t.rate : Number(t.rate);
+            const unit = t.unit as 'per_second' | 'per_minute' | 'per_hour' | undefined;
+            if (!itemKey?.id || !Number.isFinite(rate) || !unit) return null;
+            const itemName = typeof t.itemName === 'string' ? t.itemName : undefined;
+            const result: {
+              itemKey: ItemKey;
+              itemName?: string;
+              rate: number;
+              unit: 'per_second' | 'per_minute' | 'per_hour';
+            } = {
+              itemKey,
+              rate,
+              unit,
+            };
+            if (itemName !== undefined) {
+              result.itemName = itemName;
+            }
+            return result;
+          })
+          .filter((t): t is NonNullable<typeof t> => !!t);
         if (!id || !name || !rootItemKey?.id || !rootKeyHash || !Number.isFinite(targetAmount))
           return null;
         return {
@@ -1521,9 +1566,11 @@ function loadPlans(packId: string): SavedPlan[] {
           selectedRecipeIdByItemKeyHash,
           selectedItemIdByTagId,
           createdAt,
+          ...(kind ? { kind } : {}),
+          ...(targets.length ? { targets } : {}),
         } satisfies SavedPlan;
       })
-      .filter((p): p is SavedPlan => !!p)
+      .filter((p): p is SavedPlan => p !== null)
       .sort((a, b) => b.createdAt - a.createdAt);
   } catch {
     return [];
@@ -1555,6 +1602,8 @@ function savePlannerPlan(payload: PlannerSavePayload) {
     selectedRecipeIdByItemKeyHash: payload.selectedRecipeIdByItemKeyHash,
     selectedItemIdByTagId: payload.selectedItemIdByTagId,
     createdAt: Date.now(),
+    ...(payload.kind === 'advanced' ? { kind: 'advanced' } : {}),
+    ...(payload.kind === 'advanced' && payload.targets ? { targets: payload.targets } : {}),
   };
   const next = [plan, ...savedPlans.value];
   savedPlans.value = next;
@@ -1562,6 +1611,22 @@ function savePlannerPlan(payload: PlannerSavePayload) {
 }
 
 function openSavedPlan(p: SavedPlan) {
+  if (p.kind === 'advanced' && p.targets?.length) {
+    centerTab.value = 'advanced';
+    centerPanelRef.value?.loadAdvancedPlan({
+      name: p.name,
+      rootItemKey: p.rootItemKey,
+      targetAmount: p.targetAmount,
+      selectedRecipeIdByItemKeyHash: p.selectedRecipeIdByItemKeyHash,
+      selectedItemIdByTagId: p.selectedItemIdByTagId,
+      kind: 'advanced',
+      targets: p.targets,
+    });
+    return;
+  }
+
+  // 普通计划切换到合成查看器
+  centerTab.value = 'recipe';
   selectedKeyHash.value = p.rootKeyHash;
   navStack.value = [p.rootItemKey];
   activeTab.value = 'planner';

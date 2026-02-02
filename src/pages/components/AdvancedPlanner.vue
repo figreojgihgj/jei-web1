@@ -159,11 +159,19 @@
       v-if="planningComplete && mergedTree"
       flat
       bordered
-      class="col q-pa-md q-mt-md advanced-planner__results"
+      class="q-pa-md q-mt-md advanced-planner__results"
     >
       <div class="row items-center q-mb-md">
         <div class="text-subtitle2">多目标生产规划</div>
         <q-space />
+        <q-btn
+          dense
+          outline
+          icon="save"
+          label="保存规划"
+          :disable="pendingDecisions.length > 0"
+          @click="openSaveDialog"
+        />
         <q-chip dense color="primary" text-color="white"> {{ targets.length }} 个目标 </q-chip>
       </div>
 
@@ -483,7 +491,7 @@
 
         <!-- 节点图视图 -->
         <q-tab-panel name="graph" class="q-pa-none">
-          <div class="column q-gutter-md">
+          <div :class="['planner__pagefull', { 'planner__pagefull--active': graphPageFull }]">
             <div class="row items-center q-gutter-sm">
               <div class="text-caption text-grey-8">显示单位</div>
               <q-select
@@ -497,29 +505,60 @@
                 @update:model-value="(v) => (graphDisplayUnit = v)"
               />
               <q-toggle v-model="graphShowFluids" dense label="显示流体" />
+              <q-toggle v-model="graphMergeRawMaterials" dense label="合并原材料" />
+              <q-space />
+              <q-btn
+                flat
+                dense
+                round
+                :icon="graphPageFull ? 'close_fullscreen' : 'fit_screen'"
+                @click="graphPageFull = !graphPageFull"
+              >
+                <q-tooltip>{{ graphPageFull ? '退出页面内全屏' : '页面内全屏' }}</q-tooltip>
+              </q-btn>
+              <q-btn
+                flat
+                dense
+                round
+                :icon="graphFullscreen ? 'fullscreen_exit' : 'fullscreen'"
+                @click="toggleGraphFullscreen"
+              >
+                <q-tooltip>{{ graphFullscreen ? '退出全屏' : '全屏' }}</q-tooltip>
+              </q-btn>
             </div>
-            <div v-if="graphFlowNodes.length" class="planner__graph">
+            <div
+              v-if="graphFlowNodes.length"
+              class="planner__graph"
+              :class="{ 'planner__flow--fullscreen': graphFullscreen }"
+              ref="graphFlowWrapEl"
+            >
               <VueFlow
-                :nodes="graphFlowNodes"
-                :edges="graphFlowEdges"
-                :nodes-draggable="false"
+                :nodes="graphFlowNodesStyled"
+                :edges="graphFlowEdgesStyled"
+                :nodes-draggable="true"
                 :nodes-connectable="false"
-                :elements-selectable="false"
+                :elements-selectable="true"
                 :zoom-on-double-click="false"
                 :min-zoom="0.3"
                 :max-zoom="2"
                 :pan-on-drag="true"
                 no-pan-class-name="nopan"
                 no-drag-class-name="nodrag"
+                @node-click="(evt) => (selectedGraphNodeId = evt.node.id)"
+                @node-drag-start="(evt) => (selectedGraphNodeId = evt.node.id)"
+                @node-drag-stop="onGraphNodeDragStop"
+                @pane-click="() => (selectedGraphNodeId = null)"
               >
                 <Background :gap="20" />
                 <Controls />
                 <MiniMap />
                 <template #node-graphItemNode="p">
-                  <div class="planner__flow-node nodrag nopan">
+                  <div
+                    class="planner__flow-node nopan"
+                    :class="{ 'planner__flow-node--selected': selectedGraphNodeId === p.id }"
+                  >
                     <div class="planner__flow-node-icon">
                       <stack-view
-                        class="nodrag nopan"
                         :content="{
                           kind: 'item',
                           id: p.data.itemKey?.id ?? '__multi_target__',
@@ -553,7 +592,6 @@
                     </div>
                     <div v-if="p.data.machineItemId" class="planner__flow-node-machine">
                       <stack-view
-                        class="nodrag nopan"
                         :content="{ kind: 'item', id: p.data.machineItemId, amount: 1 }"
                         :item-defs-by-key-hash="itemDefsByKeyHash"
                         variant="slot"
@@ -564,7 +602,10 @@
                   </div>
                 </template>
                 <template #node-graphFluidNode="p">
-                  <div class="planner__flow-node planner__flow-node--fluid nodrag nopan">
+                  <div
+                    class="planner__flow-node planner__flow-node--fluid nopan"
+                    :class="{ 'planner__flow-node--selected': selectedGraphNodeId === p.id }"
+                  >
                     <div class="planner__flow-node-text">
                       <div class="planner__flow-node-title">{{ p.data.title }}</div>
                       <div class="planner__flow-node-sub">{{ p.data.subtitle }}</div>
@@ -579,10 +620,245 @@
 
         <!-- 生产线视图 -->
         <q-tab-panel name="line" class="q-pa-none">
-          <div class="column items-center justify-center q-pa-xl">
-            <q-icon name="view_timeline" size="64px" color="grey-5" class="q-mb-md" />
-            <div class="text-h6 text-grey-6">生产线视图</div>
-            <div class="text-caption text-grey-5 q-mt-sm">正在开发中...</div>
+          <div :class="['planner__pagefull', { 'planner__pagefull--active': linePageFull }]">
+            <div class="row items-center q-gutter-sm">
+              <div class="text-caption text-grey-8">显示单位</div>
+              <q-select
+                dense
+                filled
+                emit-value
+                map-options
+                style="min-width: 120px"
+                :options="rateUnitOptions"
+                :model-value="lineDisplayUnit"
+                @update:model-value="(v) => (lineDisplayUnit = v)"
+              />
+              <q-toggle v-model="lineCollapseIntermediate" dense label="隐藏中间产物" />
+              <q-toggle v-model="lineIncludeCycleSeeds" dense label="显示循环种子" />
+              <q-space />
+              <q-btn
+                flat
+                dense
+                round
+                :icon="linePageFull ? 'close_fullscreen' : 'fit_screen'"
+                @click="linePageFull = !linePageFull"
+              >
+                <q-tooltip>{{ linePageFull ? '退出页面内全屏' : '页面内全屏' }}</q-tooltip>
+              </q-btn>
+              <q-btn
+                flat
+                dense
+                round
+                :icon="lineFullscreen ? 'fullscreen_exit' : 'fullscreen'"
+                @click="toggleLineFullscreen"
+              >
+                <q-tooltip>{{ lineFullscreen ? '退出全屏' : '全屏' }}</q-tooltip>
+              </q-btn>
+            </div>
+            <div
+              v-if="lineFlowNodes.length"
+              class="planner__flow"
+              :class="{ 'planner__flow--fullscreen': lineFullscreen }"
+              ref="lineFlowWrapEl"
+            >
+              <VueFlow
+                id="advanced-planner-line-flow"
+                :nodes="lineFlowNodes"
+                :edges="lineFlowEdgesStyled"
+                :nodes-draggable="true"
+                :nodes-connectable="false"
+                :elements-selectable="true"
+                :zoom-on-double-click="false"
+                :min-zoom="0.2"
+                :max-zoom="2"
+                :pan-on-drag="true"
+                no-pan-class-name="nopan"
+                no-drag-class-name="nodrag"
+                @node-click="(evt) => (selectedLineNodeId = evt.node.id)"
+                @node-drag-start="(evt) => (selectedLineNodeId = evt.node.id)"
+                @node-drag-stop="onLineNodeDragStop"
+                @pane-click="() => (selectedLineNodeId = null)"
+              >
+                <Background :gap="20" :pattern-color="flowBackgroundPatternColor" />
+                <Controls />
+                <MiniMap />
+                <template #node-lineItemNode="p">
+                  <div
+                    class="planner__flow-node nopan"
+                    :class="{ 'planner__flow-node--selected': selectedLineNodeId === p.id }"
+                    @click.stop="selectedLineNodeId = p.id"
+                  >
+                    <Handle
+                      v-for="i in p.data.inPorts"
+                      :id="`t${i - 1}`"
+                      :key="`t${i - 1}`"
+                      type="target"
+                      :position="Position.Left"
+                      class="planner__handle"
+                      :style="{ top: `${(i / (p.data.inPorts + 1)) * 100}%` }"
+                    />
+                    <Handle
+                      v-for="i in p.data.outPorts"
+                      :id="`s${i - 1}`"
+                      :key="`s${i - 1}`"
+                      type="source"
+                      :position="Position.Right"
+                      class="planner__handle"
+                      :style="{ top: `${(i / (p.data.outPorts + 1)) * 100}%` }"
+                    />
+                    <div class="planner__flow-node-icon">
+                      <stack-view
+                        class="nopan"
+                        :content="{
+                          kind: 'item',
+                          id: p.data.itemKey.id,
+                          amount: 1,
+                          ...(p.data.itemKey.meta !== undefined
+                            ? { meta: p.data.itemKey.meta }
+                            : {}),
+                          ...(p.data.itemKey.nbt !== undefined ? { nbt: p.data.itemKey.nbt } : {}),
+                        }"
+                        :item-defs-by-key-hash="itemDefsByKeyHash"
+                        variant="slot"
+                        :show-name="false"
+                        :show-subtitle="false"
+                      />
+                    </div>
+                    <div
+                      class="planner__flow-node-text"
+                      @click.stop="selectedLineNodeId = p.id"
+                      @dblclick.stop
+                    >
+                      <div class="planner__flow-node-title">{{ p.data.title }}</div>
+                      <div class="planner__flow-node-sub">
+                        {{ p.data.subtitle }}
+                        <q-badge v-if="p.data.isRoot" color="primary" class="q-ml-xs">
+                          目标
+                        </q-badge>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+                <template #node-lineMachineNode="p">
+                  <div
+                    class="planner__flow-node planner__flow-node--machine nopan"
+                    :class="{ 'planner__flow-node--selected': selectedLineNodeId === p.id }"
+                    @click.stop="selectedLineNodeId = p.id"
+                  >
+                    <Handle
+                      v-for="i in p.data.inPorts"
+                      :id="`t${i - 1}`"
+                      :key="`t${i - 1}`"
+                      type="target"
+                      :position="Position.Left"
+                      class="planner__handle"
+                      :style="{
+                        top:
+                          p.data.inPorts === 1 ? '50%' : `${((i - 0.5) / p.data.inPorts) * 100}%`,
+                      }"
+                    />
+                    <Handle
+                      v-for="i in p.data.outPorts"
+                      :id="`s${i - 1}`"
+                      :key="`s${i - 1}`"
+                      type="source"
+                      :position="Position.Right"
+                      class="planner__handle"
+                      :style="{
+                        top:
+                          p.data.outPorts === 1 ? '50%' : `${((i - 0.5) / p.data.outPorts) * 100}%`,
+                      }"
+                    />
+                    <div class="planner__flow-node-icon">
+                      <stack-view
+                        v-if="p.data.machineItemId"
+                        class="nopan"
+                        :content="{ kind: 'item', id: p.data.machineItemId, amount: 1 }"
+                        :item-defs-by-key-hash="itemDefsByKeyHash"
+                        variant="slot"
+                        :show-name="false"
+                        :show-subtitle="false"
+                      />
+                      <div v-else class="planner__flow-node-icon-fallback">M</div>
+                    </div>
+                    <div
+                      class="planner__flow-node-text"
+                      @click.stop="selectedLineNodeId = p.id"
+                      @dblclick.stop
+                    >
+                      <div class="planner__flow-node-title">{{ p.data.title }}</div>
+                      <div class="planner__flow-node-sub">
+                        {{ p.data.subtitle }}
+                        <q-badge v-if="p.data.machineCount" color="accent" class="q-ml-xs">
+                          x{{ p.data.machineCount }}
+                        </q-badge>
+                      </div>
+                    </div>
+                    <div class="planner__flow-node-icon">
+                      <stack-view
+                        class="nopan"
+                        :content="{
+                          kind: 'item',
+                          id: p.data.outputItemKey.id,
+                          amount: 1,
+                          ...(p.data.outputItemKey.meta !== undefined
+                            ? { meta: p.data.outputItemKey.meta }
+                            : {}),
+                          ...(p.data.outputItemKey.nbt !== undefined
+                            ? { nbt: p.data.outputItemKey.nbt }
+                            : {}),
+                        }"
+                        :item-defs-by-key-hash="itemDefsByKeyHash"
+                        variant="slot"
+                        :show-name="false"
+                        :show-subtitle="false"
+                      />
+                    </div>
+                  </div>
+                </template>
+                <template #node-lineFluidNode="p">
+                  <div
+                    class="planner__flow-node planner__flow-node--fluid nopan"
+                    :class="{ 'planner__flow-node--selected': selectedLineNodeId === p.id }"
+                    @click.stop="selectedLineNodeId = p.id"
+                  >
+                    <Handle
+                      v-for="i in p.data.inPorts"
+                      :id="`t${i - 1}`"
+                      :key="`t${i - 1}`"
+                      type="target"
+                      :position="Position.Left"
+                      class="planner__handle"
+                      :style="{
+                        top:
+                          p.data.inPorts === 1 ? '50%' : `${((i - 0.5) / p.data.inPorts) * 100}%`,
+                      }"
+                    />
+                    <Handle
+                      v-for="i in p.data.outPorts"
+                      :id="`s${i - 1}`"
+                      :key="`s${i - 1}`"
+                      type="source"
+                      :position="Position.Right"
+                      class="planner__handle"
+                      :style="{
+                        top:
+                          p.data.outPorts === 1 ? '50%' : `${((i - 0.5) / p.data.outPorts) * 100}%`,
+                      }"
+                    />
+                    <div
+                      class="planner__flow-node-text"
+                      @click.stop="selectedLineNodeId = p.id"
+                      @dblclick.stop
+                    >
+                      <div class="planner__flow-node-title">{{ p.data.title }}</div>
+                      <div class="planner__flow-node-sub">{{ p.data.subtitle }}</div>
+                    </div>
+                  </div>
+                </template>
+              </VueFlow>
+            </div>
+            <div v-else class="text-center text-grey q-pa-lg">暂无节点</div>
           </div>
         </q-tab-panel>
 
@@ -703,10 +979,39 @@
       <div class="text-caption q-mt-sm">添加目标产物开始规划</div>
     </div>
   </div>
+
+  <q-dialog v-model="saveDialogOpen">
+    <q-card style="min-width: 420px">
+      <q-card-section class="row items-center q-gutter-sm">
+        <div class="text-subtitle2">保存合成线路</div>
+        <q-space />
+        <q-btn flat round icon="close" v-close-popup />
+      </q-card-section>
+      <q-card-section>
+        <q-input
+          dense
+          filled
+          label="线路名称"
+          :model-value="saveName"
+          @update:model-value="(v) => (saveName = String(v ?? ''))"
+        />
+      </q-card-section>
+      <q-card-actions align="right">
+        <q-btn flat label="取消" color="grey-7" v-close-popup />
+        <q-btn
+          unelevated
+          label="保存"
+          color="primary"
+          :disable="!saveName.trim()"
+          @click="confirmSave"
+        />
+      </q-card-actions>
+    </q-card>
+  </q-dialog>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import type { ItemKey, ItemDef, ItemId, PackData, Stack } from 'src/jei/types';
 import type { JeiIndex } from 'src/jei/indexing/buildIndex';
 import { itemKeyHash } from 'src/jei/indexing/key';
@@ -722,9 +1027,12 @@ import {
   buildEnhancedRequirementTree,
 } from 'src/jei/planner/planner';
 import StackView from 'src/jei/components/StackView.vue';
+import { buildProductionLineModel } from 'src/jei/planner/productionLine';
+import { Dark, useQuasar } from 'quasar';
+import type { PlannerSavePayload } from 'src/jei/planner/plannerUi';
 import { Background } from '@vue-flow/background';
 import { Controls } from '@vue-flow/controls';
-import { VueFlow, type Edge, type Node, MarkerType } from '@vue-flow/core';
+import { VueFlow, type Edge, type Node, Handle, MarkerType, Position } from '@vue-flow/core';
 import { MiniMap } from '@vue-flow/minimap';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
@@ -750,6 +1058,12 @@ const props = withDefaults(defineProps<Props>(), {
   itemDefsByKeyHash: () => ({}),
 });
 
+const emit = defineEmits<{
+  'save-plan': [payload: PlannerSavePayload];
+}>();
+
+const $q = useQuasar();
+
 const targets = ref<Target[]>([]);
 const activeTab = ref<'summary' | 'tree' | 'graph' | 'line' | 'calc'>('summary');
 const allDecisions = ref<PlannerDecision[]>([]);
@@ -770,7 +1084,25 @@ const treeDisplayUnit = ref<'per_second' | 'per_minute' | 'per_hour'>('per_minut
 const collapsed = ref<Set<string>>(new Set());
 const graphDisplayUnit = ref<'per_second' | 'per_minute' | 'per_hour'>('per_minute');
 const graphShowFluids = ref(true);
+const graphMergeRawMaterials = ref(false);
+const selectedGraphNodeId = ref<string | null>(null);
+const graphNodePositions = ref(new Map<string, { x: number; y: number }>());
+const lineDisplayUnit = ref<'per_second' | 'per_minute' | 'per_hour'>('per_minute');
+const lineCollapseIntermediate = ref(true);
+const lineIncludeCycleSeeds = ref(true);
+const selectedLineNodeId = ref<string | null>(null);
+const lineNodePositions = ref(new Map<string, { x: number; y: number }>());
 const calcDisplayUnit = ref<'per_second' | 'per_minute' | 'per_hour'>('per_minute');
+
+const graphPageFull = ref(false);
+const linePageFull = ref(false);
+const graphFullscreen = ref(false);
+const lineFullscreen = ref(false);
+const graphFlowWrapEl = ref<HTMLElement | null>(null);
+const lineFlowWrapEl = ref<HTMLElement | null>(null);
+
+const saveDialogOpen = ref(false);
+const saveName = ref('');
 
 const pendingDecisions = computed(() => {
   return allDecisions.value.filter((d: PlannerDecision) => {
@@ -951,9 +1283,11 @@ const buildMergedTree = () => {
 
     if (trees.length === 1) {
       const singleTree = trees[0];
-      mergedTree.value = singleTree;
-      mergedRootItemKey.value = singleTree.root.kind === 'item' ? singleTree.root.itemKey : null;
-      return;
+      if (singleTree) {
+        mergedTree.value = singleTree;
+        mergedRootItemKey.value = singleTree.root.kind === 'item' ? singleTree.root.itemKey : null;
+        return;
+      }
     }
 
     const virtualRoot: EnhancedRequirementNode = {
@@ -990,6 +1324,54 @@ const addTarget = (itemKey: ItemKey, itemName: string, rate = 1) => {
   } else {
     targets.value.push({ itemKey, itemName, rate, unit: 'per_minute' });
     invalidatePlanningIfNeeded();
+  }
+};
+
+const loadSavedPlan = (payload: PlannerSavePayload) => {
+  if (payload.kind !== 'advanced' || !payload.targets?.length) return;
+  targets.value = payload.targets.map((t) => ({
+    itemKey: t.itemKey,
+    itemName: t.itemName ?? itemName(t.itemKey),
+    rate: t.rate,
+    unit: t.unit,
+  }));
+
+  selectedRecipeIdByItemKeyHash.value = new Map(
+    Object.entries(payload.selectedRecipeIdByItemKeyHash ?? {}),
+  );
+  selectedItemIdByTagId.value = new Map(Object.entries(payload.selectedItemIdByTagId ?? {}));
+
+  // 重新生成决策列表，但保留选项
+  if (props.pack && props.index) {
+    const allDecisionsList: PlannerDecision[] = [];
+    for (const target of targets.value) {
+      try {
+        const decisions = computePlannerDecisions({
+          pack: props.pack,
+          index: props.index,
+          rootItemKey: target.itemKey,
+          selectedRecipeIdByItemKeyHash: selectedRecipeIdByItemKeyHash.value,
+          selectedItemIdByTagId: selectedItemIdByTagId.value,
+          maxDepth: 20,
+        });
+        allDecisionsList.push(...decisions);
+      } catch (e) {
+        console.error('Failed to compute decisions for', target.itemName, e);
+      }
+    }
+
+    const decisionsMap = new Map<string, PlannerDecision>();
+    for (const d of allDecisionsList) {
+      const key = d.kind === 'item_recipe' ? d.itemKeyHash : `tag:${d.tagId}`;
+      if (!decisionsMap.has(key)) decisionsMap.set(key, d);
+    }
+
+    allDecisions.value = Array.from(decisionsMap.values());
+    planningStarted.value = true;
+    mergedTree.value = null;
+    mergedRootItemKey.value = null;
+    collapsed.value = new Set();
+    if (pendingDecisions.value.length === 0) buildMergedTree();
   }
 };
 
@@ -1157,6 +1539,77 @@ const setTagChoice = (tagId: string, itemId: string) => {
   selectedItemIdByTagId.value.set(tagId, itemId);
 };
 
+function mapToRecord<V extends string>(m: Map<string, V>): Record<string, V> {
+  return Object.fromEntries(m.entries());
+}
+
+function openSaveDialog() {
+  const base = targets.value.length ? targets.value[0]!.itemName : '多目标规划';
+  saveName.value = `${base} 线路`;
+  saveDialogOpen.value = true;
+}
+
+function confirmSave() {
+  if (!targets.value.length) return;
+  const payload: PlannerSavePayload = {
+    name: saveName.value.trim(),
+    rootItemKey: targets.value[0]!.itemKey,
+    targetAmount: targets.value[0]!.rate,
+    selectedRecipeIdByItemKeyHash: mapToRecord(selectedRecipeIdByItemKeyHash.value),
+    selectedItemIdByTagId: mapToRecord(selectedItemIdByTagId.value),
+    kind: 'advanced',
+    targets: targets.value.map((t) => ({
+      itemKey: t.itemKey,
+      itemName: t.itemName,
+      rate: t.rate,
+      unit: t.unit,
+    })),
+  };
+  emit('save-plan', payload);
+  saveDialogOpen.value = false;
+}
+
+function toggleGraphFullscreen() {
+  if (!$q.fullscreen.isCapable) return;
+  const el = graphFlowWrapEl.value;
+  if (!el) return;
+  $q.fullscreen.toggle(el).catch(() => undefined);
+}
+
+function toggleLineFullscreen() {
+  if (!$q.fullscreen.isCapable) return;
+  const el = lineFlowWrapEl.value;
+  if (!el) return;
+  $q.fullscreen.toggle(el).catch(() => undefined);
+}
+
+function onLineNodeDragStop(evt: { node: Node }) {
+  const next = new Map(lineNodePositions.value);
+  next.set(evt.node.id, { ...evt.node.position });
+  lineNodePositions.value = next;
+}
+
+function onGraphNodeDragStop(evt: { node: Node }) {
+  const next = new Map(graphNodePositions.value);
+  next.set(evt.node.id, { ...evt.node.position });
+  graphNodePositions.value = next;
+}
+
+function handleFullscreenChange() {
+  const activeEl = document.fullscreenElement;
+  graphFullscreen.value = activeEl !== null && activeEl === graphFlowWrapEl.value;
+  lineFullscreen.value = activeEl !== null && activeEl === lineFlowWrapEl.value;
+}
+
+onMounted(() => {
+  document.addEventListener('fullscreenchange', handleFullscreenChange);
+  handleFullscreenChange();
+});
+
+onUnmounted(() => {
+  document.removeEventListener('fullscreenchange', handleFullscreenChange);
+});
+
 const tagItemOptions = (d: Extract<PlannerDecision, { kind: 'tag_item' }>) => {
   if (!props.index) return [];
 
@@ -1281,6 +1734,15 @@ function unitSuffix(unit: 'per_second' | 'per_minute' | 'per_hour') {
   return '/min';
 }
 
+function displayRateFromAmount(
+  amountPerMinute: number,
+  unit: 'per_second' | 'per_minute' | 'per_hour',
+) {
+  if (unit === 'per_second') return amountPerMinute / 60;
+  if (unit === 'per_hour') return amountPerMinute * 60;
+  return amountPerMinute;
+}
+
 function rateByUnitFromPerSecond(
   perSecond: number,
   unit: 'per_second' | 'per_minute' | 'per_hour',
@@ -1301,6 +1763,30 @@ type GraphNodeData = {
   cycleSeed?: boolean;
 };
 
+type LineFlowItemData = {
+  itemKey: ItemKey;
+  title: string;
+  subtitle: string;
+  isRoot: boolean;
+  inPorts: number;
+  outPorts: number;
+};
+type LineFlowMachineData = {
+  title: string;
+  subtitle: string;
+  machineItemId?: string;
+  machineCount?: number;
+  outputItemKey: ItemKey;
+  inPorts: number;
+  outPorts: number;
+};
+type LineFlowFluidData = {
+  title: string;
+  subtitle: string;
+  inPorts: number;
+  outPorts: number;
+};
+
 const graphFlow = computed(() => {
   if (!mergedTree.value) return { nodes: [] as Node<GraphNodeData>[], edges: [] as Edge[] };
 
@@ -1314,6 +1800,38 @@ const graphFlow = computed(() => {
 
   const leafSpan = new WeakMap<RequirementNode, number>();
   const isVisible = (node: RequirementNode) => node.kind !== 'fluid' || graphShowFluids.value;
+
+  // 合并原材料：收集所有原材料节点并按 itemKey 分组
+  const rawMaterialsMap = new Map<string, { nodes: RequirementNode[]; totalRate: number }>();
+  const rawMaterialNodeIds = new Set<string>();
+
+  const collectRawMaterials = (node: RequirementNode, path: string) => {
+    if (!isVisible(node)) return;
+    const nodeId = `g:${path}`;
+
+    if (node.kind === 'item') {
+      const visibleChildren = node.children.filter(isVisible);
+      const isRaw = visibleChildren.length === 0;
+
+      if (isRaw && graphMergeRawMaterials.value) {
+        const key = itemKeyHash(node.itemKey);
+        rawMaterialNodeIds.add(nodeId);
+
+        if (!rawMaterialsMap.has(key)) {
+          rawMaterialsMap.set(key, { nodes: [], totalRate: 0 });
+        }
+        const entry = rawMaterialsMap.get(key)!;
+        entry.nodes.push(node);
+        entry.totalRate += nodeDisplayRateByUnit(node, graphDisplayUnit.value);
+      } else {
+        visibleChildren.forEach((c, idx) => collectRawMaterials(c, `${path}.${idx}`));
+      }
+    }
+  };
+
+  if (graphMergeRawMaterials.value) {
+    collectRawMaterials(mergedTree.value.root, '0');
+  }
 
   const countLeaves = (node: RequirementNode): number => {
     if (!isVisible(node)) return 0;
@@ -1348,6 +1866,38 @@ const graphFlow = computed(() => {
     const y = pad + depth * (nodeH + gapY);
 
     if (node.kind === 'item') {
+      const visibleChildren = node.children.filter(isVisible);
+      const isRaw = visibleChildren.length === 0;
+
+      // 如果这是原材料节点且需要合并，创建合并后的节点
+      if (isRaw && graphMergeRawMaterials.value && rawMaterialNodeIds.has(nodeId)) {
+        const key = itemKeyHash(node.itemKey);
+        const mergedId = `g:merged:${key}`;
+
+        // 只为每个合并的原材料创建一次节点
+        if (!nodes.find((n) => n.id === mergedId)) {
+          const entry = rawMaterialsMap.get(key)!;
+          const subtitle = `${formatAmount(entry.totalRate)}${unitSuffix(graphDisplayUnit.value)}`;
+
+          nodes.push({
+            id: mergedId,
+            type: 'graphItemNode',
+            position: { x, y },
+            draggable: false,
+            selectable: false,
+            data: {
+              kind: 'item',
+              itemKey: node.itemKey,
+              title: itemName(node.itemKey),
+              subtitle,
+              cycle: false,
+              cycleSeed: false,
+            },
+          });
+        }
+        return mergedId;
+      }
+
       const machineCount = finiteOr(
         (node as EnhancedRequirementNode & { machineCount?: number }).machineCount,
         0,
@@ -1374,17 +1924,22 @@ const graphFlow = computed(() => {
       });
 
       let childLeft = leftX;
-      node.children.forEach((c, idx) => {
+      visibleChildren.forEach((c, idx) => {
         const childSpan = leafSpan.get(c) ?? 1;
         const childId = walk(c, depth + 1, childLeft, `${path}.${idx}`);
         if (!childId) return;
-        edges.push({
-          id: `${nodeId}->${childId}`,
-          source: nodeId,
-          target: childId,
-          type: 'smoothstep',
-          markerEnd: MarkerType.ArrowClosed,
-        });
+
+        // 避免创建重复的边
+        const edgeId = `${nodeId}->${childId}`;
+        if (!edges.find((e) => e.id === edgeId)) {
+          edges.push({
+            id: edgeId,
+            source: nodeId,
+            target: childId,
+            type: 'smoothstep',
+            markerEnd: MarkerType.ArrowClosed,
+          });
+        }
         childLeft += childSpan * (nodeW + gapX);
       });
     } else {
@@ -1411,8 +1966,783 @@ const graphFlow = computed(() => {
   return { nodes, edges };
 });
 
+const graphFlowNodesStyled = computed(() => {
+  return graphFlow.value.nodes.map((node) => {
+    const saved = graphNodePositions.value.get(node.id);
+    return {
+      ...node,
+      ...(saved ? { position: saved } : {}),
+      draggable: true,
+      selectable: true,
+    };
+  });
+});
+
+const graphFlowEdgesStyled = computed(() => {
+  const selectedId = selectedGraphNodeId.value;
+  if (!selectedId) {
+    return graphFlow.value.edges.map((edge) => ({
+      ...edge,
+      ...(edge.style !== undefined ? { style: edge.style } : {}),
+      ...(edge.zIndex !== undefined ? { zIndex: edge.zIndex } : {}),
+    }));
+  }
+
+  const outEdgesBySource = new Map<string, Edge[]>();
+  const inEdgesByTarget = new Map<string, Edge[]>();
+  graphFlow.value.edges.forEach((edge) => {
+    if (!outEdgesBySource.has(edge.source)) outEdgesBySource.set(edge.source, []);
+    if (!inEdgesByTarget.has(edge.target)) inEdgesByTarget.set(edge.target, []);
+    outEdgesBySource.get(edge.source)!.push(edge);
+    inEdgesByTarget.get(edge.target)!.push(edge);
+  });
+
+  const downstreamEdgeIds = new Set<string>();
+  const upstreamEdgeIds = new Set<string>();
+
+  const walkDownstream = (start: string) => {
+    const visited = new Set<string>();
+    const queue = [start];
+    visited.add(start);
+    while (queue.length) {
+      const cur = queue.shift()!;
+      (outEdgesBySource.get(cur) ?? []).forEach((edge) => {
+        downstreamEdgeIds.add(edge.id);
+        if (!visited.has(edge.target)) {
+          visited.add(edge.target);
+          queue.push(edge.target);
+        }
+      });
+    }
+  };
+
+  const walkUpstream = (start: string) => {
+    const visited = new Set<string>();
+    const queue = [start];
+    visited.add(start);
+    while (queue.length) {
+      const cur = queue.shift()!;
+      (inEdgesByTarget.get(cur) ?? []).forEach((edge) => {
+        upstreamEdgeIds.add(edge.id);
+        if (!visited.has(edge.source)) {
+          visited.add(edge.source);
+          queue.push(edge.source);
+        }
+      });
+    }
+  };
+
+  walkDownstream(selectedId);
+  walkUpstream(selectedId);
+
+  return graphFlow.value.edges.map((edge) => {
+    const connected = edge.source === selectedId || edge.target === selectedId;
+    const inPath = downstreamEdgeIds.has(edge.id) || upstreamEdgeIds.has(edge.id);
+    const style = connected
+      ? { ...(edge.style ?? {}), stroke: 'var(--q-primary)', strokeWidth: 3, opacity: 1 }
+      : inPath
+        ? { ...(edge.style ?? {}), stroke: 'var(--q-secondary)', strokeWidth: 2.5, opacity: 0.9 }
+        : { ...(edge.style ?? {}), opacity: 0.2 };
+    const result: Edge = {
+      ...edge,
+      style,
+    };
+    if (connected) {
+      result.zIndex = 3000;
+    } else if (inPath) {
+      result.zIndex = 2500;
+    } else if (edge.zIndex !== undefined) {
+      result.zIndex = edge.zIndex;
+    }
+    return result;
+  });
+});
+
 const graphFlowNodes = computed(() => graphFlow.value.nodes);
-const graphFlowEdges = computed(() => graphFlow.value.edges);
+
+const lineModel = computed<ReturnType<typeof buildProductionLineModel>>(() => {
+  if (!mergedTree.value) return { nodes: [], edges: [] };
+
+  const roots =
+    mergedTree.value.root.kind === 'item' && mergedTree.value.root.itemKey.id === '__multi_target__'
+      ? mergedTree.value.root.children
+      : [mergedTree.value.root];
+
+  const mergedNodeById = new Map<
+    string,
+    ReturnType<typeof buildProductionLineModel>['nodes'][number]
+  >();
+  const mergedEdgeById = new Map<
+    string,
+    ReturnType<typeof buildProductionLineModel>['edges'][number]
+  >();
+
+  roots.forEach((root) => {
+    const params: Parameters<typeof buildProductionLineModel>[0] = {
+      root: root as RequirementNode,
+      includeCycleSeeds: lineIncludeCycleSeeds.value,
+      collapseIntermediateItems: lineCollapseIntermediate.value,
+    };
+    if (root.kind === 'item') {
+      params.rootItemKey = root.itemKey;
+    }
+    const model = buildProductionLineModel(params);
+
+    model.nodes.forEach((n) => {
+      const prev = mergedNodeById.get(n.nodeId);
+      if (!prev) {
+        mergedNodeById.set(n.nodeId, { ...n });
+        return;
+      }
+
+      if (n.kind === 'item' && prev.kind === 'item') {
+        prev.amount += n.amount;
+        if (n.seedAmount !== undefined) {
+          prev.seedAmount = (prev.seedAmount ?? 0) + n.seedAmount;
+        }
+        if (n.isRoot) prev.isRoot = true;
+      } else if (n.kind === 'fluid' && prev.kind === 'fluid') {
+        prev.amount += n.amount;
+      } else if (n.kind === 'machine' && prev.kind === 'machine') {
+        prev.amount += n.amount;
+        if (n.machineCount !== undefined) {
+          prev.machineCount = (prev.machineCount ?? 0) + n.machineCount;
+        }
+        if (n.machines !== undefined) {
+          prev.machines = (prev.machines ?? 0) + n.machines;
+        }
+        if (!prev.machineItemId && n.machineItemId) prev.machineItemId = n.machineItemId;
+        if (!prev.machineName && n.machineName) prev.machineName = n.machineName;
+      }
+    });
+
+    model.edges.forEach((e) => {
+      const prev = mergedEdgeById.get(e.id);
+      if (!prev) {
+        mergedEdgeById.set(e.id, { ...e });
+        return;
+      }
+      prev.amount += e.amount;
+    });
+  });
+
+  mergedNodeById.forEach((n) => {
+    if (n.kind !== 'item') return;
+    const hash = itemKeyHash(n.itemKey);
+    if (targetRootHashes.value.has(hash)) n.isRoot = true;
+  });
+
+  return { nodes: Array.from(mergedNodeById.values()), edges: Array.from(mergedEdgeById.values()) };
+});
+
+const lineFlow = computed(() => {
+  if (!mergedTree.value) return { nodes: [] as Node[], edges: [] as Edge[] };
+
+  const model = lineModel.value;
+  if (!model.nodes.length) return { nodes: [] as Node[], edges: [] as Edge[] };
+
+  const titleById = new Map<string, string>();
+  const unit = lineDisplayUnit.value;
+  const unitText = unitSuffix(unit);
+
+  const nodes: Node[] = model.nodes.map((n) => {
+    if (n.kind === 'item') {
+      const base = `${formatAmount(displayRateFromAmount(n.amount, unit))}${unitText}`;
+      const seed =
+        lineIncludeCycleSeeds.value && n.seedAmount && n.seedAmount > 0
+          ? ` (seed ${formatAmount(n.seedAmount)})`
+          : '';
+      const subtitle = `${base}${seed}`;
+      const title = itemName(n.itemKey);
+      titleById.set(n.nodeId, title);
+      return {
+        id: n.nodeId,
+        type: 'lineItemNode',
+        position: { x: 0, y: 0 },
+        draggable: true,
+        selectable: true,
+        data: {
+          itemKey: n.itemKey,
+          title,
+          subtitle,
+          isRoot: !!n.isRoot,
+          inPorts: 0,
+          outPorts: 0,
+        } satisfies LineFlowItemData,
+      };
+    }
+    if (n.kind === 'fluid') {
+      const subtitle = `${formatAmount(displayRateFromAmount(n.amount, unit))}${unitText}${n.unit ?? ''}`;
+      titleById.set(n.nodeId, n.id);
+      return {
+        id: n.nodeId,
+        type: 'lineFluidNode',
+        position: { x: 0, y: 0 },
+        draggable: true,
+        selectable: true,
+        data: {
+          title: n.id,
+          subtitle,
+          inPorts: 0,
+          outPorts: 0,
+        } satisfies LineFlowFluidData,
+      };
+    }
+
+    const title = n.machineName ?? n.recipeTypeKey ?? n.recipeId;
+    const outName = itemName(n.outputItemKey);
+    const subtitle = `${outName} ${formatAmount(displayRateFromAmount(n.amount, unit))}${unitText}`;
+    titleById.set(n.nodeId, title);
+    return {
+      id: n.nodeId,
+      type: 'lineMachineNode',
+      position: { x: 0, y: 0 },
+      draggable: true,
+      selectable: true,
+      data: {
+        title,
+        subtitle,
+        ...(n.machineItemId ? { machineItemId: n.machineItemId } : {}),
+        ...(n.machineCount !== undefined ? { machineCount: Math.round(n.machineCount) } : {}),
+        outputItemKey: n.outputItemKey,
+        inPorts: 0,
+        outPorts: 0,
+      } satisfies LineFlowMachineData,
+    };
+  });
+
+  const edges: Edge[] = model.edges.map((e) => {
+    const label = `${formatAmount(displayRateFromAmount(e.amount, unit))}${unitText}`;
+    return {
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      zIndex: 2000,
+      type: 'default',
+      curvature: 0.35,
+      label,
+      labelBgPadding: [6, 3],
+      labelBgBorderRadius: 6,
+      style: { strokeWidth: 2 },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 18,
+        height: 18,
+      },
+    };
+  });
+
+  const inEdgesByTarget = new Map<string, Edge[]>();
+  const outEdgesBySource = new Map<string, Edge[]>();
+  nodes.forEach((n) => {
+    inEdgesByTarget.set(n.id, []);
+    outEdgesBySource.set(n.id, []);
+  });
+  edges.forEach((e) => {
+    (outEdgesBySource.get(e.source) ?? []).push(e);
+    (inEdgesByTarget.get(e.target) ?? []).push(e);
+  });
+
+  const MAX_PORTS = 10;
+  nodes.forEach((n) => {
+    const inList = inEdgesByTarget.get(n.id) ?? [];
+    const outList = outEdgesBySource.get(n.id) ?? [];
+    const inPorts = inList.length ? Math.min(MAX_PORTS, Math.max(1, inList.length)) : 0;
+    const outPorts = outList.length ? Math.min(MAX_PORTS, Math.max(1, outList.length)) : 0;
+    (n.data as LineFlowItemData | LineFlowMachineData | LineFlowFluidData).inPorts = inPorts;
+    (n.data as LineFlowItemData | LineFlowMachineData | LineFlowFluidData).outPorts = outPorts;
+  });
+
+  const nodeW = 340;
+  const nodeH = 64;
+  const gapX = 90;
+  const gapY = 48;
+  const pad = 18;
+
+  const ids = nodes.map((n) => n.id);
+  const out = new Map<string, string[]>();
+  const inp = new Map<string, string[]>();
+  ids.forEach((id) => {
+    out.set(id, []);
+    inp.set(id, []);
+  });
+  edges.forEach((e) => {
+    (out.get(e.source) ?? []).push(e.target);
+    (inp.get(e.target) ?? []).push(e.source);
+  });
+
+  const tarjanIndex = new Map<string, number>();
+  const low = new Map<string, number>();
+  const onStack = new Set<string>();
+  const st: string[] = [];
+  let idx = 0;
+  const comps: string[][] = [];
+
+  const strongconnect = (v: string) => {
+    tarjanIndex.set(v, idx);
+    low.set(v, idx);
+    idx += 1;
+    st.push(v);
+    onStack.add(v);
+
+    (out.get(v) ?? []).forEach((w) => {
+      if (!tarjanIndex.has(w)) {
+        strongconnect(w);
+        low.set(v, Math.min(low.get(v) ?? 0, low.get(w) ?? 0));
+      } else if (onStack.has(w)) {
+        low.set(v, Math.min(low.get(v) ?? 0, tarjanIndex.get(w) ?? 0));
+      }
+    });
+
+    if ((low.get(v) ?? 0) === (tarjanIndex.get(v) ?? 0)) {
+      const comp: string[] = [];
+      while (st.length) {
+        const w = st.pop()!;
+        onStack.delete(w);
+        comp.push(w);
+        if (w === v) break;
+      }
+      comps.push(comp);
+    }
+  };
+
+  ids.forEach((id) => {
+    if (!tarjanIndex.has(id)) strongconnect(id);
+  });
+
+  const compById = new Map<string, number>();
+  comps.forEach((c, i) => c.forEach((id) => compById.set(id, i)));
+  const hasSelfLoop = new Set<number>();
+  edges.forEach((e) => {
+    const cs = compById.get(e.source);
+    const ct = compById.get(e.target);
+    if (cs !== undefined && ct !== undefined && cs === ct && e.source === e.target)
+      hasSelfLoop.add(cs);
+  });
+  const cycleCompIds = new Set<number>();
+  comps.forEach((c, i) => {
+    if (c.length > 1) cycleCompIds.add(i);
+    else if (hasSelfLoop.has(i)) cycleCompIds.add(i);
+  });
+  const cycleNodeIds = new Set<string>();
+  cycleCompIds.forEach((cid) => comps[cid]!.forEach((id) => cycleNodeIds.add(id)));
+
+  const mainIds = ids.filter((id) => !cycleNodeIds.has(id));
+
+  const mainOut = new Map<string, string[]>();
+  const mainInp = new Map<string, string[]>();
+  mainIds.forEach((id) => {
+    mainOut.set(id, []);
+    mainInp.set(id, []);
+  });
+  edges.forEach((e) => {
+    if (!mainOut.has(e.source) || !mainInp.has(e.target)) return;
+    (mainOut.get(e.source) ?? []).push(e.target);
+    (mainInp.get(e.target) ?? []).push(e.source);
+  });
+
+  const indeg = new Map<string, number>();
+  mainIds.forEach((id) => indeg.set(id, (mainInp.get(id) ?? []).length));
+  const queue = mainIds
+    .filter((id) => (indeg.get(id) ?? 0) === 0)
+    .sort((a, b) => (titleById.get(a) ?? a).localeCompare(titleById.get(b) ?? b));
+
+  const topo: string[] = [];
+  while (queue.length) {
+    const id = queue.shift()!;
+    topo.push(id);
+    (mainOut.get(id) ?? []).forEach((to) => {
+      indeg.set(to, (indeg.get(to) ?? 0) - 1);
+      if ((indeg.get(to) ?? 0) === 0) {
+        queue.push(to);
+        queue.sort((a, b) => (titleById.get(a) ?? a).localeCompare(titleById.get(b) ?? b));
+      }
+    });
+  }
+  const topoSet = new Set(topo);
+  mainIds.forEach((id) => {
+    if (!topoSet.has(id)) topo.push(id);
+  });
+
+  const layerById = new Map<string, number>();
+  topo.forEach((id) => layerById.set(id, 0));
+  topo.forEach((id) => {
+    const base = layerById.get(id) ?? 0;
+    (mainOut.get(id) ?? []).forEach((to) => {
+      const prev = layerById.get(to) ?? 0;
+      if (base + 1 > prev) layerById.set(to, base + 1);
+    });
+  });
+
+  const maxLayer = Math.max(0, ...mainIds.map((id) => layerById.get(id) ?? 0));
+  const idsByLayer = new Map<number, string[]>();
+  for (let l = 0; l <= maxLayer; l += 1) idsByLayer.set(l, []);
+  mainIds.forEach((id) => {
+    const l = layerById.get(id) ?? 0;
+    (idsByLayer.get(l) ?? []).push(id);
+  });
+
+  idsByLayer.forEach((list) =>
+    list.sort((a, b) => (titleById.get(a) ?? a).localeCompare(titleById.get(b) ?? b)),
+  );
+
+  const orderIndex = new Map<string, number>();
+  const refreshOrderIndex = () => {
+    idsByLayer.forEach((list) => list.forEach((id, idx) => orderIndex.set(id, idx)));
+  };
+  refreshOrderIndex();
+
+  const bary = (neighbors: string[]) => {
+    if (!neighbors.length) return Number.POSITIVE_INFINITY;
+    let sum = 0;
+    let cnt = 0;
+    neighbors.forEach((n) => {
+      const v = orderIndex.get(n);
+      if (v === undefined) return;
+      sum += v;
+      cnt += 1;
+    });
+    return cnt ? sum / cnt : Number.POSITIVE_INFINITY;
+  };
+
+  const stableSortBy = (list: string[], scoreFn: (id: string) => number) => {
+    const withScore = list.map((id, idx) => ({ id, idx, s: scoreFn(id) }));
+    withScore.sort((a, b) => a.s - b.s || a.idx - b.idx);
+    return withScore.map((v) => v.id);
+  };
+
+  for (let pass = 0; pass < 4; pass += 1) {
+    for (let l = 1; l <= maxLayer; l += 1) {
+      const list = idsByLayer.get(l) ?? [];
+      idsByLayer.set(
+        l,
+        stableSortBy(list, (id) => bary(mainInp.get(id) ?? [])),
+      );
+      refreshOrderIndex();
+    }
+    for (let l = maxLayer - 1; l >= 0; l -= 1) {
+      const list = idsByLayer.get(l) ?? [];
+      idsByLayer.set(
+        l,
+        stableSortBy(list, (id) => bary(mainOut.get(id) ?? [])),
+      );
+      refreshOrderIndex();
+    }
+  }
+
+  const xById = new Map<string, number>();
+  const X_GAP = 60;
+  const minX = pad;
+  ids.forEach((id) => xById.set(id, minX));
+  const predsForX = new Map<string, string[]>();
+  ids.forEach((id) => predsForX.set(id, []));
+  edges.forEach((e) => {
+    if (!mainIds.includes(e.source) || !mainIds.includes(e.target)) return;
+    const ls = layerById.get(e.source) ?? 0;
+    const lt = layerById.get(e.target) ?? 0;
+    if (ls < lt) (predsForX.get(e.target) ?? []).push(e.source);
+  });
+  const mainTopo = topo.filter((id) => !cycleNodeIds.has(id));
+  for (let iter = 0; iter < 2; iter += 1) {
+    mainTopo.forEach((id) => {
+      const preds = predsForX.get(id) ?? [];
+      if (!preds.length) return;
+      const maxPredX = Math.max(...preds.map((p) => xById.get(p) ?? minX));
+      const next = Math.max(minX, maxPredX + nodeW + X_GAP);
+      xById.set(id, next);
+    });
+  }
+
+  nodes.forEach((n) => {
+    if (cycleNodeIds.has(n.id)) return;
+    const l = layerById.get(n.id) ?? 0;
+    const list = idsByLayer.get(l) ?? [];
+    const idx = list.indexOf(n.id);
+    n.position = {
+      x: xById.get(n.id) ?? pad + l * (nodeW + gapX),
+      y: pad + idx * (nodeH + gapY),
+    };
+  });
+
+  const nodeById = new Map(nodes.map((n) => [n.id, n] as const));
+
+  const relaxYByLayer = (passes: number) => {
+    const minGap = nodeH + gapY;
+    for (let pass = 0; pass < passes; pass += 1) {
+      idsByLayer.forEach((list) => {
+        const desired = list.map((id) => {
+          const neighbors = [...(mainInp.get(id) ?? []), ...(mainOut.get(id) ?? [])].filter(
+            (nId) => !cycleNodeIds.has(nId),
+          );
+          const avgY = neighbors.length
+            ? neighbors.reduce((s, nId) => s + (nodeById.get(nId)?.position.y ?? 0), 0) /
+              neighbors.length
+            : (nodeById.get(id)?.position.y ?? pad);
+          return { id, desired: avgY };
+        });
+
+        desired.sort((a, b) => a.desired - b.desired);
+
+        let y = pad;
+        desired.forEach((d) => {
+          const n = nodeById.get(d.id);
+          if (!n) return;
+          y = Math.max(y, d.desired);
+          n.position.y = y;
+          y += minGap;
+        });
+      });
+    }
+  };
+
+  relaxYByLayer(2);
+
+  const cycleComponents = Array.from(cycleCompIds.values())
+    .map((cid) => comps[cid]!)
+    .filter((c) => c.length);
+
+  const outWithin = new Map<string, string[]>();
+  cycleNodeIds.forEach((id) => outWithin.set(id, []));
+  edges.forEach((e) => {
+    if (!cycleNodeIds.has(e.source) || !cycleNodeIds.has(e.target)) return;
+    (outWithin.get(e.source) ?? []).push(e.target);
+  });
+
+  const occupied: Array<{ x0: number; y0: number; x1: number; y1: number }> = [];
+
+  const intersects = (
+    a: { x0: number; y0: number; x1: number; y1: number },
+    b: { x0: number; y0: number; x1: number; y1: number },
+  ) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
+
+  let fallbackY = pad;
+  const leftLaneX = pad - (nodeW + 140);
+  const cycleWithConsumerY = cycleComponents.map((comp) => {
+    const compSet = new Set(comp);
+    const consumerCenters: Array<{ x: number; y: number }> = [];
+    edges.forEach((e) => {
+      if (!compSet.has(e.source) || compSet.has(e.target)) return;
+      const t = nodeById.get(e.target);
+      if (!t) return;
+      if (cycleNodeIds.has(t.id)) return;
+      consumerCenters.push({
+        x: t.position.x + nodeW / 2,
+        y: t.position.y + nodeH / 2,
+      });
+    });
+    const avgY = consumerCenters.length
+      ? consumerCenters.reduce((s, p) => s + p.y, 0) / consumerCenters.length
+      : null;
+    return { comp, avgY };
+  });
+
+  cycleWithConsumerY
+    .sort((a, b) => {
+      if (a.avgY === null && b.avgY === null) return a.comp.length - b.comp.length;
+      if (a.avgY === null) return 1;
+      if (b.avgY === null) return -1;
+      return a.avgY - b.avgY;
+    })
+    .forEach(({ comp, avgY }) => {
+      const compSet = new Set(comp);
+      const start = comp
+        .slice()
+        .sort((a, b) => (titleById.get(a) ?? a).localeCompare(titleById.get(b) ?? b))[0]!;
+      const order: string[] = [];
+      const seen = new Set<string>();
+      let cur: string | null = start;
+      while (cur && !seen.has(cur) && order.length < comp.length) {
+        order.push(cur);
+        seen.add(cur);
+        const nexts: string[] = (outWithin.get(cur) ?? []).filter(
+          (t: string) => compSet.has(t) && !seen.has(t),
+        );
+        cur = nexts.length ? nexts[0]! : null;
+      }
+      comp.forEach((id) => {
+        if (!seen.has(id)) order.push(id);
+      });
+
+      const r = Math.max(160, order.length * 24);
+
+      const centerX = leftLaneX;
+      let centerY = avgY ?? fallbackY + r + nodeH / 2;
+
+      const ringBox = (cx: number, cy: number) => ({
+        x0: cx - r,
+        y0: cy - r,
+        x1: cx + r + nodeW,
+        y1: cy + r + nodeH,
+      });
+
+      let box = ringBox(centerX, centerY);
+      for (let tries = 0; tries < 80; tries += 1) {
+        const hit = occupied.find((b) => intersects(box, b));
+        if (!hit) break;
+        centerY = hit.y1 + 30 + r + nodeH / 2;
+        box = ringBox(centerX, centerY);
+      }
+      occupied.push(box);
+      order.forEach((id, i) => {
+        const n = nodeById.get(id);
+        if (!n) return;
+        const t = (i / order.length) * Math.PI * 2;
+        n.position = {
+          x: centerX + Math.cos(t) * r,
+          y: centerY + Math.sin(t) * r,
+        };
+      });
+
+      if (avgY === null) fallbackY = box.y1 + 90;
+    });
+
+  const saved = lineNodePositions.value;
+  if (saved.size) {
+    nodes.forEach((n) => {
+      const pos = saved.get(n.id);
+      if (pos) n.position = { ...pos };
+    });
+  }
+
+  const posById = new Map(nodes.map((n) => [n.id, n.position] as const));
+  nodes.forEach((n) => {
+    const nx = posById.get(n.id)?.x ?? 0;
+    const inList = (inEdgesByTarget.get(n.id) ?? []).slice().sort((a, b) => {
+      const ay = posById.get(a.source)?.y ?? 0;
+      const by = posById.get(b.source)?.y ?? 0;
+      if (ay !== by) return ay - by;
+      const ax = posById.get(a.source)?.x ?? 0;
+      const bx = posById.get(b.source)?.x ?? 0;
+      return Math.abs(bx - nx) - Math.abs(ax - nx);
+    });
+    const outList = (outEdgesBySource.get(n.id) ?? []).slice().sort((a, b) => {
+      const ay = posById.get(a.target)?.y ?? 0;
+      const by = posById.get(b.target)?.y ?? 0;
+      if (ay !== by) return ay - by;
+      const ax = posById.get(a.target)?.x ?? 0;
+      const bx = posById.get(b.target)?.x ?? 0;
+      return Math.abs(bx - nx) - Math.abs(ax - nx);
+    });
+    inList.forEach((e, idx) => {
+      e.targetHandle = `t${idx % MAX_PORTS}`;
+    });
+    outList.forEach((e, idx) => {
+      e.sourceHandle = `s${idx % MAX_PORTS}`;
+    });
+  });
+
+  return { nodes, edges };
+});
+
+const lineFlowNodes = computed(() => {
+  return lineFlow.value.nodes.map((node) => ({
+    ...node,
+    draggable: true,
+  }));
+});
+const lineFlowEdges = computed(() => lineFlow.value.edges);
+const lineFlowEdgesStyled = computed(() => {
+  const selectedId = selectedLineNodeId.value;
+  if (!selectedId) {
+    return lineFlowEdges.value.map((edge) => ({
+      ...edge,
+      style: { strokeWidth: 2 },
+      ...(edge.zIndex !== undefined ? { zIndex: edge.zIndex } : {}),
+    }));
+  }
+
+  const outEdgesBySource = new Map<string, Edge[]>();
+  const inEdgesByTarget = new Map<string, Edge[]>();
+  lineFlowEdges.value.forEach((edge) => {
+    if (!outEdgesBySource.has(edge.source)) outEdgesBySource.set(edge.source, []);
+    if (!inEdgesByTarget.has(edge.target)) inEdgesByTarget.set(edge.target, []);
+    outEdgesBySource.get(edge.source)!.push(edge);
+    inEdgesByTarget.get(edge.target)!.push(edge);
+  });
+
+  const downstreamEdgeIds = new Set<string>();
+  const upstreamEdgeIds = new Set<string>();
+  const downstreamNodeIds = new Set<string>();
+
+  const walkDownstream = (start: string) => {
+    const visited = new Set<string>();
+    const queue = [start];
+    visited.add(start);
+    downstreamNodeIds.add(start);
+    while (queue.length) {
+      const cur = queue.shift()!;
+      (outEdgesBySource.get(cur) ?? []).forEach((edge) => {
+        downstreamEdgeIds.add(edge.id);
+        if (!visited.has(edge.target)) {
+          visited.add(edge.target);
+          downstreamNodeIds.add(edge.target);
+          queue.push(edge.target);
+        }
+      });
+    }
+  };
+
+  const walkUpstream = (start: string) => {
+    const visited = new Set<string>();
+    const queue = [start];
+    visited.add(start);
+    while (queue.length) {
+      const cur = queue.shift()!;
+      (inEdgesByTarget.get(cur) ?? []).forEach((edge) => {
+        upstreamEdgeIds.add(edge.id);
+        if (!visited.has(edge.source)) {
+          visited.add(edge.source);
+          queue.push(edge.source);
+        }
+      });
+    }
+  };
+
+  walkDownstream(selectedId);
+  walkUpstream(selectedId);
+
+  const rootItemIds = new Set(
+    lineFlowNodes.value
+      .filter((n) => n.type === 'lineItemNode' && (n.data as LineFlowItemData).isRoot)
+      .map((n) => n.id),
+  );
+  const itemIds = new Set(
+    lineFlowNodes.value.filter((n) => n.type === 'lineItemNode').map((n) => n.id),
+  );
+  const incomingFromMachine = new Set<string>();
+  lineFlowEdges.value.forEach((e) => {
+    if (e.source.startsWith('m:') && itemIds.has(e.target)) incomingFromMachine.add(e.target);
+  });
+  const leafItemIds = new Set(Array.from(itemIds).filter((id) => !incomingFromMachine.has(id)));
+
+  return lineFlowEdges.value.map((edge) => {
+    const connected = edge.source === selectedId || edge.target === selectedId;
+    const inPath = downstreamEdgeIds.has(edge.id) || upstreamEdgeIds.has(edge.id);
+    const toRoot = rootItemIds.has(edge.target) && downstreamNodeIds.has(edge.target);
+    const fromLeaf = leafItemIds.has(edge.source);
+    const style = toRoot
+      ? { ...(edge.style ?? {}), stroke: '#7e57c2', strokeWidth: 2.4, opacity: 0.95 }
+      : connected
+        ? { ...(edge.style ?? {}), stroke: 'var(--q-primary)', strokeWidth: 3, opacity: 1 }
+        : inPath
+          ? { ...(edge.style ?? {}), stroke: 'var(--q-secondary)', strokeWidth: 2.5, opacity: 0.9 }
+          : fromLeaf
+            ? { ...(edge.style ?? {}), stroke: '#f9a825', strokeWidth: 2.2, opacity: 0.85 }
+            : { ...(edge.style ?? {}), opacity: 0.2 };
+    const result: Edge = {
+      ...edge,
+      style,
+    };
+    if (connected) {
+      result.zIndex = 3000;
+    } else if (inPath) {
+      result.zIndex = 2500;
+    } else if (edge.zIndex !== undefined) {
+      result.zIndex = edge.zIndex;
+    }
+    return result;
+  });
+});
 
 const calcTotals = computed(() => mergedTree.value?.totals ?? null);
 
@@ -1464,8 +2794,15 @@ const getItemName = (itemId: ItemId): string => {
   return keyHash ? (props.itemDefsByKeyHash?.[keyHash]?.name ?? itemId) : itemId;
 };
 
+const targetRootHashes = computed(() => new Set(targets.value.map((t) => itemKeyHash(t.itemKey))));
+
+const flowBackgroundPatternColor = computed(() =>
+  Dark.isActive ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.12)',
+);
+
 defineExpose({
   addTarget,
+  loadSavedPlan,
 });
 </script>
 
@@ -1473,9 +2810,7 @@ defineExpose({
 .advanced-planner {
   display: flex;
   flex-direction: column;
-  height: 100%;
   min-height: 0;
-  overflow-y: auto;
 }
 
 .advanced-planner-panels {
@@ -1484,8 +2819,8 @@ defineExpose({
 }
 
 .advanced-planner-panels :deep(.q-tab-panel) {
-  height: 100%;
-  /* 不在内部产生额外滚动，使用外部容器的滚动条 */
+  /* 让标签面板高度自适应内容，外层容器提供滚动 */
+  height: auto;
   overflow: visible;
 }
 
@@ -1638,10 +2973,57 @@ defineExpose({
 }
 
 .planner__graph {
-  height: 520px;
+  height: 640px;
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 8px;
   overflow: hidden;
+}
+
+.planner__flow {
+  width: 100%;
+  height: 720px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.planner__pagefull {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.planner__pagefull--active {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  padding: 12px;
+  background: #fff;
+}
+
+.planner__pagefull--active .planner__graph,
+.planner__pagefull--active .planner__flow {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+}
+
+.planner__flow--fullscreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999 !important;
+  border-radius: 0 !important;
+}
+
+:deep(.vue-flow__edge-path) {
+  stroke-linecap: round;
+}
+
+:deep(.vue-flow__node) {
+  cursor: default;
 }
 
 .planner__flow-node {
@@ -1656,9 +3038,25 @@ defineExpose({
   min-width: 220px;
   max-width: 320px;
 }
+.planner__flow-node--selected {
+  border-color: var(--q-primary);
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.25);
+}
 
 .planner__flow-node--fluid {
   min-width: 180px;
+}
+
+.planner__flow-node--machine {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.planner__handle {
+  width: 10px !important;
+  height: 10px !important;
+  background: rgba(0, 0, 0, 0.32) !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
 }
 
 .planner__flow-node-icon {
@@ -1694,6 +3092,18 @@ defineExpose({
   flex: 0 0 auto;
 }
 
+.planner__flow-node-icon-fallback {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.7);
+  user-select: none;
+}
+
 .decision-card {
   animation: fadeIn 0.3s ease-in;
 }
@@ -1717,6 +3127,15 @@ defineExpose({
 .body--dark .planner__graph {
   border-color: rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.04);
+}
+
+.body--dark .planner__flow {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.body--dark .planner__pagefull--active {
+  background: var(--q-dark);
 }
 
 .body--dark .planner__flow-node {

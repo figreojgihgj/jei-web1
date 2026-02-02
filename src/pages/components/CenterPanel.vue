@@ -125,6 +125,7 @@
               :pack="pack ?? null"
               :index="index ?? null"
               :item-defs-by-key-hash="itemDefsByKeyHash ?? {}"
+              @save-plan="$emit('save-plan', $event)"
             />
           </q-tab-panel>
         </q-tab-panels>
@@ -141,7 +142,11 @@
 import { ref, computed } from 'vue';
 import type { PackData, ItemDef, ItemKey } from 'src/jei/types';
 import type { JeiIndex } from 'src/jei/indexing/buildIndex';
-import type { PlannerInitialState, PlannerLiveState } from 'src/jei/planner/plannerUi';
+import type {
+  PlannerInitialState,
+  PlannerLiveState,
+  PlannerSavePayload,
+} from 'src/jei/planner/plannerUi';
 import RecipeContentView from './RecipeContentView.vue';
 import AdvancedPlanner from './AdvancedPlanner.vue';
 
@@ -213,8 +218,13 @@ const addToAdvancedPlanner = (itemKey: ItemKey, itemName: string) => {
   advancedPlannerRef.value?.addTarget(itemKey, itemName);
 };
 
+const loadAdvancedPlan = (plan: PlannerSavePayload) => {
+  advancedPlannerRef.value?.loadSavedPlan(plan);
+};
+
 defineExpose({
   addToAdvancedPlanner,
+  loadAdvancedPlan,
 });
 </script>
 
@@ -274,21 +284,18 @@ defineExpose({
 
 .jei-panel__body {
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
   display: flex;
   flex-direction: column;
 }
 
 .jei-panel__tab-panels {
-  height: 100%;
+  flex: 1 1 auto;
   min-height: 0;
 }
 
 .jei-panel__tab-panel {
-  height: 100%;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
 }
 
 .jei-panel__content {
