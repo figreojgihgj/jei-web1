@@ -1,0 +1,222 @@
+<template>
+  <q-card
+    v-show="!isMobile || mobileTab === 'panel'"
+    flat
+    bordered
+    :class="['jei-panel column no-wrap', { 'jei-panel--collapsed': collapsed }]"
+  >
+    <!-- 折叠状态下的展开按钮 -->
+    <div
+      v-if="collapsed"
+      class="jei-collapsed-trigger jei-collapsed-trigger--right"
+      @click="$emit('update:collapsed', false)"
+    >
+      <q-icon name="chevron_left" size="16px" />
+    </div>
+
+    <!-- 展开状态下的内容 -->
+    <template v-if="!collapsed && recipeViewMode === 'panel'">
+      <div class="jei-panel__head row items-center q-gutter-sm col-auto">
+        <div class="text-subtitle2">{{ navStackLength ? currentItemTitle : '中间区域' }}</div>
+        <q-space />
+        <q-btn
+          v-if="navStackLength > 1"
+          flat
+          round
+          dense
+          icon="arrow_back"
+          @click="$emit('go-back')"
+        />
+        <q-btn v-if="navStackLength" flat round dense icon="close" @click="$emit('close')" />
+        <q-btn
+          flat
+          dense
+          round
+          icon="chevron_right"
+          size="sm"
+          @click="$emit('update:collapsed', true)"
+        >
+          <q-tooltip>收起</q-tooltip>
+        </q-btn>
+      </div>
+      <div v-if="navStackLength" class="jei-panel__tabs col-auto">
+        <q-tabs
+          :model-value="activeTab"
+          @update:model-value="$emit('update:active-tab', $event)"
+          dense
+          outside-arrows
+          mobile-arrows
+          inline-label
+          class="q-px-sm q-pt-sm"
+        >
+          <q-tab name="recipes" label="Recipes (R)" />
+          <q-tab name="uses" label="Uses (U)" />
+          <q-tab name="wiki" label="Wiki (W)" />
+          <q-tab name="planner" label="Planner (P)" />
+        </q-tabs>
+      </div>
+      <q-separator />
+      <div v-show="!collapsed && navStackLength" class="col jei-panel__body">
+        <recipe-content-view
+          v-if="navStackLength"
+          :pack="pack ?? null"
+          :index="index ?? null"
+          :current-item-key="currentItemKey ?? null"
+          :current-item-def="currentItemDef ?? null"
+          :item-defs-by-key-hash="itemDefsByKeyHash ?? {}"
+          :rendered-description="renderedDescription ?? ''"
+          :active-tab="activeTab"
+          :active-type-key="activeTypeKey ?? ''"
+          @update:active-type-key="$emit('update:active-type-key', $event)"
+          :active-recipe-groups="activeRecipeGroups ?? []"
+          :all-recipe-groups="allRecipeGroups ?? []"
+          :type-machine-icons="typeMachineIcons ?? []"
+          :recipes-by-id="recipesById ?? new Map()"
+          :recipe-types-by-key="recipeTypesByKey ?? new Map()"
+          :planner-initial-state="plannerInitialState ?? null"
+          :planner-tab="plannerTab ?? 'tree'"
+          panel-class="jei-panel__panels"
+          @item-click="$emit('item-click', $event)"
+          @machine-item-click="$emit('machine-item-click', $event)"
+          @save-plan="$emit('save-plan', $event)"
+          @state-change="$emit('state-change', $event)"
+          @item-mouseenter="$emit('item-mouseenter', $event)"
+          @item-mouseleave="$emit('item-mouseleave')"
+          @item-context-menu="(...args) => $emit('item-context-menu', ...args)"
+          @item-touch-hold="(...args) => $emit('item-touch-hold', ...args)"
+        />
+      </div>
+      <div v-show="!collapsed && !navStackLength" class="q-pa-md text-caption text-grey-7 col">
+        选择物品以查看 Recipes/Uses。
+      </div>
+    </template>
+    <template v-else-if="!collapsed">
+      <div class="text-subtitle2">中间区域</div>
+      <div class="text-caption">右侧是物品列表，左侧是收藏夹；点击物品打开悬浮窗。</div>
+    </template>
+  </q-card>
+</template>
+
+<script setup lang="ts">
+import type { PackData, ItemDef, ItemKey } from 'src/jei/types';
+import type { JeiIndex } from 'src/jei/indexing/buildIndex';
+import type { PlannerInitialState, PlannerLiveState } from 'src/jei/planner/plannerUi';
+import RecipeContentView from './RecipeContentView.vue';
+
+interface RecipeGroup {
+  typeKey: string;
+  label: string;
+  recipeIds: string[];
+  isAll?: boolean;
+  machines: Array<{ typeKey: string; machineItemId: string }>;
+}
+
+interface MachineIcon {
+  typeKey: string;
+  machineItemId: string;
+}
+
+defineProps<{
+  isMobile: boolean;
+  mobileTab: string;
+  collapsed: boolean;
+  recipeViewMode: 'dialog' | 'panel';
+  navStackLength: number;
+  currentItemTitle: string;
+  activeTab: 'recipes' | 'uses' | 'wiki' | 'planner';
+  pack?: PackData | null;
+  index?: JeiIndex | null;
+  currentItemKey?: ItemKey | null;
+  currentItemDef?: ItemDef | null;
+  itemDefsByKeyHash?: Record<string, ItemDef>;
+  renderedDescription?: string;
+  activeTypeKey?: string;
+  activeRecipeGroups?: RecipeGroup[];
+  allRecipeGroups?: RecipeGroup[];
+  typeMachineIcons?: MachineIcon[];
+  recipesById?: Map<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  recipeTypesByKey?: Map<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  plannerInitialState?: PlannerInitialState | null;
+  plannerTab?: 'tree' | 'graph' | 'line' | 'calc';
+}>();
+
+defineEmits<{
+  'update:collapsed': [value: boolean];
+  'update:active-tab': [value: 'recipes' | 'uses' | 'wiki' | 'planner'];
+  'update:active-type-key': [typeKey: string];
+  'go-back': [];
+  close: [];
+  'item-click': [keyHash: ItemKey];
+  'machine-item-click': [itemId: string];
+  'save-plan': [payload: any]; // eslint-disable-line @typescript-eslint/no-explicit-any
+  'state-change': [state: PlannerLiveState];
+  'item-mouseenter': [keyHash: string];
+  'item-mouseleave': [];
+  'item-context-menu': [evt: Event, keyHash: string];
+  'item-touch-hold': [evt: unknown, keyHash: string];
+}>();
+</script>
+
+<style scoped>
+.jei-panel {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 12px;
+  height: 100%;
+  min-height: 0;
+  transition: width 0.3s ease;
+}
+
+.jei-panel--collapsed {
+  width: 20px !important;
+  min-width: 20px !important;
+  padding: 0;
+}
+
+.jei-collapsed-trigger {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: var(--q-primary);
+  color: white;
+  opacity: 0.6;
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+.jei-collapsed-trigger:hover {
+  opacity: 1;
+  width: 24px;
+}
+
+.jei-collapsed-trigger--right {
+  right: 0;
+  border-radius: 4px 0 0 4px;
+}
+
+.jei-panel__head {
+  padding-bottom: 8px;
+}
+
+.jei-panel__tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+
+.jei-panel__body {
+  min-height: 0;
+  overflow: auto;
+}
+
+.jei-panel__panels {
+  min-height: 0;
+}
+</style>

@@ -16,611 +16,96 @@
       }"
     >
       <!-- 上下文菜单 -->
-      <q-menu
-        v-if="contextMenuTarget"
+      <item-context-menu
         ref="contextMenuRef"
-        v-model="contextMenuOpen"
-        :target="contextMenuTarget"
-        @hide="contextMenuTarget = undefined"
-        content-style="z-index: 9999"
-      >
-        <q-list dense style="min-width: 150px">
-          <q-item clickable v-close-popup @click="onContextMenuAction('recipes')">
-            <q-item-section avatar>
-              <q-icon name="handyman" size="xs" />
-            </q-item-section>
-            <q-item-section>Recipes (R)</q-item-section>
-          </q-item>
-          <q-item clickable v-close-popup @click="onContextMenuAction('uses')">
-            <q-item-section avatar>
-              <q-icon name="input" size="xs" />
-            </q-item-section>
-            <q-item-section>Uses (U)</q-item-section>
-          </q-item>
-          <q-item clickable v-close-popup @click="onContextMenuAction('wiki')">
-            <q-item-section avatar>
-              <q-icon name="menu_book" size="xs" />
-            </q-item-section>
-            <q-item-section>Wiki (W)</q-item-section>
-          </q-item>
-          <q-item clickable v-close-popup @click="onContextMenuAction('planner')">
-            <q-item-section avatar>
-              <q-icon name="calculate" size="xs" />
-            </q-item-section>
-            <q-item-section>Planner (P)</q-item-section>
-          </q-item>
-          <q-separator />
-          <q-item clickable v-close-popup @click="onContextMenuAction('fav')">
-            <q-item-section avatar>
-              <q-icon
-                :name="
-                  contextMenuKeyHash && isFavorite(contextMenuKeyHash) ? 'star' : 'star_outline'
-                "
-                :color="contextMenuKeyHash && isFavorite(contextMenuKeyHash) ? 'amber' : undefined"
-                size="xs"
-              />
-            </q-item-section>
-            <q-item-section>收藏 (A)</q-item-section>
-          </q-item>
-        </q-list>
-      </q-menu>
+        :open="contextMenuOpen"
+        @update:open="contextMenuOpen = $event"
+        :target="contextMenuTarget ?? undefined"
+        @hide="contextMenuTarget = null"
+        :is-favorite="contextMenuKeyHash ? isFavorite(contextMenuKeyHash) : false"
+        @action="onContextMenuAction"
+      />
 
-      <q-card
-        v-show="!isMobile || mobileTab === 'fav'"
-        flat
-        bordered
-        :class="[
-          'jei-fav column no-wrap',
-          { 'jei-fav--collapsed': settingsStore.favoritesCollapsed },
-        ]"
-      >
-        <!-- 折叠状态下的展开按钮 -->
-        <div
-          v-if="settingsStore.favoritesCollapsed"
-          class="jei-collapsed-trigger jei-collapsed-trigger--left"
-          @click="settingsStore.setFavoritesCollapsed(false)"
-        >
-          <q-icon name="chevron_right" size="16px" />
-        </div>
+      <!-- 收藏夹面板 -->
+      <favorites-panel
+        :is-mobile="isMobile"
+        :mobile-tab="mobileTab"
+        :collapsed="settingsStore.favoritesCollapsed"
+        :saved-plans="savedPlans"
+        :favorite-items="favoriteItems"
+        :item-defs-by-key-hash="itemDefsByKeyHash"
+        @update:collapsed="settingsStore.setFavoritesCollapsed($event)"
+        @update:hovered-key-hash="hoveredKeyHash = $event"
+        @open-plan="openSavedPlan"
+        @delete-plan="deleteSavedPlan"
+        @item-click="openDialogByKeyHash"
+        @toggle-favorite="toggleFavorite"
+        @context-menu="onContextMenu"
+        @touch-hold="onTouchHold"
+      />
 
-        <!-- 展开状态下的内容 -->
-        <template v-if="!settingsStore.favoritesCollapsed">
-          <div class="jei-list__head col-auto row items-center q-gutter-sm">
-            <div class="text-subtitle2">收藏夹</div>
-            <q-space />
-            <q-btn
-              flat
-              dense
-              round
-              icon="chevron_left"
-              size="sm"
-              @click="settingsStore.setFavoritesCollapsed(true)"
-            >
-              <q-tooltip>收起</q-tooltip>
-            </q-btn>
-          </div>
+      <!-- 中间区域面板 -->
+      <center-panel
+        :is-mobile="isMobile"
+        :mobile-tab="mobileTab"
+        :collapsed="settingsStore.panelCollapsed"
+        :recipe-view-mode="settingsStore.recipeViewMode"
+        :nav-stack-length="navStack.length"
+        :current-item-title="currentItemTitle"
+        :active-tab="activeTab"
+        :pack="pack"
+        :index="index"
+        :current-item-key="currentItemKey"
+        :current-item-def="currentItemDef"
+        :item-defs-by-key-hash="itemDefsByKeyHash ?? {}"
+        :rendered-description="renderedDescription ?? ''"
+        :active-type-key="activeTypeKey ?? ''"
+        :active-recipe-groups="(activeRecipeGroups ?? []) as any"
+        :all-recipe-groups="(allRecipeGroups ?? []) as any"
+        :type-machine-icons="typeMachineIcons ?? []"
+        :recipes-by-id="recipesById ?? new Map()"
+        :recipe-types-by-key="recipeTypesByKey ?? new Map()"
+        :planner-initial-state="plannerInitialState"
+        :planner-tab="plannerTab ?? 'tree'"
+        @update:collapsed="settingsStore.setPanelCollapsed($event)"
+        @update:active-tab="activeTab = $event"
+        @update:active-type-key="activeTypeKey = $event"
+        @go-back="goBackInDialog"
+        @close="closeDialog"
+        @item-click="openDialogByItemKey"
+        @machine-item-click="openMachineItem"
+        @save-plan="savePlannerPlan"
+        @state-change="onPlannerStateChange"
+        @item-mouseenter="hoveredKeyHash = $event"
+        @item-mouseleave="hoveredKeyHash = null"
+        @item-context-menu="(evt, keyHash) => onContextMenu(evt, keyHash)"
+        @item-touch-hold="(evt, keyHash) => onTouchHold(evt, keyHash)"
+      />
 
-          <div class="jei-list__scroll col">
-            <div v-if="savedPlans.length" class="jei-plans">
-              <div class="jei-plans__head text-caption text-grey-8">已保存线路</div>
-              <q-list dense class="jei-plans__list">
-                <q-item
-                  v-for="p in savedPlans"
-                  :key="p.id"
-                  clickable
-                  class="jei-plans__item"
-                  @click="openSavedPlan(p)"
-                >
-                  <q-item-section avatar>
-                    <stack-view
-                      :content="{
-                        kind: 'item',
-                        id: p.rootItemKey.id,
-                        amount: 1,
-                        ...(p.rootItemKey.meta !== undefined ? { meta: p.rootItemKey.meta } : {}),
-                        ...(p.rootItemKey.nbt !== undefined ? { nbt: p.rootItemKey.nbt } : {}),
-                      }"
-                      :item-defs-by-key-hash="itemDefsByKeyHash"
-                      variant="slot"
-                      :show-name="false"
-                      :show-subtitle="false"
-                    />
-                  </q-item-section>
-                  <q-item-section>
-                    <q-item-label lines="1">{{ p.name }}</q-item-label>
-                    <q-item-label caption lines="1">{{ p.rootItemKey.id }}</q-item-label>
-                  </q-item-section>
-                  <q-item-section side>
-                    <q-btn
-                      flat
-                      round
-                      dense
-                      icon="delete"
-                      color="grey-7"
-                      @click.stop="deleteSavedPlan(p.id)"
-                    />
-                  </q-item-section>
-                </q-item>
-              </q-list>
-              <q-separator class="q-my-sm" />
-            </div>
-            <div v-if="favoriteItems.length" class="jei-grid">
-              <q-card
-                v-for="it in favoriteItems"
-                :key="it.keyHash"
-                flat
-                bordered
-                class="jei-grid__cell cursor-pointer"
-                v-touch-hold:600="(evt: unknown) => onTouchHold(evt, it.keyHash)"
-                @contextmenu.prevent="onContextMenu($event, it.keyHash)"
-                @mouseenter="hoveredKeyHash = it.keyHash"
-                @mouseleave="hoveredKeyHash = null"
-                @click="openDialogByKeyHash(it.keyHash)"
-              >
-                <q-btn
-                  flat
-                  round
-                  :dense="!isMobile"
-                  :size="isMobile ? 'md' : 'sm'"
-                  icon="star"
-                  color="amber"
-                  class="jei-grid__fav"
-                  @click.stop="toggleFavorite(it.keyHash)"
-                  @mousedown.stop
-                  @touchstart.stop
-                  style="z-index: 1"
-                />
-                <div class="jei-grid__cell-body">
-                  <stack-view
-                    :content="{
-                      kind: 'item',
-                      id: it.def.key.id,
-                      amount: 1,
-                      ...(it.def.key.meta !== undefined ? { meta: it.def.key.meta } : {}),
-                      ...(it.def.key.nbt !== undefined ? { nbt: it.def.key.nbt } : {}),
-                    }"
-                    :item-defs-by-key-hash="itemDefsByKeyHash"
-                  />
-                </div>
-              </q-card>
-            </div>
-            <div v-else class="text-caption text-grey-7">暂无收藏（悬停物品按 A 收藏）</div>
-          </div>
-        </template>
-      </q-card>
-
-      <q-card
-        v-show="!isMobile || mobileTab === 'panel'"
-        flat
-        bordered
-        :class="[
-          'jei-panel column no-wrap',
-          { 'jei-panel--collapsed': settingsStore.panelCollapsed },
-        ]"
-      >
-        <!-- 折叠状态下的展开按钮 -->
-        <div
-          v-if="settingsStore.panelCollapsed"
-          class="jei-collapsed-trigger jei-collapsed-trigger--right"
-          @click="settingsStore.setPanelCollapsed(false)"
-        >
-          <q-icon name="chevron_left" size="16px" />
-        </div>
-
-        <!-- 展开状态下的内容 -->
-        <template v-if="!settingsStore.panelCollapsed && settingsStore.recipeViewMode === 'panel'">
-          <div class="jei-panel__head row items-center q-gutter-sm col-auto">
-            <div class="text-subtitle2">{{ navStack.length ? currentItemTitle : '中间区域' }}</div>
-            <q-space />
-            <q-btn
-              v-if="navStack.length > 1"
-              flat
-              round
-              dense
-              icon="arrow_back"
-              @click="goBackInDialog"
-            />
-            <q-btn v-if="navStack.length" flat round dense icon="close" @click="closeDialog" />
-            <q-btn
-              flat
-              dense
-              round
-              icon="chevron_right"
-              size="sm"
-              @click="settingsStore.setPanelCollapsed(true)"
-            >
-              <q-tooltip>收起</q-tooltip>
-            </q-btn>
-          </div>
-          <div v-if="navStack.length" class="jei-panel__tabs col-auto">
-            <q-tabs
-              v-model="activeTab"
-              dense
-              outside-arrows
-              mobile-arrows
-              inline-label
-              class="q-px-sm q-pt-sm"
-            >
-              <q-tab name="recipes" label="Recipes (R)" />
-              <q-tab name="uses" label="Uses (U)" />
-              <q-tab name="wiki" label="Wiki (W)" />
-              <q-tab name="planner" label="Planner (P)" />
-            </q-tabs>
-          </div>
-          <q-separator />
-          <div
-            v-show="!settingsStore.panelCollapsed && navStack.length"
-            class="col jei-panel__body"
-          >
-            <crafting-planner-view
-              v-if="pack && index && currentItemKey"
-              v-show="activeTab === 'planner'"
-              class="q-pa-md"
-              :pack="pack"
-              :index="index"
-              :root-item-key="currentItemKey"
-              :item-defs-by-key-hash="itemDefsByKeyHash"
-              :initial-state="plannerInitialState"
-              :initial-tab="plannerTab"
-              @item-click="openDialogByItemKey"
-              @save-plan="savePlannerPlan"
-              @state-change="onPlannerStateChange"
-              @item-mouseenter="hoveredKeyHash = $event"
-              @item-mouseleave="hoveredKeyHash = null"
-            />
-            <!-- Wiki 标签页内容 -->
-            <div v-if="activeTab === 'wiki'" class="q-pa-md">
-              <div v-if="currentItemDef" class="column q-gutter-md">
-                <div class="text-h5">{{ currentItemDef.name }}</div>
-                <q-separator />
-                <div class="row q-gutter-md">
-                  <div class="col-auto">
-                    <stack-view
-                      :content="{
-                        kind: 'item',
-                        id: currentItemDef.key.id,
-                        amount: 1,
-                        ...(currentItemDef.key.meta !== undefined
-                          ? { meta: currentItemDef.key.meta }
-                          : {}),
-                        ...(currentItemDef.key.nbt !== undefined
-                          ? { nbt: currentItemDef.key.nbt }
-                          : {}),
-                      }"
-                      :item-defs-by-key-hash="itemDefsByKeyHash"
-                    />
-                  </div>
-                  <div class="col column q-gutter-sm">
-                    <div class="text-caption text-grey-8">物品 ID</div>
-                    <div class="text-body2">{{ currentItemDef.key.id }}</div>
-                    <div
-                      v-if="currentItemDef.key.meta !== undefined"
-                      class="text-caption text-grey-8 q-mt-sm"
-                    >
-                      Meta
-                    </div>
-                    <div v-if="currentItemDef.key.meta !== undefined" class="text-body2">
-                      {{ currentItemDef.key.meta }}
-                    </div>
-                  </div>
-                </div>
-                <q-separator />
-                <div v-if="currentItemDef.description">
-                  <div class="text-subtitle2 q-mb-sm">描述</div>
-                  <div class="wiki-description" v-html="renderedDescription"></div>
-                </div>
-                <q-separator v-if="currentItemDef.description" />
-                <div>
-                  <div class="text-subtitle2 q-mb-sm">标签</div>
-                  <div v-if="currentItemDef.tags?.length" class="row q-gutter-xs">
-                    <q-badge v-for="tag in currentItemDef.tags" :key="tag" color="grey-7">
-                      {{ tag }}
-                    </q-badge>
-                  </div>
-                  <div v-else class="text-caption text-grey-7">无标签</div>
-                </div>
-              </div>
-            </div>
-            <div
-              v-show="activeTab === 'recipes' || activeTab === 'uses'"
-              class="jei-dialog__type-tabs"
-            >
-              <div v-if="activeRecipeGroups.length" class="jei-type-layout">
-                <div v-if="typeMachineIcons.length" class="jei-type-sidebar">
-                  <q-btn
-                    v-for="m in typeMachineIcons"
-                    :key="m.typeKey"
-                    flat
-                    dense
-                    class="jei-type-sidebar__btn"
-                    :color="m.typeKey === activeTypeKey ? 'primary' : 'grey-7'"
-                    :class="{ 'jei-type-sidebar__btn--active': m.typeKey === activeTypeKey }"
-                    @click="openMachineItem(m.machineItemId)"
-                  >
-                    <stack-view
-                      :content="{ kind: 'item', id: m.machineItemId, amount: 1 }"
-                      :item-defs-by-key-hash="itemDefsByKeyHash"
-                      variant="slot"
-                      :show-name="false"
-                      :show-subtitle="false"
-                    />
-                  </q-btn>
-                </div>
-
-                <div class="jei-type-main">
-                  <q-tabs
-                    v-model="activeTypeKey"
-                    dense
-                    outside-arrows
-                    mobile-arrows
-                    inline-label
-                    class="q-px-sm q-pt-sm"
-                  >
-                    <q-tab
-                      v-for="g in activeRecipeGroups"
-                      :key="g.typeKey"
-                      :name="g.typeKey"
-                      :label="`${g.label} (${g.recipeIds.length})`"
-                    />
-                  </q-tabs>
-                  <q-separator />
-
-                  <q-tab-panels v-model="activeTypeKey" animated class="jei-panel__panels">
-                    <q-tab-panel
-                      v-for="g in activeRecipeGroups"
-                      :key="g.typeKey"
-                      :name="g.typeKey"
-                      class="q-pa-md"
-                    >
-                      <!-- "全部"分组：按配方类型分组显示 -->
-                      <template v-if="g.isAll">
-                        <div class="column q-gutter-lg">
-                          <div
-                            v-for="subGroup in allRecipeGroups"
-                            :key="subGroup.typeKey"
-                            class="column q-gutter-md"
-                          >
-                            <div class="row items-center q-gutter-sm text-subtitle2">
-                              <span>{{ subGroup.label }}</span>
-                              <div
-                                v-if="subGroup.machines.length"
-                                class="row items-center q-gutter-xs"
-                              >
-                                <q-icon name="precision_manufacturing" size="16px" color="grey-7" />
-                                <stack-view
-                                  v-for="m in subGroup.machines"
-                                  :key="m.machineItemId"
-                                  :content="{ kind: 'item', id: m.machineItemId, amount: 1 }"
-                                  :item-defs-by-key-hash="itemDefsByKeyHash"
-                                  variant="slot"
-                                  :show-name="false"
-                                  :show-subtitle="false"
-                                  class="cursor-pointer"
-                                  @item-click="openMachineItem(m.machineItemId)"
-                                />
-                              </div>
-                            </div>
-                            <q-separator />
-                            <div class="column q-gutter-md">
-                              <q-card
-                                v-for="rid in subGroup.recipeIds"
-                                :key="rid"
-                                flat
-                                bordered
-                                class="q-pa-md"
-                              >
-                                <recipe-viewer
-                                  v-if="recipesById.get(rid)"
-                                  :recipe="recipesById.get(rid)"
-                                  :recipe-type="
-                                    recipeTypesByKey.get(recipesById.get(rid)?.type || '')
-                                  "
-                                  :item-defs-by-key-hash="itemDefsByKeyHash"
-                                  @item-click="openDialogByItemKey"
-                                  @item-mouseenter="hoveredKeyHash = $event"
-                                  @item-mouseleave="hoveredKeyHash = null"
-                                  @item-context-menu="onContextMenu"
-                                  @item-touch-hold="onTouchHold"
-                                />
-                              </q-card>
-                            </div>
-                          </div>
-                        </div>
-                      </template>
-                      <!-- 普通分组：直接显示配方列表 -->
-                      <template v-else>
-                        <div class="column q-gutter-md">
-                          <q-card
-                            v-for="rid in g.recipeIds"
-                            :key="rid"
-                            flat
-                            bordered
-                            class="q-pa-md"
-                          >
-                            <recipe-viewer
-                              v-if="recipesById.get(rid)"
-                              :recipe="recipesById.get(rid)"
-                              :recipe-type="recipeTypesByKey.get(recipesById.get(rid)?.type || '')"
-                              :item-defs-by-key-hash="itemDefsByKeyHash"
-                              @item-click="openDialogByItemKey"
-                              @item-mouseenter="hoveredKeyHash = $event"
-                              @item-mouseleave="hoveredKeyHash = null"
-                              @item-context-menu="onContextMenu"
-                              @item-touch-hold="onTouchHold"
-                            />
-                          </q-card>
-                        </div>
-                      </template>
-                    </q-tab-panel>
-                  </q-tab-panels>
-                </div>
-              </div>
-              <div v-else class="q-pa-md text-caption">没有找到相关配方。</div>
-            </div>
-          </div>
-          <div
-            v-show="!settingsStore.panelCollapsed && !navStack.length"
-            class="q-pa-md text-caption text-grey-7 col"
-          >
-            选择物品以查看 Recipes/Uses。
-          </div>
-        </template>
-        <template v-else-if="!settingsStore.panelCollapsed">
-          <div class="text-subtitle2">中间区域</div>
-          <div class="text-caption">右侧是物品列表，左侧是收藏夹；点击物品打开悬浮窗。</div>
-        </template>
-      </q-card>
-
-      <q-card
-        v-show="!isMobile || mobileTab === 'list'"
-        flat
-        bordered
-        class="jei-list column no-wrap"
-      >
-        <div class="jei-list__head col-auto">
-          <div class="text-subtitle2">物品列表</div>
-          <div class="text-caption">pack: {{ pack?.manifest.packId }}</div>
-        </div>
-
-        <div ref="listScrollEl" class="jei-list__scroll col" @wheel="onListWheel">
-          <div ref="listGridEl" class="jei-grid">
-            <div v-if="firstPagedItem" ref="sampleCellEl">
-              <q-card
-                :key="firstPagedItem.keyHash"
-                flat
-                bordered
-                class="jei-grid__cell cursor-pointer"
-                v-touch-hold:600="(evt: unknown) => onTouchHold(evt, firstPagedItem?.keyHash ?? '')"
-                @contextmenu.prevent="onContextMenu($event, firstPagedItem?.keyHash ?? '')"
-                @mouseenter="hoveredKeyHash = firstPagedItem.keyHash"
-                @mouseleave="hoveredKeyHash = null"
-                @click="openDialogByKeyHash(firstPagedItem.keyHash)"
-              >
-                <q-btn
-                  flat
-                  round
-                  :dense="!isMobile"
-                  :size="isMobile ? 'md' : 'sm'"
-                  :icon="isFavorite(firstPagedItem.keyHash) ? 'star' : 'star_outline'"
-                  :color="isFavorite(firstPagedItem.keyHash) ? 'amber' : 'grey-6'"
-                  class="jei-grid__fav"
-                  @click.stop="toggleFavorite(firstPagedItem.keyHash)"
-                  @mousedown.stop
-                  @touchstart.stop
-                  style="z-index: 1"
-                />
-                <div class="jei-grid__cell-body">
-                  <stack-view
-                    :content="{
-                      kind: 'item',
-                      id: firstPagedItem.def.key.id,
-                      amount: 1,
-                      ...(firstPagedItem.def.key.meta !== undefined
-                        ? { meta: firstPagedItem.def.key.meta }
-                        : {}),
-                      ...(firstPagedItem.def.key.nbt !== undefined
-                        ? { nbt: firstPagedItem.def.key.nbt }
-                        : {}),
-                    }"
-                    :item-defs-by-key-hash="itemDefsByKeyHash"
-                  />
-                </div>
-              </q-card>
-            </div>
-
-            <q-card
-              v-for="it in restPagedItems"
-              :key="it.keyHash"
-              flat
-              bordered
-              class="jei-grid__cell cursor-pointer"
-              v-touch-hold:600="(evt: unknown) => onTouchHold(evt, it.keyHash)"
-              @contextmenu.prevent="onContextMenu($event, it.keyHash)"
-              @mouseenter="hoveredKeyHash = it.keyHash"
-              @mouseleave="hoveredKeyHash = null"
-              @click="openDialogByKeyHash(it.keyHash)"
-            >
-              <q-btn
-                flat
-                round
-                :dense="!isMobile"
-                :size="isMobile ? 'md' : 'sm'"
-                :icon="isFavorite(it.keyHash) ? 'star' : 'star_outline'"
-                :color="isFavorite(it.keyHash) ? 'amber' : 'grey-6'"
-                class="jei-grid__fav"
-                @click.stop="toggleFavorite(it.keyHash)"
-                @mousedown.stop
-                @touchstart.stop
-                style="z-index: 1"
-              />
-              <div class="jei-grid__cell-body">
-                <stack-view
-                  :content="{
-                    kind: 'item',
-                    id: it.def.key.id,
-                    amount: 1,
-                    ...(it.def.key.meta !== undefined ? { meta: it.def.key.meta } : {}),
-                    ...(it.def.key.nbt !== undefined ? { nbt: it.def.key.nbt } : {}),
-                  }"
-                  :item-defs-by-key-hash="itemDefsByKeyHash"
-                />
-              </div>
-            </q-card>
-          </div>
-        </div>
-
-        <div class="jei-list__pager col-auto">
-          <div class="text-caption text-grey-7">共 {{ filteredItems.length }} 个</div>
-          <div class="text-caption text-grey-7">每页 {{ pageSize }} 个</div>
-          <q-space />
-          <q-pagination
-            v-model="page"
-            :max="pageCount"
-            max-pages="7"
-            boundary-numbers
-            direction-links
-            dense
-          />
-        </div>
-
-        <div ref="historyEl" class="jei-list__history col-auto">
-          <div class="jei-list__history-title">历史</div>
-          <div class="jei-grid">
-            <template
-              v-for="(it, idx) in paddedHistoryItems"
-              :key="it ? it.keyHash : `placeholder-${idx}`"
-            >
-              <q-card
-                v-if="it"
-                flat
-                bordered
-                class="jei-grid__cell cursor-pointer"
-                v-touch-hold:600="(evt: unknown) => onTouchHold(evt, it.keyHash)"
-                @contextmenu.prevent="onContextMenu($event, it.keyHash)"
-                @mouseenter="hoveredKeyHash = it.keyHash"
-                @mouseleave="hoveredKeyHash = null"
-                @click="openDialogByKeyHash(it.keyHash)"
-              >
-                <stack-view
-                  :content="{
-                    kind: 'item',
-                    id: it.def.key.id,
-                    amount: 1,
-                    ...(it.def.key.meta !== undefined ? { meta: it.def.key.meta } : {}),
-                    ...(it.def.key.nbt !== undefined ? { nbt: it.def.key.nbt } : {}),
-                  }"
-                  :item-defs-by-key-hash="itemDefsByKeyHash"
-                />
-              </q-card>
-              <div
-                v-else
-                class="jei-grid__cell placeholder"
-                :style="{ height: measuredCellHeight + 'px' }"
-              ></div>
-            </template>
-          </div>
-        </div>
-      </q-card>
+      <!-- 物品列表面板 -->
+      <item-list-panel
+        ref="itemListPanelRef"
+        :is-mobile="isMobile"
+        :mobile-tab="mobileTab"
+        :pack-id="pack?.manifest.packId ?? ''"
+        :first-paged-item="firstPagedItem"
+        :rest-paged-items="restPagedItems"
+        :padded-history-items="paddedHistoryItems"
+        :page="page"
+        @update:page="page = $event"
+        :page-size="pageSize"
+        :page-count="pageCount"
+        :total-count="filteredItems.length"
+        :measured-cell-height="measuredCellHeight"
+        :item-defs-by-key-hash="itemDefsByKeyHash"
+        :favorites="favorites"
+        @update:hovered-key-hash="hoveredKeyHash = $event"
+        @item-click="openDialogByKeyHash"
+        @toggle-favorite="toggleFavorite"
+        @context-menu="onContextMenu"
+        @touch-hold="onTouchHold"
+        @wheel="onListWheel"
+      />
     </div>
 
     <div
@@ -641,452 +126,79 @@
       </q-tabs>
     </div>
 
-    <div class="jei-bottombar">
-      <div class="row items-center q-gutter-sm">
-        <q-select
-          v-model="activePackId"
-          :options="packOptions"
-          dense
-          outlined
-          emit-value
-          map-options
-          :disable="loading"
-          style="min-width: 220px"
-        />
-        <q-input
-          v-model="filterText"
-          dense
-          outlined
-          clearable
-          :disable="filterDisabled"
-          placeholder="输入名字过滤…（支持 @itemid/@gameid/@tag）"
-          class="col"
-        >
-          <template #append>
-            <q-icon
-              v-if="filterText"
-              name="filter_list"
-              class="cursor-pointer"
-              color="primary"
-              @click="filterDialogOpen = true"
-            />
-            <q-btn
-              v-else
-              flat
-              round
-              dense
-              icon="tune"
-              color="grey-7"
-              @click="filterDialogOpen = true"
-            />
-          </template>
-        </q-input>
-        <q-btn flat round icon="settings" @click="settingsOpen = true" />
-      </div>
-    </div>
+    <!-- 底部栏 -->
+    <bottom-bar
+      :active-pack-id="activePackId"
+      @update:active-pack-id="activePackId = $event"
+      :pack-options="packOptions"
+      :filter-text="filterText"
+      @update:filter-text="filterText = $event"
+      :filter-disabled="filterDisabled"
+      :loading="loading"
+      :available-item-ids="availableItemIds"
+      :available-game-ids="availableGameIds"
+      :available-tags="availableTags"
+      @open-settings="settingsOpen = true"
+    />
+
+    <!-- 设置对话框 -->
+    <settings-dialog
+      :open="settingsOpen"
+      @update:open="settingsOpen = $event"
+      :history-limit="settingsStore.historyLimit"
+      @update:history-limit="settingsStore.setHistoryLimit($event)"
+      :debug-layout="settingsStore.debugLayout"
+      @update:debug-layout="settingsStore.setDebugLayout($event)"
+      :debug-nav-panel="settingsStore.debugNavPanel"
+      @update:debug-nav-panel="settingsStore.setDebugNavPanel($event)"
+      :recipe-view-mode="settingsStore.recipeViewMode"
+      @update:recipe-view-mode="settingsStore.setRecipeViewMode($event)"
+      :recipe-slot-show-name="settingsStore.recipeSlotShowName"
+      @update:recipe-slot-show-name="settingsStore.setRecipeSlotShowName($event)"
+    />
 
     <pre v-if="settingsStore.debugLayout" class="jei-debug-overlay">{{ debugText }}</pre>
 
-    <!-- 过滤器对话框 -->
-    <q-dialog v-model="filterDialogOpen">
-      <q-card style="min-width: 400px; max-width: 500px">
-        <q-card-section>
-          <div class="text-h6">高级过滤器</div>
-        </q-card-section>
-
-        <q-card-section class="q-pt-none column q-gutter-sm">
-          <q-input
-            v-model="filterForm.text"
-            dense
-            outlined
-            clearable
-            label="物品名称"
-            placeholder="输入物品名称关键词"
-          />
-          <q-select
-            v-model="filterForm.itemId"
-            :options="
-              availableItemIdsFiltered.length > 0
-                ? availableItemIdsFiltered
-                : availableItemIds.slice(0, 50)
-            "
-            dense
-            outlined
-            clearable
-            label="物品 ID"
-            placeholder="选择或输入物品 ID"
-            use-input
-            input-debounce="0"
-            :input-value="filterForm.itemId"
-            @input-value="filterForm.itemId = $event"
-            @filter="filterItemIds"
-          />
-          <q-select
-            v-model="filterForm.gameId"
-            :options="
-              availableGameIdsFiltered.length > 0 ? availableGameIdsFiltered : availableGameIds
-            "
-            dense
-            outlined
-            clearable
-            label="命名空间"
-            placeholder="选择或输入命名空间"
-            use-input
-            input-debounce="0"
-            :input-value="filterForm.gameId"
-            @input-value="filterForm.gameId = $event"
-            @filter="filterGameIds"
-          />
-          <div class="column q-gutter-xs">
-            <div class="text-subtitle2">标签</div>
-            <div class="row q-gutter-sm items-center">
-              <q-select
-                v-for="(tag, idx) in filterForm.tags"
-                :key="idx"
-                :model-value="tag"
-                :options="filteredTagsOptions"
-                dense
-                outlined
-                clearable
-                label="标签"
-                placeholder="选择或输入标签"
-                class="col"
-                use-input
-                input-debounce="0"
-                @input-value="filterForm.tags[idx] = $event"
-                @filter="(val, upd) => filterTags(val, upd, idx)"
-                @update:model-value="filterForm.tags[idx] = $event || ''"
-              >
-                <template #append>
-                  <q-icon
-                    name="close"
-                    class="cursor-pointer"
-                    @click="filterForm.tags.splice(idx, 1)"
-                  />
-                </template>
-              </q-select>
-              <q-btn
-                flat
-                round
-                dense
-                icon="add"
-                color="primary"
-                @click="filterForm.tags.push('')"
-              />
-            </div>
-          </div>
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="清空" color="grey-7" @click="resetFilterForm" />
-          <q-btn flat label="取消" color="grey-7" v-close-popup />
-          <q-btn flat label="应用" color="primary" @click="applyFilter" v-close-popup />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <q-dialog v-model="settingsOpen">
-      <q-card style="min-width: 300px">
-        <q-card-section>
-          <div class="text-h6">设置</div>
-        </q-card-section>
-        <q-card-section class="q-pt-none">
-          <q-input
-            type="number"
-            label="历史记录显示数量"
-            dense
-            outlined
-            :model-value="settingsStore.historyLimit"
-            @update:model-value="(v) => settingsStore.setHistoryLimit(Number(v) || 0)"
-          />
-          <q-toggle
-            label="开启调试滚动"
-            :model-value="settingsStore.debugLayout"
-            @update:model-value="(v) => settingsStore.setDebugLayout(!!v)"
-          />
-          <q-toggle
-            label="导航栈调试面板"
-            :model-value="settingsStore.debugNavPanel"
-            @update:model-value="(v) => settingsStore.setDebugNavPanel(!!v)"
-          />
-          <q-select
-            dense
-            outlined
-            label="合成表显示方式"
-            :options="[
-              { label: '弹窗', value: 'dialog' },
-              { label: '中间区域', value: 'panel' },
-            ]"
-            emit-value
-            map-options
-            :model-value="settingsStore.recipeViewMode"
-            @update:model-value="(v) => settingsStore.setRecipeViewMode(v as 'dialog' | 'panel')"
-          />
-          <q-toggle
-            label="合成表物品显示名字"
-            :model-value="settingsStore.recipeSlotShowName"
-            @update:model-value="(v) => settingsStore.setRecipeSlotShowName(!!v)"
-          />
-        </q-card-section>
-        <q-card-actions align="right">
-          <q-btn flat label="关闭" color="primary" v-close-popup />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <q-dialog v-model="dialogOpen" content-class="jei-dialog-content" :maximized="isMobile">
-      <q-card class="jei-dialog" :class="{ 'jei-dialog--mobile': isMobile }">
-        <div class="jei-dialog__head">
-          <div class="jei-dialog__title">
-            {{ currentItemTitle }}
-          </div>
-          <q-btn flat round icon="close" @click="closeDialog" />
-        </div>
-
-        <div class="jei-dialog__tabs">
-          <q-tabs
-            v-model="activeTab"
-            dense
-            outside-arrows
-            mobile-arrows
-            inline-label
-            class="q-px-sm q-pt-sm"
-          >
-            <q-tab name="recipes" label="Recipes (R)" />
-            <q-tab name="uses" label="Uses (U)" />
-            <q-tab name="wiki" label="Wiki (W)" />
-            <q-tab name="planner" label="Planner (P)" />
-          </q-tabs>
-          <div class="jei-dialog__hint text-caption">Backspace: 返回 · Esc: 关闭</div>
-        </div>
-
-        <q-scroll-area class="jei-dialog__body">
-          <crafting-planner-view
-            v-if="pack && index && currentItemKey"
-            v-show="activeTab === 'planner'"
-            class="q-pa-md"
-            :pack="pack"
-            :index="index"
-            :root-item-key="currentItemKey"
-            :item-defs-by-key-hash="itemDefsByKeyHash"
-            :initial-state="plannerInitialState"
-            :initial-tab="plannerTab"
-            @item-click="openDialogByItemKey"
-            @save-plan="savePlannerPlan"
-            @state-change="onPlannerStateChange"
-            @item-mouseenter="hoveredKeyHash = $event"
-            @item-mouseleave="hoveredKeyHash = null"
-          />
-          <!-- Wiki 标签页内容 -->
-          <div v-if="activeTab === 'wiki'" class="q-pa-md">
-            <div v-if="currentItemDef" class="column q-gutter-md">
-              <div class="text-h5">{{ currentItemDef.name }}</div>
-              <q-separator />
-              <div class="row q-gutter-md">
-                <div class="col-auto">
-                  <stack-view
-                    :content="{
-                      kind: 'item',
-                      id: currentItemDef.key.id,
-                      amount: 1,
-                      ...(currentItemDef.key.meta !== undefined
-                        ? { meta: currentItemDef.key.meta }
-                        : {}),
-                      ...(currentItemDef.key.nbt !== undefined
-                        ? { nbt: currentItemDef.key.nbt }
-                        : {}),
-                    }"
-                    :item-defs-by-key-hash="itemDefsByKeyHash"
-                  />
-                </div>
-                <div class="col column q-gutter-sm">
-                  <div class="text-caption text-grey-8">物品 ID</div>
-                  <div class="text-body2">{{ currentItemDef.key.id }}</div>
-                  <div
-                    v-if="currentItemDef.key.meta !== undefined"
-                    class="text-caption text-grey-8 q-mt-sm"
-                  >
-                    Meta
-                  </div>
-                  <div v-if="currentItemDef.key.meta !== undefined" class="text-body2">
-                    {{ currentItemDef.key.meta }}
-                  </div>
-                </div>
-              </div>
-              <q-separator />
-              <div v-if="currentItemDef.description">
-                <div class="text-subtitle2 q-mb-sm">描述</div>
-                <div class="wiki-description" v-html="renderedDescription"></div>
-              </div>
-              <q-separator v-if="currentItemDef.description" />
-              <div>
-                <div class="text-subtitle2 q-mb-sm">标签</div>
-                <div v-if="currentItemDef.tags?.length" class="row q-gutter-xs">
-                  <q-badge v-for="tag in currentItemDef.tags" :key="tag" color="grey-7">
-                    {{ tag }}
-                  </q-badge>
-                </div>
-                <div v-else class="text-caption text-grey-7">无标签</div>
-              </div>
-            </div>
-          </div>
-          <div
-            v-show="activeTab === 'recipes' || activeTab === 'uses'"
-            class="jei-dialog__type-tabs"
-          >
-            <div v-if="activeRecipeGroups.length" class="jei-type-layout">
-              <div v-if="typeMachineIcons.length" class="jei-type-sidebar">
-                <q-btn
-                  v-for="m in typeMachineIcons"
-                  :key="m.typeKey"
-                  flat
-                  dense
-                  class="jei-type-sidebar__btn"
-                  :color="m.typeKey === activeTypeKey ? 'primary' : 'grey-7'"
-                  :class="{ 'jei-type-sidebar__btn--active': m.typeKey === activeTypeKey }"
-                  @click="openMachineItem(m.machineItemId)"
-                >
-                  <stack-view
-                    :content="{ kind: 'item', id: m.machineItemId, amount: 1 }"
-                    :item-defs-by-key-hash="itemDefsByKeyHash"
-                    variant="slot"
-                    :show-name="false"
-                    :show-subtitle="false"
-                  />
-                </q-btn>
-              </div>
-
-              <div class="jei-type-main">
-                <q-tabs
-                  v-model="activeTypeKey"
-                  dense
-                  outside-arrows
-                  mobile-arrows
-                  inline-label
-                  class="q-px-sm q-pt-sm"
-                >
-                  <q-tab
-                    v-for="g in activeRecipeGroups"
-                    :key="g.typeKey"
-                    :name="g.typeKey"
-                    :label="`${g.label} (${g.recipeIds.length})`"
-                  />
-                </q-tabs>
-                <q-separator />
-
-                <q-tab-panels v-model="activeTypeKey" animated>
-                  <q-tab-panel
-                    v-for="g in activeRecipeGroups"
-                    :key="g.typeKey"
-                    :name="g.typeKey"
-                    class="q-pa-md"
-                  >
-                    <!-- "全部"分组：按配方类型分组显示 -->
-                    <template v-if="g.isAll">
-                      <div class="column q-gutter-lg">
-                        <div
-                          v-for="subGroup in allRecipeGroups"
-                          :key="subGroup.typeKey"
-                          class="column q-gutter-md"
-                        >
-                          <div class="row items-center q-gutter-sm text-subtitle2">
-                            <span>{{ subGroup.label }}</span>
-                            <div
-                              v-if="subGroup.machines.length"
-                              class="row items-center q-gutter-xs"
-                            >
-                              <q-icon name="precision_manufacturing" size="16px" color="grey-7" />
-                              <stack-view
-                                v-for="m in subGroup.machines"
-                                :key="m.machineItemId"
-                                :content="{ kind: 'item', id: m.machineItemId, amount: 1 }"
-                                :item-defs-by-key-hash="itemDefsByKeyHash"
-                                variant="slot"
-                                :show-name="false"
-                                :show-subtitle="false"
-                                class="cursor-pointer"
-                                @item-click="openMachineItem(m.machineItemId)"
-                              />
-                            </div>
-                          </div>
-                          <q-separator />
-                          <div class="column q-gutter-md">
-                            <q-card
-                              v-for="rid in subGroup.recipeIds"
-                              :key="rid"
-                              flat
-                              bordered
-                              class="q-pa-md"
-                            >
-                              <recipe-viewer
-                                v-if="recipesById.get(rid)"
-                                :recipe="recipesById.get(rid)"
-                                :recipe-type="
-                                  recipeTypesByKey.get(recipesById.get(rid)?.type || '')
-                                "
-                                :item-defs-by-key-hash="itemDefsByKeyHash"
-                                @item-click="openDialogByItemKey"
-                                @item-mouseenter="hoveredKeyHash = $event"
-                                @item-mouseleave="hoveredKeyHash = null"
-                                @item-context-menu="onContextMenu"
-                                @item-touch-hold="onTouchHold"
-                              />
-                            </q-card>
-                          </div>
-                        </div>
-                      </div>
-                    </template>
-                    <!-- 普通分组：直接显示配方列表 -->
-                    <template v-else>
-                      <div class="column q-gutter-md">
-                        <q-card v-for="rid in g.recipeIds" :key="rid" flat bordered class="q-pa-md">
-                          <recipe-viewer
-                            v-if="recipesById.get(rid)"
-                            :recipe="recipesById.get(rid)"
-                            :recipe-type="recipeTypesByKey.get(recipesById.get(rid)?.type || '')"
-                            :item-defs-by-key-hash="itemDefsByKeyHash"
-                            @item-click="openDialogByItemKey"
-                            @item-mouseenter="hoveredKeyHash = $event"
-                            @item-mouseleave="hoveredKeyHash = null"
-                            @item-context-menu="onContextMenu"
-                            @item-touch-hold="onTouchHold"
-                          />
-                        </q-card>
-                      </div>
-                    </template>
-                  </q-tab-panel>
-                </q-tab-panels>
-              </div>
-            </div>
-            <div v-else class="q-pa-md text-caption">没有找到相关配方。</div>
-          </div>
-        </q-scroll-area>
-      </q-card>
-    </q-dialog>
+    <!-- 物品详情对话框 -->
+    <item-dialog
+      :open="dialogOpen"
+      @update:open="dialogOpen = $event"
+      @close="closeDialog"
+      :is-mobile="isMobile"
+      :current-item-title="currentItemTitle"
+      :pack="pack"
+      :index="index"
+      :current-item-key="currentItemKey"
+      :current-item-def="currentItemDef"
+      :item-defs-by-key-hash="itemDefsByKeyHash"
+      :rendered-description="renderedDescription"
+      :active-tab="activeTab"
+      @update:active-tab="activeTab = $event"
+      :active-type-key="activeTypeKey"
+      @update:active-type-key="activeTypeKey = $event"
+      :active-recipe-groups="activeRecipeGroups as any"
+      :all-recipe-groups="allRecipeGroups as any"
+      :type-machine-icons="typeMachineIcons"
+      :recipes-by-id="recipesById"
+      :recipe-types-by-key="recipeTypesByKey"
+      :planner-initial-state="plannerInitialState"
+      :planner-tab="plannerTab"
+      @item-click="openDialogByItemKey"
+      @machine-item-click="openMachineItem"
+      @save-plan="savePlannerPlan"
+      @state-change="onPlannerStateChange"
+      @item-mouseenter="hoveredKeyHash = $event"
+      @item-mouseleave="hoveredKeyHash = null"
+      @item-context-menu="(evt, keyHash) => onContextMenu(evt, keyHash)"
+      @item-touch-hold="(evt, keyHash) => onTouchHold(evt, keyHash)"
+    />
 
     <!-- 调试悬浮窗 -->
-    <div
+    <debug-panel
       v-if="settingsStore.debugNavPanel"
-      class="debug-panel"
-      :style="{ top: debugPanelPos.y + 'px', left: debugPanelPos.x + 'px' }"
-      @mousedown="startDragDebugPanel"
-    >
-      <div class="debug-panel__header">导航栈调试 (拖动我)</div>
-      <div class="debug-panel__content">
-        <div>navStack.length: {{ navStack.length }}</div>
-        <div>dialogOpen: {{ dialogOpen }}</div>
-        <div class="debug-panel__stack">
-          <div v-for="(item, index) in navStack" :key="index" class="debug-panel__item">
-            [{{ index }}] {{ item.id }}
-          </div>
-        </div>
-        <div class="debug-panel__log">
-          <div v-for="(log, index) in navChangeLog" :key="index" class="debug-panel__log-item">
-            {{ log }}
-          </div>
-        </div>
-      </div>
-    </div>
+      :nav-stack="navStack"
+      :dialog-open="dialogOpen"
+    />
   </q-page>
 </template>
 
@@ -1102,9 +214,14 @@ import {
   recipesProducingItem,
   type JeiIndex,
 } from 'src/jei/indexing/buildIndex';
-import StackView from 'src/jei/components/StackView.vue';
-import RecipeViewer from 'src/jei/components/RecipeViewer.vue';
-import CraftingPlannerView from 'src/jei/components/CraftingPlannerView.vue';
+import FavoritesPanel from './components/FavoritesPanel.vue';
+import ItemListPanel from './components/ItemListPanel.vue';
+import CenterPanel from './components/CenterPanel.vue';
+import BottomBar from './components/BottomBar.vue';
+import SettingsDialog from './components/SettingsDialog.vue';
+import ItemDialog from './components/ItemDialog.vue';
+import ItemContextMenu from './components/ItemContextMenu.vue';
+import DebugPanel from './components/DebugPanel.vue';
 import MarkdownIt from 'markdown-it';
 import { pinyin } from 'pinyin-pro';
 import type {
@@ -1117,7 +234,7 @@ import { autoPlanSelections } from 'src/jei/planner/planner';
 import { useSettingsStore } from 'src/stores/settings';
 
 const settingsStore = useSettingsStore();
-const contextMenuTarget = ref<HTMLElement | undefined>(undefined);
+const contextMenuTarget = ref<HTMLElement | null>(null);
 const $q = useQuasar();
 const isMobile = computed(() => $q.screen.lt.md);
 const isDark = computed(() => $q.dark.isActive);
@@ -1200,35 +317,24 @@ const historyKeyHashes = ref<string[]>([]);
 const filterDisabled = computed(() => loading.value || !!error.value);
 
 const page = ref(1);
-const listScrollEl = ref<HTMLElement | null>(null);
-const listGridEl = ref<HTMLElement | null>(null);
-const sampleCellEl = ref<HTMLElement | null>(null);
 const measuredCellHeight = ref(84);
 const gridGap = 8;
 const gridColumns = 2;
 
 const pageSize = ref(120);
 
-const filterDialogOpen = ref(false);
-const filterForm = ref({
-  text: '',
-  itemId: '',
-  gameId: '',
-  tags: [] as string[],
-});
-
 const settingsOpen = ref(false);
 const dialogOpen = ref(false);
+const contextMenuRef = ref();
 const contextMenuOpen = ref(false);
 const contextMenuKeyHash = ref<string | null>(null);
-const contextMenuRef = ref();
 
 function onContextMenu(evt: Event, keyHash: string) {
   contextMenuKeyHash.value = keyHash;
   const target =
     (evt.target as HTMLElement).closest('.jei-grid__cell, .stack-view') ||
     (evt.target as HTMLElement);
-  contextMenuTarget.value = (target as HTMLElement) || undefined;
+  contextMenuTarget.value = target as HTMLElement;
   contextMenuRef.value?.show();
 }
 
@@ -1244,7 +350,7 @@ function onTouchHold(evt: unknown, keyHash: string) {
   const target =
     (d.evt.target as HTMLElement).closest('.jei-grid__cell, .stack-view') ||
     (d.evt.target as HTMLElement);
-  contextMenuTarget.value = (target as HTMLElement) || undefined;
+  contextMenuTarget.value = target as HTMLElement;
   contextMenuRef.value?.show();
 }
 
@@ -1260,68 +366,6 @@ function onContextMenuAction(action: 'recipes' | 'uses' | 'wiki' | 'planner' | '
 }
 
 const navStack = ref<ItemKey[]>([]);
-
-// 调试面板状态
-const debugPanelPos = ref({ x: 10, y: 10 });
-const navChangeLog = ref<string[]>([]);
-const isDraggingDebugPanel = ref(false);
-const dragOffset = ref({ x: 0, y: 0 });
-
-function startDragDebugPanel(evt: MouseEvent) {
-  const target = evt.target as HTMLElement;
-  if (!target.closest('.debug-panel__header')) return;
-  isDraggingDebugPanel.value = true;
-  dragOffset.value = {
-    x: evt.clientX - debugPanelPos.value.x,
-    y: evt.clientY - debugPanelPos.value.y,
-  };
-  document.addEventListener('mousemove', onDragDebugPanel);
-  document.addEventListener('mouseup', stopDragDebugPanel);
-}
-
-function onDragDebugPanel(evt: MouseEvent) {
-  if (!isDraggingDebugPanel.value) return;
-  debugPanelPos.value = {
-    x: evt.clientX - dragOffset.value.x,
-    y: evt.clientY - dragOffset.value.y,
-  };
-}
-
-function stopDragDebugPanel() {
-  isDraggingDebugPanel.value = false;
-  document.removeEventListener('mousemove', onDragDebugPanel);
-  document.removeEventListener('mouseup', stopDragDebugPanel);
-}
-
-// 添加调试日志
-function addNavChangeLog(msg: string) {
-  if (!settingsStore.debugNavPanel) return;
-  const time = new Date().toLocaleTimeString();
-  navChangeLog.value.unshift(`[${time}] ${msg}`);
-  if (navChangeLog.value.length > 20) navChangeLog.value.pop();
-}
-
-// 追踪导航栈变化
-watch(
-  () => navStack.value,
-  (newStack, oldStack) => {
-    const prevLen = oldStack?.length ?? 0;
-    const newLen = newStack.length;
-    if (newLen === 0 && prevLen > 0) {
-      addNavChangeLog(`❌ navStack 被清空！之前长度: ${prevLen}`);
-      // 打印堆栈来追踪是谁清空的
-      console.trace('navStack 被清空！');
-    } else if (newLen < prevLen) {
-      addNavChangeLog(`⬅️ navStack 减少: ${prevLen} -> ${newLen}`);
-    } else if (newLen > prevLen) {
-      const newItem = newStack[newStack.length - 1];
-      if (newItem) {
-        addNavChangeLog(`➡️ navStack 增加: ${prevLen} -> ${newLen} (${newItem.id})`);
-      }
-    }
-  },
-  { deep: true },
-);
 
 watch(
   () => navStack.value.length,
@@ -1553,7 +597,7 @@ function applyRouteState() {
     if (!isTopMatches) {
       // 只有当导航栈为空或顶部物品不匹配时才重置
       // 检查导航栈中是否已有该物品，如果有则滚动到该位置
-      const existingIndex = navStack.value.findIndex(k => itemKeyHash(k) === keyHash);
+      const existingIndex = navStack.value.findIndex((k) => itemKeyHash(k) === keyHash);
       if (existingIndex >= 0) {
         // 物品已存在于导航栈中，滚动到该位置
         navStack.value = navStack.value.slice(0, existingIndex + 1);
@@ -1672,7 +716,10 @@ const pagedItems = computed(() => {
 const firstPagedItem = computed(() => pagedItems.value[0] ?? null);
 const restPagedItems = computed(() => pagedItems.value.slice(1));
 
-const historyEl = ref<HTMLElement | null>(null);
+const itemListPanelRef = ref<InstanceType<typeof ItemListPanel> | null>(null);
+const listScrollEl = computed(() => itemListPanelRef.value?.listScrollEl ?? null);
+const listGridEl = computed(() => itemListPanelRef.value?.listGridEl ?? null);
+const sampleCellEl = computed(() => itemListPanelRef.value?.sampleCellEl ?? null);
 
 const debugMetrics = ref({
   containerClientHeight: 0,
@@ -2540,111 +1587,10 @@ function toggleFavorite(keyHash: string) {
 }
 
 function pushHistoryKeyHash(keyHash: string) {
-  // 保持历史记录多一点，展示的时候再截断
+  // 保持历史记录多一点,展示的时候再截断
   const next = [keyHash, ...historyKeyHashes.value.filter((k) => k !== keyHash)].slice(0, 100);
   historyKeyHashes.value = next;
 }
-
-function applyFilter() {
-  const parts: string[] = [];
-  const f = filterForm.value;
-
-  if (f.text) parts.push(f.text);
-  if (f.itemId) parts.push(`@id:${f.itemId}`);
-  if (f.gameId) parts.push(`@game:${f.gameId}`);
-  for (const tag of f.tags) {
-    const t = tag.trim();
-    if (t) parts.push(`@tag:${t}`);
-  }
-
-  filterText.value = parts.join(' ');
-}
-
-function resetFilterForm() {
-  filterForm.value = {
-    text: '',
-    itemId: '',
-    gameId: '',
-    tags: [],
-  };
-}
-
-// 从 filterText 解析并填充 filterForm
-function populateFilterFormFromText() {
-  const search = parsedSearch.value;
-  filterForm.value = {
-    text: search.text.join(' ') || '',
-    itemId: search.itemId.join(' ') || '',
-    gameId: search.gameId.join(' ') || '',
-    tags: [...search.tag],
-  };
-}
-
-watch(filterDialogOpen, (isOpen) => {
-  if (isOpen) populateFilterFormFromText();
-});
-
-// 选择器过滤函数
-const availableItemIdsFiltered = ref<string[]>([]);
-const availableGameIdsFiltered = ref<string[]>([]);
-const availableTagsFiltered = ref<string[]>([]);
-
-function filterItemIds(val: string, update: (callback: () => void) => void) {
-  if (val === '') {
-    update(() => {
-      availableItemIdsFiltered.value = availableItemIds.value.slice(0, 50);
-    });
-    return;
-  }
-  update(() => {
-    const needle = val.toLowerCase();
-    availableItemIdsFiltered.value = availableItemIds.value
-      .filter((v) => v.toLowerCase().includes(needle))
-      .slice(0, 50);
-  });
-}
-
-function filterGameIds(val: string, update: (callback: () => void) => void) {
-  if (val === '') {
-    update(() => {
-      availableGameIdsFiltered.value = availableGameIds.value;
-    });
-    return;
-  }
-  update(() => {
-    const needle = val.toLowerCase();
-    availableGameIdsFiltered.value = availableGameIds.value.filter((v) =>
-      v.toLowerCase().includes(needle),
-    );
-  });
-}
-
-function filterTags(val: string, update: (callback: () => void) => void, idx: number) {
-  if (val === '') {
-    update(() => {
-      // 排除已选择的标签
-      const selected = new Set(filterForm.value.tags.filter((_, i) => i !== idx));
-      availableTagsFiltered.value = availableTags.value
-        .filter((t) => !selected.has(t))
-        .slice(0, 50);
-    });
-    return;
-  }
-  update(() => {
-    const needle = val.toLowerCase();
-    const selected = new Set(filterForm.value.tags.filter((_, i) => i !== idx));
-    availableTagsFiltered.value = availableTags.value
-      .filter((v) => v.toLowerCase().includes(needle) && !selected.has(v))
-      .slice(0, 50);
-  });
-}
-
-// 用于标签选择器的选项
-const filteredTagsOptions = computed(() => {
-  return availableTagsFiltered.value.length > 0
-    ? availableTagsFiltered.value
-    : availableTags.value.slice(0, 50);
-});
 
 function parseSearch(input: string): ParsedSearch {
   const tokens = input.trim().split(/\s+/).filter(Boolean);
@@ -2799,135 +1745,29 @@ function matchesSearch(def: ItemDef, search: ParsedSearch, nameKeys?: NameSearch
   width: 20px !important;
   min-width: 20px !important;
 }
+</style>
 
-.jei-panel {
-  padding: 12px;
+<style scoped>
+.jei-page {
   height: 100%;
-  min-height: 0;
-  transition: width 0.3s ease;
-}
-
-.jei-panel--collapsed {
-  width: 20px !important;
-  min-width: 20px !important;
-  padding: 0;
-}
-
-.jei-collapsed-trigger {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 20px;
-  height: 60px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  background: var(--q-primary);
-  color: white;
-  opacity: 0.6;
-  transition: all 0.2s;
-  z-index: 10;
+  flex-direction: column;
 }
 
-.jei-collapsed-trigger:hover {
-  opacity: 1;
-  width: 24px;
+.jei-root {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
 }
 
-.jei-collapsed-trigger--left {
+.jei-mobile-nav {
+  position: fixed;
+  bottom: 0;
   left: 0;
-  border-radius: 0 4px 4px 0;
-}
-
-.jei-collapsed-trigger--right {
   right: 0;
-  border-radius: 4px 0 0 4px;
-}
-
-.jei-list {
-  height: 100%;
-  min-height: 0;
-}
-
-.jei-list__head {
-  padding: 12px;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.jei-list__scroll {
-  padding: 10px;
-  overflow: hidden;
-  min-height: 0;
-}
-
-.jei-plans__head {
-  padding: 2px 2px 6px 2px;
-  font-weight: 600;
-}
-
-.jei-plans__list {
-  padding: 0;
-}
-
-.jei-plans__item :deep(.q-item__section--avatar) {
-  min-width: 38px;
-}
-
-.jei-debug .jei-list__scroll {
-  overflow: auto;
-}
-
-.jei-list__history {
-  padding: 10px;
-  background: #f3f4f6;
+  background: white;
+  z-index: 1000;
   border-top: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-.jei-list__history-title {
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-
-.jei-history-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-}
-
-.jei-history-grid__cell {
-  padding: 8px;
-}
-
-.jei-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.jei-grid__cell {
-  box-sizing: border-box;
-  padding: 8px;
-  position: relative;
-}
-
-.jei-grid__fav {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-}
-
-.jei-grid__cell-body {
-  min-width: 0;
-}
-
-.jei-grid__cell.placeholder {
-  border: 1px dashed rgba(0, 0, 0, 0.1);
-  background: rgba(0, 0, 0, 0.02);
 }
 
 .jei-debug-overlay {
@@ -2945,271 +1785,5 @@ function matchesSearch(def: ItemDef, search: ParsedSearch, nameKeys?: NameSearch
   line-height: 1.25;
   white-space: pre-wrap;
   pointer-events: none;
-}
-
-.jei-panel__head {
-  padding-bottom: 8px;
-}
-
-.jei-panel__tabs {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-bottom: 8px;
-}
-
-.jei-panel__body {
-  min-height: 0;
-  overflow: auto;
-}
-
-.jei-panel__panels {
-  min-height: 0;
-}
-
-.jei-bottombar {
-  flex: 0 0 auto;
-  z-index: 10;
-  padding: 12px 16px;
-  background: white;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-.jei-dialog {
-  width: min(1800px, calc(100dvw - 32px));
-  max-width: calc(100dvw - 32px);
-  height: min(86vh, 960px);
-  display: flex;
-  flex-direction: column;
-}
-
-.jei-dialog--mobile {
-  width: 100% !important;
-  max-width: none !important;
-  height: 100% !important;
-  max-height: none !important;
-  border-radius: 0 !important;
-}
-
-:deep(.jei-dialog-content) {
-  padding: 0 !important;
-}
-
-.jei-dialog__head {
-  padding: 10px 10px 6px 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.jei-dialog__title {
-  font-size: 14px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.jei-dialog__tabs {
-  padding: 0 14px 10px 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.jei-dialog__hint {
-  margin-left: auto;
-  opacity: 0.75;
-}
-
-.jei-dialog__body {
-  flex: 1 1 auto;
-}
-
-.jei-dialog__type-tabs {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.jei-type-layout {
-  display: flex;
-  min-height: 0;
-}
-
-.jei-type-sidebar {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px 6px 8px 10px;
-  border-right: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-.jei-type-sidebar__btn {
-  padding: 0;
-  min-height: 0;
-  border-radius: 8px;
-}
-
-.jei-type-main {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.jei-list__pager {
-  padding: 10px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-.wiki-description {
-  line-height: 1.6;
-}
-
-.wiki-description :deep(h1),
-.wiki-description :deep(h2),
-.wiki-description :deep(h3),
-.wiki-description :deep(h4),
-.wiki-description :deep(h5),
-.wiki-description :deep(h6) {
-  margin-top: 1em;
-  margin-bottom: 0.5em;
-  font-weight: 600;
-}
-
-.wiki-description :deep(h1) {
-  font-size: 1.5em;
-}
-
-.wiki-description :deep(h2) {
-  font-size: 1.3em;
-}
-
-.wiki-description :deep(h3) {
-  font-size: 1.1em;
-}
-
-.wiki-description :deep(p) {
-  margin-bottom: 0.75em;
-}
-
-.wiki-description :deep(ul),
-.wiki-description :deep(ol) {
-  margin-left: 1.5em;
-  margin-bottom: 0.75em;
-}
-
-.wiki-description :deep(li) {
-  margin-bottom: 0.25em;
-}
-
-.wiki-description :deep(code) {
-  background: rgba(0, 0, 0, 0.05);
-  padding: 0.125em 0.25em;
-  border-radius: 3px;
-  font-family: monospace;
-  font-size: 0.9em;
-}
-
-.wiki-description :deep(pre) {
-  background: rgba(0, 0, 0, 0.05);
-  padding: 0.75em;
-  border-radius: 4px;
-  overflow-x: auto;
-  margin-bottom: 0.75em;
-}
-
-.wiki-description :deep(pre code) {
-  background: none;
-  padding: 0;
-}
-
-.wiki-description :deep(a) {
-  color: #1976d2;
-  text-decoration: none;
-}
-
-.wiki-description :deep(a:hover) {
-  text-decoration: underline;
-}
-
-.wiki-description :deep(blockquote) {
-  border-left: 4px solid rgba(0, 0, 0, 0.12);
-  padding-left: 1em;
-  margin-left: 0;
-  color: rgba(0, 0, 0, 0.65);
-  margin-bottom: 0.75em;
-}
-
-.wiki-description :deep(table) {
-  border-collapse: collapse;
-  width: 100%;
-  margin-bottom: 0.75em;
-}
-
-.wiki-description :deep(th),
-.wiki-description :deep(td) {
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  padding: 0.5em;
-}
-
-.wiki-description :deep(th) {
-  background: rgba(0, 0, 0, 0.03);
-  font-weight: 600;
-}
-
-.wiki-description :deep(img) {
-  max-width: 100%;
-  height: auto;
-}
-
-/* 调试面板样式 */
-.debug-panel {
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  width: 300px;
-  background: rgba(0, 0, 0, 0.85);
-  color: #0f0;
-  font-family: monospace;
-  font-size: 11px;
-  border-radius: 4px;
-  z-index: 9999;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
-}
-
-.debug-panel__header {
-  padding: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  font-weight: bold;
-}
-
-.debug-panel__content {
-  padding: 8px;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.debug-panel__stack {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.debug-panel__item {
-  padding: 2px 0;
-  word-break: break-all;
-}
-
-.debug-panel__item:hover {
-  background: rgba(255, 255, 255, 0.1);
 }
 </style>

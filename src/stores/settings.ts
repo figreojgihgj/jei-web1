@@ -20,6 +20,7 @@ export const useSettingsStore = defineStore('settings', {
       favoritesCollapsed: false,
       panelCollapsed: false,
       darkMode: 'auto' as DarkMode,
+      debugPanelPos: { x: 10, y: 10 },
     };
     try {
       const raw = localStorage.getItem('jei.settings');
@@ -33,11 +34,12 @@ export const useSettingsStore = defineStore('settings', {
           ? parsed.darkMode
           : defaults.darkMode;
       Dark.set(darkModeToQuasar(darkMode));
+      const recipeViewMode: 'dialog' | 'panel' = parsed.recipeViewMode === 'panel' ? 'panel' : 'dialog';
       return {
         historyLimit: typeof parsed.historyLimit === 'number' ? parsed.historyLimit : defaults.historyLimit,
         debugLayout: typeof parsed.debugLayout === 'boolean' ? parsed.debugLayout : defaults.debugLayout,
         debugNavPanel: typeof parsed.debugNavPanel === 'boolean' ? parsed.debugNavPanel : defaults.debugNavPanel,
-        recipeViewMode: parsed.recipeViewMode === 'panel' ? 'panel' : 'dialog',
+        recipeViewMode,
         recipeSlotShowName:
           typeof parsed.recipeSlotShowName === 'boolean'
             ? parsed.recipeSlotShowName
@@ -50,6 +52,10 @@ export const useSettingsStore = defineStore('settings', {
         panelCollapsed:
           typeof parsed.panelCollapsed === 'boolean' ? parsed.panelCollapsed : defaults.panelCollapsed,
         darkMode,
+        debugPanelPos:
+          parsed.debugPanelPos && typeof parsed.debugPanelPos.x === 'number' && typeof parsed.debugPanelPos.y === 'number'
+            ? parsed.debugPanelPos
+            : defaults.debugPanelPos,
       };
     } catch {
       Dark.set('auto');
@@ -94,6 +100,10 @@ export const useSettingsStore = defineStore('settings', {
       Dark.set(darkModeToQuasar(mode));
       this.save();
     },
+    setDebugPanelPos(pos: { x: number; y: number }) {
+      this.debugPanelPos = pos;
+      this.save();
+    },
     save() {
       localStorage.setItem(
         'jei.settings',
@@ -107,6 +117,7 @@ export const useSettingsStore = defineStore('settings', {
           favoritesCollapsed: this.favoritesCollapsed,
           panelCollapsed: this.panelCollapsed,
           darkMode: this.darkMode,
+          debugPanelPos: this.debugPanelPos,
         }),
       );
     },

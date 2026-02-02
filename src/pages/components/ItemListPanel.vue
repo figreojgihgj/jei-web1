@@ -1,0 +1,331 @@
+<template>
+  <q-card
+    v-show="!isMobile || mobileTab === 'list'"
+    flat
+    bordered
+    class="jei-panel jei-list column no-wrap"
+    :style="{ width: isMobile ? '100%' : '420px', minWidth: isMobile ? 'auto' : '420px' }"
+  >
+    <div class="jei-list__head col-auto">
+      <div class="text-subtitle2">物品列表</div>
+      <div class="text-caption">pack: {{ packId }}</div>
+    </div>
+
+    <div ref="listScrollEl" class="jei-list__scroll col" @wheel="$emit('wheel', $event)">
+      <div ref="listGridEl" class="jei-grid">
+        <div v-if="firstPagedItem" ref="sampleCellEl">
+          <q-card
+            :key="firstPagedItem.keyHash"
+            flat
+            bordered
+            class="jei-grid__cell cursor-pointer"
+            v-touch-hold:600="
+              (evt: unknown) => $emit('touch-hold', evt, firstPagedItem?.keyHash ?? '')
+            "
+            @contextmenu.prevent="$emit('context-menu', $event, firstPagedItem?.keyHash ?? '')"
+            @mouseenter="$emit('update:hovered-key-hash', firstPagedItem.keyHash)"
+            @mouseleave="$emit('update:hovered-key-hash', null)"
+            @click="$emit('item-click', firstPagedItem.keyHash)"
+          >
+            <q-btn
+              flat
+              round
+              :dense="!isMobile"
+              :size="isMobile ? 'md' : 'sm'"
+              :icon="isFavorite(firstPagedItem.keyHash) ? 'star' : 'star_outline'"
+              :color="isFavorite(firstPagedItem.keyHash) ? 'amber' : 'grey-6'"
+              class="jei-grid__fav"
+              @click.stop="$emit('toggle-favorite', firstPagedItem.keyHash)"
+              @mousedown.stop
+              @touchstart.stop
+              style="z-index: 1"
+            />
+            <div class="jei-grid__cell-body">
+              <stack-view
+                :content="{
+                  kind: 'item',
+                  id: firstPagedItem.def.key.id,
+                  amount: 1,
+                  ...(firstPagedItem.def.key.meta !== undefined
+                    ? { meta: firstPagedItem.def.key.meta }
+                    : {}),
+                  ...(firstPagedItem.def.key.nbt !== undefined
+                    ? { nbt: firstPagedItem.def.key.nbt }
+                    : {}),
+                }"
+                :item-defs-by-key-hash="itemDefsByKeyHash"
+              />
+            </div>
+          </q-card>
+        </div>
+
+        <q-card
+          v-for="it in restPagedItems"
+          :key="it.keyHash"
+          flat
+          bordered
+          class="jei-grid__cell cursor-pointer"
+          v-touch-hold:600="(evt: unknown) => $emit('touch-hold', evt, it.keyHash)"
+          @contextmenu.prevent="$emit('context-menu', $event, it.keyHash)"
+          @mouseenter="$emit('update:hovered-key-hash', it.keyHash)"
+          @mouseleave="$emit('update:hovered-key-hash', null)"
+          @click="$emit('item-click', it.keyHash)"
+        >
+          <q-btn
+            flat
+            round
+            :dense="!isMobile"
+            :size="isMobile ? 'md' : 'sm'"
+            :icon="isFavorite(it.keyHash) ? 'star' : 'star_outline'"
+            :color="isFavorite(it.keyHash) ? 'amber' : 'grey-6'"
+            class="jei-grid__fav"
+            @click.stop="$emit('toggle-favorite', it.keyHash)"
+            @mousedown.stop
+            @touchstart.stop
+            style="z-index: 1"
+          />
+          <div class="jei-grid__cell-body">
+            <stack-view
+              :content="{
+                kind: 'item',
+                id: it.def.key.id,
+                amount: 1,
+                ...(it.def.key.meta !== undefined ? { meta: it.def.key.meta } : {}),
+                ...(it.def.key.nbt !== undefined ? { nbt: it.def.key.nbt } : {}),
+              }"
+              :item-defs-by-key-hash="itemDefsByKeyHash"
+            />
+          </div>
+        </q-card>
+      </div>
+    </div>
+
+    <div class="jei-list__pager col-auto">
+      <div class="text-caption text-grey-7">共 {{ totalCount }} 个</div>
+      <div class="text-caption text-grey-7">每页 {{ pageSize }} 个</div>
+      <q-space />
+      <q-pagination
+        :model-value="page"
+        @update:model-value="$emit('update:page', $event)"
+        :max="pageCount"
+        max-pages="7"
+        boundary-numbers
+        direction-links
+        dense
+      />
+    </div>
+
+    <div ref="historyEl" class="jei-list__history col-auto">
+      <div class="jei-list__history-title">历史</div>
+      <div class="jei-grid">
+        <template
+          v-for="(it, idx) in paddedHistoryItems"
+          :key="it ? it.keyHash : `placeholder-${idx}`"
+        >
+          <q-card
+            v-if="it"
+            flat
+            bordered
+            class="jei-grid__cell cursor-pointer"
+            v-touch-hold:600="(evt: unknown) => $emit('touch-hold', evt, it.keyHash)"
+            @contextmenu.prevent="$emit('context-menu', $event, it.keyHash)"
+            @mouseenter="$emit('update:hovered-key-hash', it.keyHash)"
+            @mouseleave="$emit('update:hovered-key-hash', null)"
+            @click="$emit('item-click', it.keyHash)"
+          >
+            <stack-view
+              :content="{
+                kind: 'item',
+                id: it.def.key.id,
+                amount: 1,
+                ...(it.def.key.meta !== undefined ? { meta: it.def.key.meta } : {}),
+                ...(it.def.key.nbt !== undefined ? { nbt: it.def.key.nbt } : {}),
+              }"
+              :item-defs-by-key-hash="itemDefsByKeyHash"
+            />
+          </q-card>
+          <div
+            v-else
+            class="jei-grid__cell placeholder"
+            :style="{ height: measuredCellHeight + 'px' }"
+          ></div>
+        </template>
+      </div>
+    </div>
+  </q-card>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue';
+import type { ItemDef } from 'src/jei/types';
+import StackView from 'src/jei/components/StackView.vue';
+
+const props = defineProps<{
+  isMobile: boolean;
+  mobileTab: string;
+  packId: string;
+  firstPagedItem: { keyHash: string; def: ItemDef } | null;
+  restPagedItems: Array<{ keyHash: string; def: ItemDef }>;
+  paddedHistoryItems: Array<{ keyHash: string; def: ItemDef } | null>;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  totalCount: number;
+  measuredCellHeight: number;
+  itemDefsByKeyHash: Record<string, ItemDef>;
+  favorites: Set<string>;
+}>();
+
+defineEmits<{
+  'update:hovered-key-hash': [value: string | null];
+  'update:page': [value: number];
+  'item-click': [keyHash: string];
+  'toggle-favorite': [keyHash: string];
+  'context-menu': [evt: Event, keyHash: string];
+  'touch-hold': [evt: unknown, keyHash: string];
+  wheel: [evt: WheelEvent];
+}>();
+
+function isFavorite(keyHash: string) {
+  return props.favorites.has(keyHash);
+}
+
+const listScrollEl = ref<HTMLElement | null>(null);
+const listGridEl = ref<HTMLElement | null>(null);
+const sampleCellEl = ref<HTMLElement | null>(null);
+const historyEl = ref<HTMLElement | null>(null);
+
+defineExpose({
+  listScrollEl,
+  listGridEl,
+  sampleCellEl,
+  historyEl,
+});
+</script>
+
+<style scoped>
+.jei-list {
+  height: 100%;
+  min-height: 0;
+}
+
+.jei-list__head {
+  padding: 12px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.jei-list__scroll {
+  padding: 10px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.jei-list__pager {
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.jei-panel {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  border-left: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  height: 100%;
+  min-height: 0;
+  transition: width 0.3s ease;
+}
+
+.jei-panel--collapsed {
+  width: 20px !important;
+  min-width: 20px !important;
+  padding: 0;
+}
+
+.jei-collapsed-trigger {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: var(--q-primary);
+  color: white;
+  opacity: 0.6;
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+.jei-collapsed-trigger:hover {
+  opacity: 1;
+  width: 24px;
+}
+
+.jei-collapsed-trigger--right {
+  right: 0;
+  border-radius: 4px 0 0 4px;
+}
+
+.jei-debug .jei-list__scroll {
+  overflow: auto;
+}
+
+.jei-history-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.jei-history-grid__cell {
+  padding: 8px;
+}
+
+.jei-list__history {
+  padding: 10px;
+  background: #f3f4f6;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.jei-list__history-title {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.jei-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.jei-grid__cell {
+  box-sizing: border-box;
+  padding: 8px;
+  position: relative;
+}
+
+.jei-grid__fav {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+.jei-grid__cell-body {
+  min-width: 0;
+}
+
+.jei-grid__cell.placeholder {
+  border: 1px dashed rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.02);
+}
+</style>
