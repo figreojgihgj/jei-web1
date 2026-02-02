@@ -651,7 +651,10 @@
                       type="target"
                       :position="Position.Left"
                       class="planner__handle"
-                      :style="{ top: p.data.inPorts === 1 ? '50%' : `${((i - 0.5) / p.data.inPorts) * 100}%` }"
+                      :style="{
+                        top:
+                          p.data.inPorts === 1 ? '50%' : `${((i - 0.5) / p.data.inPorts) * 100}%`,
+                      }"
                     />
                     <Handle
                       v-for="i in p.data.outPorts"
@@ -660,7 +663,10 @@
                       type="source"
                       :position="Position.Right"
                       class="planner__handle"
-                      :style="{ top: p.data.outPorts === 1 ? '50%' : `${((i - 0.5) / p.data.outPorts) * 100}%` }"
+                      :style="{
+                        top:
+                          p.data.outPorts === 1 ? '50%' : `${((i - 0.5) / p.data.outPorts) * 100}%`,
+                      }"
                     />
                     <div class="planner__flow-node-icon">
                       <stack-view
@@ -721,7 +727,10 @@
                       type="target"
                       :position="Position.Left"
                       class="planner__handle"
-                      :style="{ top: p.data.inPorts === 1 ? '50%' : `${((i - 0.5) / p.data.inPorts) * 100}%` }"
+                      :style="{
+                        top:
+                          p.data.inPorts === 1 ? '50%' : `${((i - 0.5) / p.data.inPorts) * 100}%`,
+                      }"
                     />
                     <Handle
                       v-for="i in p.data.outPorts"
@@ -730,7 +739,10 @@
                       type="source"
                       :position="Position.Right"
                       class="planner__handle"
-                      :style="{ top: p.data.outPorts === 1 ? '50%' : `${((i - 0.5) / p.data.outPorts) * 100}%` }"
+                      :style="{
+                        top:
+                          p.data.outPorts === 1 ? '50%' : `${((i - 0.5) / p.data.outPorts) * 100}%`,
+                      }"
                     />
                     <div class="planner__flow-node-text" @mousedown.stop @dblclick.stop>
                       <div class="planner__flow-node-title">{{ p.data.title }}</div>
