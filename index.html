@@ -1,24 +1,58 @@
 <!doctype html>
-<html>
-  <head>
-    <title><%= productName %></title>
+<html class="body--light">
 
-    <meta charset="utf-8" />
-    <meta name="description" content="<%= productDescription %>" />
-    <meta name="format-detection" content="telephone=no" />
-    <meta name="msapplication-tap-highlight" content="no" />
-    <meta
-      name="viewport"
-      content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width<% if (ctx.mode.cordova || ctx.mode.capacitor) { %>, viewport-fit=cover<% } %>"
-    />
+<head>
+  <title>
+    <%= productName %>
+  </title>
 
-    <link rel="icon" type="image/png" sizes="128x128" href="icons/favicon-128x128.png" />
-    <link rel="icon" type="image/png" sizes="96x96" href="icons/favicon-96x96.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png" />
-    <link rel="icon" type="image/ico" href="favicon.ico" />
-  </head>
-  <body>
-    <!-- quasar:entry-point -->
-  </body>
+  <meta charset="utf-8" />
+  <meta name="description" content="<%= productDescription %>" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="msapplication-tap-highlight" content="no" />
+  <meta name="viewport"
+    content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width<% if (ctx.mode.cordova || ctx.mode.capacitor) { %>, viewport-fit=cover<% } %>" />
+
+  <link rel="icon" type="image/png" sizes="128x128" href="icons/favicon-128x128.png" />
+  <link rel="icon" type="image/png" sizes="96x96" href="icons/favicon-96x96.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png" />
+  <link rel="icon" type="image/ico" href="favicon.ico" />
+
+  <!-- 预设暗色模式以避免闪烁 -->
+  <script>
+    (function () {
+      try {
+        const settings = JSON.parse(localStorage.getItem('jei.settings'));
+        if (settings && settings.darkMode) {
+          const darkMode = settings.darkMode;
+          const html = document.documentElement;
+          const body = document.body;
+
+          if (darkMode === 'dark') {
+            html.classList.remove('body--light');
+            html.classList.add('body--dark');
+            body.classList.remove('body--light');
+            body.classList.add('body--dark');
+          } else if (darkMode === 'auto') {
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (prefersDark) {
+              html.classList.remove('body--light');
+              html.classList.add('body--dark');
+              body.classList.remove('body--light');
+              body.classList.add('body--dark');
+            }
+          }
+        }
+      } catch (e) {
+        // 如果 localStorage 读取失败，保持默认的亮色模式
+      }
+    })();
+  </script>
+</head>
+
+<body>
+  <!-- quasar:entry-point -->
+</body>
+
 </html>
