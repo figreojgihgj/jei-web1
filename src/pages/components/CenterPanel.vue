@@ -44,7 +44,7 @@
           size="sm"
           @click="$emit('update:collapsed', true)"
         >
-          <q-tooltip>收起</q-tooltip>
+          <q-tooltip>{{ t('collapse') }}</q-tooltip>
         </q-btn>
       </div>
 
@@ -55,8 +55,8 @@
         dense
         class="q-px-sm"
       >
-        <q-tab name="recipe" label="合成查看器" />
-        <q-tab name="advanced" label="高级计划器" />
+        <q-tab name="recipe" :label="t('recipeViewer')" />
+        <q-tab name="advanced" :label="t('advancedPlanner')" />
       </q-tabs>
 
       <q-separator />
@@ -76,10 +76,10 @@
                 inline-label
                 class="q-px-sm q-pt-sm"
               >
-                <q-tab name="recipes" label="配方 (R)" />
-                <q-tab name="uses" label="用途 (U)" />
-                <q-tab name="wiki" label="维基 (W)" />
-                <q-tab name="planner" label="规划器 (P)" />
+                <q-tab name="recipes" :label="t('tabsWithLabel')" />
+                <q-tab name="uses" :label="t('tabsUsesWithLabel')" />
+                <q-tab name="wiki" :label="t('tabsWikiWithLabel')" />
+                <q-tab name="planner" :label="t('tabsPlannerWithLabel')" />
               </q-tabs>
             </div>
             <q-separator v-if="navStackLength" />
@@ -114,7 +114,7 @@
               />
             </div>
             <div v-show="!navStackLength" class="q-pa-md text-caption text-grey-7">
-              选择物品以查看 配方 / 用途。
+              {{ t('selectItem') }}
             </div>
           </q-tab-panel>
 
@@ -132,14 +132,15 @@
       </div>
     </template>
     <template v-else-if="!collapsed">
-      <div class="text-subtitle2">中间区域</div>
-      <div class="text-caption">右侧是物品列表，左侧是收藏夹；点击物品打开悬浮窗。</div>
+      <div class="text-subtitle2">{{ t('middleArea') }}</div>
+      <div class="text-caption">{{ t('middleAreaDesc') }}</div>
     </template>
   </q-card>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import type { PackData, ItemDef, ItemKey } from 'src/jei/types';
 import type { JeiIndex } from 'src/jei/indexing/buildIndex';
 import type {
@@ -149,6 +150,8 @@ import type {
 } from 'src/jei/planner/plannerUi';
 import RecipeContentView from './RecipeContentView.vue';
 import AdvancedPlanner from './AdvancedPlanner.vue';
+
+const { t } = useI18n();
 
 interface RecipeGroup {
   typeKey: string;

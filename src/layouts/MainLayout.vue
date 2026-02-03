@@ -17,6 +17,29 @@
           <q-tooltip>{{ isPageFullscreen ? '退出网页全屏' : '网页全屏' }}</q-tooltip>
         </q-btn>
 
+        <q-btn flat dense round aria-label="Language">
+          <q-icon name="translate" />
+
+          <q-menu>
+            <q-list style="min-width: 120px">
+              <q-item
+                v-for="lang in languageList"
+                :key="lang.code"
+                clickable
+                :active="settingsStore.language === lang.code"
+                @click="setLanguage(lang.code)"
+              >
+                <q-item-section avatar>
+                  <q-icon name="translate" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>{{ lang.label }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-menu>
+        </q-btn>
+
         <q-btn flat dense round aria-label="Theme">
           <q-icon :name="themeIcon" />
 
@@ -83,13 +106,22 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Dark, useQuasar } from 'quasar';
+import { useI18n } from 'vue-i18n';
 import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue';
-import { useSettingsStore, type DarkMode } from 'src/stores/settings';
+import { useSettingsStore, type DarkMode, type Language } from 'src/stores/settings';
 
 const settingsStore = useSettingsStore();
 const $q = useQuasar();
+const { locale } = useI18n();
 // 开发环境使用 package.json 版本，生产环境使用 git commit hash
 const appVersion = import.meta.env.DEV ? '0.0.1-dev' : (__APP_VERSION__ ?? 'unknown');
+
+// 语言相关
+const languageList = [
+  { code: 'zh-CN' as Language, label: '简体中文', icon: 'translate' },
+  { code: 'en-US' as Language, label: 'English', icon: 'translate' },
+  { code: 'ja-JP' as Language, label: '日本語', icon: 'translate' },
+];
 
 const themeIcon = computed(() => {
   if (settingsStore.darkMode === 'auto') {
@@ -100,6 +132,11 @@ const themeIcon = computed(() => {
 
 function setTheme(mode: DarkMode) {
   settingsStore.setDarkMode(mode);
+}
+
+function setLanguage(lang: Language) {
+  settingsStore.setLanguage(lang);
+  locale.value = lang;
 }
 
 const isPageFullscreen = ref($q.fullscreen.isActive);

@@ -1,16 +1,20 @@
 # About
 
 ## Build
-- Version: c573aa3-dirty
-- Commit: c573aa3 (c573aa31207afe0e0f4ce6144d12bf4c8477adde)
-- Commit count: 34
-- Subject: feat: enhance CenterPanel with save-plan event and loadAdvancedPlan method
+- Version: a2ec007-dirty
+- Commit: a2ec007 (a2ec00776ce7b4288b30ee37bb8f4ed8a1139196)
+- Commit count: 35
+- Subject: feat: 更新文档和界面，增强 CenterPanel 组件，添加保存/加载规划方案功能
 - Author: AndreaFrederica
-- Date: 2026-02-03T07:42:03+08:00
-- Generated at: 2026-02-02T23:45:24.229Z
+- Date: 2026-02-03T07:53:10+08:00
+- Generated at: 2026-02-03T00:51:15.230Z
 - Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History
+
+### r35 (2026-02-03T07:53:10+08:00)
+- a2ec007
+  feat: 更新文档和界面，增强 CenterPanel 组件，添加保存/加载规划方案功能
 
 ### r34 (2026-02-03T07:42:03+08:00)
 - c573aa3

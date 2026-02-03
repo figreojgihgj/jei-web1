@@ -19,7 +19,7 @@
         outlined
         clearable
         :disable="filterDisabled"
-        placeholder="输入名字过滤…（支持 @itemid/@gameid/@tag）"
+        placeholder="{{ t('filterPlaceholder') }}"
         class="col"
       >
         <template #append>
@@ -48,7 +48,7 @@
     <q-dialog v-model="filterDialogOpen" @show="populateFilterFormFromText">
       <q-card style="min-width: 400px; max-width: 500px">
         <q-card-section>
-          <div class="text-h6">高级过滤器</div>
+          <div class="text-h6">{{ t('advancedFilter') }}</div>
         </q-card-section>
 
         <q-card-section class="q-pt-none column q-gutter-sm">
@@ -57,8 +57,8 @@
             dense
             outlined
             clearable
-            label="物品名称"
-            placeholder="输入物品名称关键词"
+            :label="t('itemName')"
+            :placeholder="t('itemNamePlaceholder')"
           />
           <q-select
             v-model="filterForm.itemId"
@@ -70,8 +70,8 @@
             dense
             outlined
             clearable
-            label="物品 ID"
-            placeholder="选择或输入物品 ID"
+            :label="t('itemId')"
+            :placeholder="t('itemIdPlaceholder')"
             use-input
             input-debounce="0"
             :input-value="filterForm.itemId"
@@ -86,8 +86,8 @@
             dense
             outlined
             clearable
-            label="命名空间"
-            placeholder="选择或输入命名空间"
+            :label="t('namespace')"
+            :placeholder="t('namespacePlaceholder')"
             use-input
             input-debounce="0"
             :input-value="filterForm.gameId"
@@ -95,7 +95,7 @@
             @filter="filterGameIds"
           />
           <div class="column q-gutter-xs">
-            <div class="text-subtitle2">标签</div>
+            <div class="text-subtitle2">{{ t('tags') }}</div>
             <div class="row q-gutter-sm items-center">
               <q-select
                 v-for="(tag, idx) in filterForm.tags"
@@ -105,8 +105,8 @@
                 dense
                 outlined
                 clearable
-                label="标签"
-                placeholder="选择或输入标签"
+                :label="t('tags')"
+                :placeholder="t('tagPlaceholder')"
                 class="col"
                 use-input
                 input-debounce="0"
@@ -135,9 +135,9 @@
         </q-card-section>
 
         <q-card-actions align="right">
-          <q-btn flat label="清空" color="grey-7" @click="resetFilterForm" />
-          <q-btn flat label="取消" color="grey-7" v-close-popup />
-          <q-btn flat label="应用" color="primary" @click="applyFilter" v-close-popup />
+          <q-btn flat :label="t('clear')" color="grey-7" @click="resetFilterForm" />
+          <q-btn flat :label="t('cancel')" color="grey-7" v-close-popup />
+          <q-btn flat :label="t('apply')" color="primary" @click="applyFilter" v-close-popup />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -146,6 +146,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 type PackOption = { label: string; value: string };
 

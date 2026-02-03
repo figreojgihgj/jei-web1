@@ -2,25 +2,25 @@
   <div class="planner">
     <q-card flat bordered class="q-pa-md">
       <div class="row items-center q-gutter-sm">
-        <div class="text-subtitle2">线路选择</div>
-        <q-btn dense outline icon="restart_alt" label="重新设计" @click="resetPlanner" />
+        <div class="text-subtitle2">{{ t('lineSelection') }}</div>
+        <q-btn dense outline icon="restart_alt" :label="t('redesign')" @click="resetPlanner" />
         <q-btn
           dense
           outline
           icon="save"
-          label="保存线路"
+          :label="t('saveLine')"
           :disable="!!decisions.length"
           @click="openSaveDialog"
         />
         <q-space />
-        <q-badge v-if="decisions.length" color="warning">待选择：{{ decisions.length }}</q-badge>
-        <q-badge v-else color="positive">已完成</q-badge>
+        <q-badge v-if="decisions.length" color="warning">{{ t('pendingChoices') }}{{ decisions.length }}</q-badge>
+        <q-badge v-else color="positive">{{ t('completed') }}</q-badge>
       </div>
 
       <div v-if="decisions.length" class="column q-gutter-md q-mt-md">
         <div v-for="d in decisions" :key="decisionKey(d)" class="planner__decision">
           <div v-if="d.kind === 'item_recipe'" class="column q-gutter-sm">
-            <div class="text-caption text-grey-8">{{ itemName(d.itemKey) }}：选择合成方式</div>
+            <div class="text-caption text-grey-8">{{ itemName(d.itemKey) }}{{ t('chooseSynthesisMethod2') }}</div>
             <q-select
               dense
               filled
@@ -74,7 +74,7 @@
                         @item-mouseleave="emit('item-mouseleave')"
                       />
                     </q-card>
-                    <div v-else class="text-caption">没有找到该配方的详情。</div>
+                    <div v-else class="text-caption">{{ t('noRecipeDetails') }}</div>
                   </q-tooltip>
                 </q-item>
               </template>
@@ -103,7 +103,7 @@
           <div v-else class="column q-gutter-sm">
             <div class="row items-center q-gutter-sm">
               <div class="text-caption text-grey-8">tag {{ d.tagId }}：选择具体物品</div>
-              <q-badge v-if="!d.candidateItemIds.length" color="negative">无可选</q-badge>
+              <q-badge v-if="!d.candidateItemIds.length" color="negative">{{ t('noOptions') }}</q-badge>
             </div>
             <q-select
               dense
@@ -120,10 +120,10 @@
 
       <div v-else class="q-mt-md">
         <q-tabs v-model="activeTab" dense outside-arrows mobile-arrows inline-label>
-          <q-tab name="tree" label="合成树 (T/1)" />
-          <q-tab name="graph" label="节点图 (G/2)" />
-          <q-tab name="line" label="生产线 (L/3)" />
-          <q-tab name="calc" label="计算器 (C/4)" />
+          <q-tab name="tree" :label="t('plannerTabTree')" />
+          <q-tab name="graph" :label="t('plannerTabGraph')" />
+          <q-tab name="line" :label="t('plannerTabLine')" />
+          <q-tab name="calc" :label="t('plannerTabCalc')" />
         </q-tabs>
         <q-separator />
 
@@ -410,8 +410,8 @@
                   (v) => (targetUnit = v as (typeof unitOptions)[number]['value'])
                 "
               />
-              <q-toggle v-model="graphShowFluids" dense label="显示流体" />
-              <q-toggle v-model="graphMergeRawMaterials" dense label="合并原材料" />
+              <q-toggle v-model="graphShowFluids" dense :label="t('showFluids')" />
+              <q-toggle v-model="graphMergeRawMaterials" dense :label="t('mergeRawMaterials')" />
               <q-space />
               <q-btn
                 flat
@@ -570,7 +570,7 @@
                   (v) => (targetUnit = v as (typeof unitOptions)[number]['value'])
                 "
               />
-              <q-toggle v-model="lineCollapseIntermediate" dense label="隐藏中间产物" />
+              <q-toggle v-model="lineCollapseIntermediate" dense :label="t('hideIntermediate')" />
               <q-space />
               <q-btn
                 flat
@@ -953,16 +953,16 @@
             <q-input
               dense
               filled
-              label="线路名称"
+              :label="t('lineName')"
               :model-value="saveName"
               @update:model-value="(v) => (saveName = String(v ?? ''))"
             />
           </q-card-section>
           <q-card-actions align="right">
-            <q-btn flat label="取消" color="grey-7" v-close-popup />
+            <q-btn flat :label="t('cancel')" color="grey-7" v-close-popup />
             <q-btn
               unelevated
-              label="保存"
+              :label="t('save')"
               color="primary"
               :disable="!saveName.trim()"
               @click="confirmSave"
@@ -977,6 +977,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 import { Dark, useQuasar } from 'quasar';
+import { useI18n } from 'vue-i18n';
 import type { ItemDef, ItemId, ItemKey, PackData, Stack } from 'src/jei/types';
 import type { JeiIndex } from 'src/jei/indexing/buildIndex';
 import { itemKeyHash } from 'src/jei/indexing/key';
@@ -1006,6 +1007,8 @@ import {
   type RequirementNode,
   type EnhancedRequirementNode,
 } from 'src/jei/planner/planner';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   pack: PackData;

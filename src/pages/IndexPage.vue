@@ -3,7 +3,7 @@
     <div v-if="error" class="text-negative q-pa-md">{{ error }}</div>
     <div v-else-if="loading" class="row items-center q-gutter-sm q-pa-md">
       <q-spinner size="20px" />
-      <div>Loading…</div>
+      <div>{{ t('loading') }}</div>
     </div>
 
     <div
@@ -123,9 +123,9 @@
         active-color="primary"
         indicator-color="primary"
       >
-        <q-tab name="fav" icon="star" label="收藏" />
-        <q-tab name="panel" icon="dashboard" label="详情" />
-        <q-tab name="list" icon="list" label="列表" />
+        <q-tab name="fav" icon="star" :label="t('tabsFavorites')" />
+        <q-tab name="panel" icon="dashboard" :label="t('tabsPanel')" />
+        <q-tab name="list" icon="list" :label="t('tabsList')" />
       </q-tabs>
     </div>
 
@@ -209,6 +209,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import type { ItemDef, ItemKey, PackData } from 'src/jei/types';
 import { loadRuntimePack } from 'src/jei/pack/loader';
 import {
@@ -237,6 +238,7 @@ import { autoPlanSelections } from 'src/jei/planner/planner';
 import { useSettingsStore } from 'src/stores/settings';
 
 const settingsStore = useSettingsStore();
+const { t } = useI18n();
 const contextMenuTarget = ref<HTMLElement | null>(null);
 const $q = useQuasar();
 const isMobile = computed(() => $q.screen.lt.md);
@@ -279,7 +281,7 @@ function loadLocalPackOptions(): PackOption[] {
       .filter((e) => e && typeof e.id === 'string' && typeof e.name === 'string')
       .map((e) => ({
         value: `local:${e.id}`,
-        label: `本地: ${e.name}${e.packId ? ` (${e.packId})` : ''}`,
+        label: `${t('localPack')}${e.name}${e.packId ? ` (${e.packId})` : ''}`,
       }));
   } catch {
     return [];
@@ -1181,7 +1183,7 @@ const activeRecipeGroups = computed<RecipeGroup[]>(() => {
     // 使用原始配方类型作为 typeKey，这样配方显示时能正确获取类型
     const providingGroups = Array.from(providingMap.entries()).map(([typeKey, recipeIds]) => {
       const typeDef = recipeTypesByKey.value.get(typeKey);
-      const label = `提供：${typeDef?.displayName ?? typeKey}`;
+      const label = `${t('providingRecipes')}${typeDef?.displayName ?? typeKey}`;
       return { typeKey, label, recipeIds };
     });
     providingGroups.sort((a, b) => a.label.localeCompare(b.label));
@@ -1190,7 +1192,7 @@ const activeRecipeGroups = computed<RecipeGroup[]>(() => {
     const allRecipeIds = [...activeRecipeIds.value, ...machineProvidingRecipeIds.value];
     const allGroup: RecipeGroup = {
       typeKey: '__all__',
-      label: '全部',
+      label: t('allRecipes'),
       recipeIds: allRecipeIds,
       isAll: true,
     };
@@ -1200,7 +1202,7 @@ const activeRecipeGroups = computed<RecipeGroup[]>(() => {
   // 添加"全部"分组到最前面
   const allGroup: RecipeGroup = {
     typeKey: '__all__',
-    label: '全部',
+    label: t('allRecipes'),
     recipeIds: activeRecipeIds.value,
     isAll: true,
   };

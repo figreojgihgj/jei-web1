@@ -7,7 +7,7 @@
     :style="{ width: isMobile ? '100%' : '420px', minWidth: isMobile ? 'auto' : '420px' }"
   >
     <div class="jei-list__head col-auto">
-      <div class="text-subtitle2">物品列表</div>
+      <div class="text-subtitle2">{{ t('itemList') }}</div>
       <div class="text-caption">pack: {{ packId }}</div>
     </div>
 
@@ -101,8 +101,8 @@
     </div>
 
     <div class="jei-list__pager col-auto">
-      <div class="text-caption text-grey-7">共 {{ totalCount }} 个</div>
-      <div class="text-caption text-grey-7">每页 {{ pageSize }} 个</div>
+      <div class="text-caption text-grey-7">{{ t('totalItems', { count: totalCount }) }}</div>
+      <div class="text-caption text-grey-7">{{ t('itemsPerPage', { size: pageSize }) }}</div>
       <q-space />
       <q-pagination
         :model-value="page"
@@ -116,7 +116,7 @@
     </div>
 
     <div ref="historyEl" class="jei-list__history col-auto">
-      <div class="jei-list__history-title">历史</div>
+      <div class="jei-list__history-title">{{ t('history') }}</div>
       <div class="jei-grid">
         <template
           v-for="(it, idx) in paddedHistoryItems"
@@ -157,8 +157,11 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import type { ItemDef } from 'src/jei/types';
 import StackView from 'src/jei/components/StackView.vue';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   isMobile: boolean;

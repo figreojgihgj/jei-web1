@@ -3,13 +3,13 @@
     <!-- 目标产物管理区 -->
     <q-card flat bordered class="q-pa-md">
       <div class="row items-center q-gutter-sm q-mb-md">
-        <div class="text-subtitle2">目标产物</div>
+        <div class="text-subtitle2">{{ t('targetProducts') }}</div>
         <q-space />
         <q-btn
           dense
           outline
           icon="delete_sweep"
-          label="清空"
+          :label="t('clear')"
           :disable="targets.length === 0"
           @click="clearTargets"
         />
@@ -35,7 +35,7 @@
             <q-item-label>{{ target.itemName }}</q-item-label>
             <q-item-label caption>
               <div class="row items-center q-gutter-sm">
-                <span>生产速度:</span>
+                <span>{{ t('productionSpeed') }}:</span>
                 <q-input
                   dense
                   filled
@@ -67,7 +67,7 @@
               color="negative"
               @click="removeTarget(index)"
             >
-              <q-tooltip>移除此目标</q-tooltip>
+              <q-tooltip>{{ t('removeTarget') }}</q-tooltip>
             </q-btn>
           </q-item-section>
         </q-item>
@@ -75,8 +75,8 @@
 
       <div v-else class="text-center q-pa-md text-grey">
         <q-icon name="info" size="md" class="q-mb-sm" />
-        <div class="text-caption">暂无目标产物</div>
-        <div class="text-caption">使用上下文菜单或快捷键 D 添加物品</div>
+        <div class="text-caption">{{ t('noTargets') }}</div>
+        <div class="text-caption">{{ t('addTargetHint') }}</div>
       </div>
 
       <!-- 操作按钮 -->
@@ -84,7 +84,7 @@
         <q-btn
           color="primary"
           icon="calculate"
-          label="开始规划"
+          :label="t('startPlanning')"
           :disable="targets.length === 0"
           @click="startPlanning"
         />
@@ -92,11 +92,11 @@
           outline
           color="primary"
           icon="auto_awesome"
-          label="自动优化"
+          :label="t('autoOptimize')"
           :disable="targets.length === 0"
           @click="autoOptimize"
         >
-          <q-tooltip>自动选择最优配方组合</q-tooltip>
+          <q-tooltip>{{ t('autoOptimizeHint') }}</q-tooltip>
         </q-btn>
       </div>
     </q-card>
@@ -104,9 +104,9 @@
     <!-- 决策区域 -->
     <q-card v-if="pendingDecisions.length" flat bordered class="q-pa-md q-mt-md">
       <div class="row items-center q-gutter-sm q-mb-md">
-        <div class="text-subtitle2">配方选择</div>
+        <div class="text-subtitle2">{{ t('recipeSelection') }}</div>
         <q-space />
-        <q-badge color="warning">待选择：{{ pendingDecisions.length }}</q-badge>
+        <q-badge color="warning">{{ t('pendingChoices') }}{{ pendingDecisions.length }}</q-badge>
       </div>
 
       <div class="column q-gutter-md">
@@ -114,7 +114,7 @@
           <!-- 配方选择 -->
           <q-card v-if="d.kind === 'item_recipe'" flat bordered class="q-pa-md">
             <div class="text-caption text-weight-medium q-mb-sm">
-              {{ itemName(d.itemKey) }} - 选择合成方式
+              {{ itemName(d.itemKey) }} - {{ t('chooseSynthesisMethod') }}
             </div>
             <q-select
               dense
@@ -138,7 +138,7 @@
           <!-- 标签物品选择 -->
           <q-card v-else-if="d.kind === 'tag_item'" flat bordered class="q-pa-md">
             <div class="text-caption text-weight-medium q-mb-sm">
-              标签 {{ d.tagId }} - 选择具体物品
+              {{ t('tagSelection') }} {{ d.tagId }} - {{ t('chooseSpecificItem') }}
             </div>
             <q-select
               dense
@@ -162,21 +162,22 @@
       class="q-pa-md q-mt-md advanced-planner__results"
     >
       <div class="row items-center q-mb-md">
-        <div class="text-subtitle2">多目标生产规划</div>
+        <div class="text-subtitle2">{{ t('multiTargetPlanning') }}</div>
         <q-space />
         <q-btn
           dense
           outline
           icon="save"
-          label="保存规划"
+          :label="t('savePlan')"
           :disable="pendingDecisions.length > 0"
           @click="openSaveDialog"
         />
-        <q-chip dense color="primary" text-color="white"> {{ targets.length }} 个目标 </q-chip>
+        <q-chip dense color="primary" text-color="white"> {{ targets.length }} {{ t('targetCount') }} </q-chip>
       </div>
 
       <!-- 目标概览 -->
       <q-list dense bordered class="rounded-borders q-mb-md">
+        <q-item-label header>{{ t('targetOverview') }}</q-item-label>
         <q-item v-for="(target, idx) in targets" :key="idx">
           <q-item-section avatar>
             <stack-view
@@ -201,11 +202,11 @@
       </q-list>
 
       <q-tabs v-model="activeTab" dense outside-arrows mobile-arrows inline-label>
-        <q-tab name="summary" label="资源汇总" />
-        <q-tab name="tree" label="合成树" />
-        <q-tab name="graph" label="节点图" />
-        <q-tab name="line" label="生产线" />
-        <q-tab name="calc" label="计算器" />
+        <q-tab name="summary" :label="t('resourceSummary')" />
+        <q-tab name="tree" :label="t('synthesisTree')" />
+        <q-tab name="graph" :label="t('nodeGraph')" />
+        <q-tab name="line" :label="t('productionLine')" />
+        <q-tab name="calc" :label="t('calculator')" />
       </q-tabs>
       <q-separator class="q-my-md" />
 
@@ -214,7 +215,7 @@
         <q-tab-panel name="summary" class="q-pa-none">
           <div class="column q-gutter-md">
             <q-card flat bordered class="q-pa-md">
-              <div class="text-subtitle2 q-mb-md">原材料需求 ({{ rawItemTotals.size }} 种)</div>
+              <div class="text-subtitle2 q-mb-md">{{ t('rawMaterialRequirements', { count: rawItemTotals.size }) }}</div>
               <q-list dense bordered separator class="rounded-borders">
                 <q-item v-for="[itemId, amount] in rawItemEntries" :key="itemId">
                   <q-item-section avatar>
@@ -235,7 +236,7 @@
 
             <q-card v-if="rawFluidEntries.length" flat bordered class="q-pa-md">
               <div class="text-subtitle2 q-mb-md">
-                原材料流体需求 ({{ rawFluidTotals.size }} 种)
+                {{ t('rawMaterialFluidRequirements', { count: rawFluidTotals.size }) }}
               </div>
               <q-list dense bordered separator class="rounded-borders">
                 <q-item v-for="[fluidId, amount] in rawFluidEntries" :key="fluidId">
@@ -249,7 +250,7 @@
                     <q-item-label>{{ fluidId }}</q-item-label>
                   </q-item-section>
                   <q-item-section side>
-                    <q-item-label caption>{{ amount.toFixed(2) }} / 分钟</q-item-label>
+                    <q-item-label caption>{{ amount.toFixed(2) }} {{ t('perMinute') }}</q-item-label>
                   </q-item-section>
                 </q-item>
               </q-list>
@@ -257,7 +258,7 @@
 
             <q-card v-if="mergedTree.catalysts.size > 0" flat bordered class="q-pa-md">
               <div class="text-subtitle2 q-mb-md">
-                催化剂需求 ({{ mergedTree.catalysts.size }} 种)
+                {{ t('catalystRequirements', { count: mergedTree.catalysts.size }) }}
               </div>
               <q-list dense bordered separator class="rounded-borders">
                 <q-item
@@ -274,7 +275,7 @@
                     <q-item-label>{{ getItemName(itemId) }}</q-item-label>
                   </q-item-section>
                   <q-item-section side>
-                    <q-item-label caption>{{ amount }} 个</q-item-label>
+                    <q-item-label caption>{{ amount }} {{ t('itemUnit') }}</q-item-label>
                   </q-item-section>
                 </q-item>
               </q-list>
@@ -282,7 +283,7 @@
 
             <q-card v-if="cycleSeedEntries.length" flat bordered class="q-pa-md">
               <div class="text-subtitle2 q-mb-md">
-                循环种子分析 ({{ cycleSeedEntries.length }} 种)
+                {{ t('cycleSeedAnalysis', { count: cycleSeedEntries.length }) }}
               </div>
               <q-list dense bordered separator class="rounded-borders">
                 <q-item v-for="seed in cycleSeedEntries" :key="seed.nodeId">
@@ -295,13 +296,13 @@
                   <q-item-section>
                     <q-item-label>{{ itemName(seed.itemKey) }}</q-item-label>
                     <q-item-label caption>
-                      需要 {{ formatAmount(seed.amountNeeded) }} / 分钟
+                      {{ t('need') }} {{ formatAmount(seed.amountNeeded) }} {{ t('perMinute') }}
                     </q-item-label>
                   </q-item-section>
                   <q-item-section side>
-                    <q-item-label caption> 种子 {{ formatAmount(seed.seedAmount) }} </q-item-label>
+                    <q-item-label caption> {{ t('seeds') }} {{ formatAmount(seed.seedAmount) }} </q-item-label>
                     <q-item-label caption v-if="seed.cycleFactor">
-                      增长倍率 {{ formatAmount(seed.cycleFactor) }}
+                      {{ t('growthFactor') }} {{ formatAmount(seed.cycleFactor) }}
                     </q-item-label>
                   </q-item-section>
                 </q-item>
@@ -314,7 +315,7 @@
         <q-tab-panel name="tree" class="q-pa-none">
           <div class="column q-gutter-md">
             <div class="row items-center q-gutter-sm">
-              <div class="text-caption text-grey-8">显示单位</div>
+              <div class="text-caption text-grey-8">{{ t('displayUnit') }}</div>
               <q-select
                 dense
                 filled
@@ -504,8 +505,8 @@
                 :model-value="graphDisplayUnit"
                 @update:model-value="(v) => (graphDisplayUnit = v)"
               />
-              <q-toggle v-model="graphShowFluids" dense label="显示流体" />
-              <q-toggle v-model="graphMergeRawMaterials" dense label="合并原材料" />
+              <q-toggle v-model="graphShowFluids" dense :label="t('showFluids')" />
+              <q-toggle v-model="graphMergeRawMaterials" dense :label="t('mergeRawMaterials')" />
               <q-space />
               <q-btn
                 flat
@@ -633,8 +634,8 @@
                 :model-value="lineDisplayUnit"
                 @update:model-value="(v) => (lineDisplayUnit = v)"
               />
-              <q-toggle v-model="lineCollapseIntermediate" dense label="隐藏中间产物" />
-              <q-toggle v-model="lineIncludeCycleSeeds" dense label="显示循环种子" />
+              <q-toggle v-model="lineCollapseIntermediate" dense :label="t('hideIntermediate')" />
+              <q-toggle v-model="lineIncludeCycleSeeds" dense :label="t('showCycleSeeds')" />
               <q-space />
               <q-btn
                 flat
@@ -991,16 +992,16 @@
         <q-input
           dense
           filled
-          label="线路名称"
+          :label="t('lineName')"
           :model-value="saveName"
           @update:model-value="(v) => (saveName = String(v ?? ''))"
         />
       </q-card-section>
       <q-card-actions align="right">
-        <q-btn flat label="取消" color="grey-7" v-close-popup />
+        <q-btn flat :label="t('cancel')" color="grey-7" v-close-popup />
         <q-btn
           unelevated
-          label="保存"
+          :label="t('save')"
           color="primary"
           :disable="!saveName.trim()"
           @click="confirmSave"
@@ -1012,6 +1013,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { Dark, useQuasar } from 'quasar';
+import { useI18n } from 'vue-i18n';
 import type { ItemKey, ItemDef, ItemId, PackData, Stack } from 'src/jei/types';
 import type { JeiIndex } from 'src/jei/indexing/buildIndex';
 import { itemKeyHash } from 'src/jei/indexing/key';
@@ -1028,7 +1031,6 @@ import {
 } from 'src/jei/planner/planner';
 import StackView from 'src/jei/components/StackView.vue';
 import { buildProductionLineModel } from 'src/jei/planner/productionLine';
-import { Dark, useQuasar } from 'quasar';
 import type { PlannerSavePayload } from 'src/jei/planner/plannerUi';
 import { Background } from '@vue-flow/background';
 import { Controls } from '@vue-flow/controls';
@@ -1038,6 +1040,8 @@ import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
 import '@vue-flow/controls/dist/style.css';
 import '@vue-flow/minimap/dist/style.css';
+
+const { t } = useI18n();
 
 interface Target {
   itemKey: ItemKey;

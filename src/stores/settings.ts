@@ -2,10 +2,19 @@ import { defineStore } from 'pinia';
 import { Dark } from 'quasar';
 
 export type DarkMode = 'auto' | 'light' | 'dark';
+export type Language = 'zh-CN' | 'en-US' | 'ja-JP';
 
 function darkModeToQuasar(mode: DarkMode): boolean | 'auto' {
   if (mode === 'auto') return 'auto';
   return mode === 'dark';
+}
+
+// 探测浏览器语言
+function detectBrowserLanguage(): Language {
+  const browserLang = navigator.language;
+  if (browserLang.startsWith('zh')) return 'zh-CN';
+  if (browserLang.startsWith('ja')) return 'ja-JP';
+  return 'en-US';
 }
 
 export const useSettingsStore = defineStore('settings', {
@@ -20,6 +29,7 @@ export const useSettingsStore = defineStore('settings', {
       favoritesCollapsed: false,
       panelCollapsed: false,
       darkMode: 'auto' as DarkMode,
+      language: detectBrowserLanguage(),
       debugPanelPos: { x: 10, y: 10 },
     };
     try {
@@ -34,6 +44,10 @@ export const useSettingsStore = defineStore('settings', {
           ? parsed.darkMode
           : defaults.darkMode;
       Dark.set(darkModeToQuasar(darkMode));
+      const language: Language =
+        parsed.language === 'zh-CN' || parsed.language === 'en-US' || parsed.language === 'ja-JP'
+          ? parsed.language
+          : defaults.language;
       const recipeViewMode: 'dialog' | 'panel' = parsed.recipeViewMode === 'panel' ? 'panel' : 'dialog';
       return {
         historyLimit: typeof parsed.historyLimit === 'number' ? parsed.historyLimit : defaults.historyLimit,
@@ -52,6 +66,7 @@ export const useSettingsStore = defineStore('settings', {
         panelCollapsed:
           typeof parsed.panelCollapsed === 'boolean' ? parsed.panelCollapsed : defaults.panelCollapsed,
         darkMode,
+        language,
         debugPanelPos:
           parsed.debugPanelPos && typeof parsed.debugPanelPos.x === 'number' && typeof parsed.debugPanelPos.y === 'number'
             ? parsed.debugPanelPos
@@ -100,6 +115,10 @@ export const useSettingsStore = defineStore('settings', {
       Dark.set(darkModeToQuasar(mode));
       this.save();
     },
+    setLanguage(lang: Language) {
+      this.language = lang;
+      this.save();
+    },
     setDebugPanelPos(pos: { x: number; y: number }) {
       this.debugPanelPos = pos;
       this.save();
@@ -117,6 +136,7 @@ export const useSettingsStore = defineStore('settings', {
           favoritesCollapsed: this.favoritesCollapsed,
           panelCollapsed: this.panelCollapsed,
           darkMode: this.darkMode,
+          language: this.language,
           debugPanelPos: this.debugPanelPos,
         }),
       );

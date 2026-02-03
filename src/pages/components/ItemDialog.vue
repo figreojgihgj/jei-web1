@@ -23,10 +23,10 @@
           inline-label
           class="q-px-sm q-pt-sm"
         >
-          <q-tab name="recipes" label="配方 (R)" />
-          <q-tab name="uses" label="用途 (U)" />
-          <q-tab name="wiki" label="维基 (W)" />
-          <q-tab name="planner" label="规划器 (P)" />
+          <q-tab name="recipes" :label="t('tabsRecipesWithLabel')" />
+          <q-tab name="uses" :label="t('tabsUsesWithLabel')" />
+          <q-tab name="wiki" :label="t('tabsWikiWithLabel')" />
+          <q-tab name="planner" :label="t('tabsPlannerWithLabel')" />
         </q-tabs>
         <div class="jei-dialog__hint text-caption">Backspace: 返回 · Esc: 关闭</div>
       </div>
@@ -64,10 +64,13 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import type { PackData, ItemDef, ItemKey } from 'src/jei/types';
 import type { JeiIndex } from 'src/jei/indexing/buildIndex';
 import type { PlannerInitialState, PlannerLiveState } from 'src/jei/planner/plannerUi';
 import RecipeContentView from './RecipeContentView.vue';
+
+const { t } = useI18n();
 
 interface RecipeGroup {
   typeKey: string;

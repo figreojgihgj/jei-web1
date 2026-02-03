@@ -1,7 +1,179 @@
-// This is just an example,
-// so you can safely delete all default props below
-
 export default {
-  failed: 'Action failed',
-  success: 'Action was successful',
-};
+  loading: 'Loading…',
+  error: 'Error',
+  favorites: 'Favorites',
+  collapse: 'Collapse',
+  expand: 'Expand',
+  item: 'Item',
+  itemList: 'Item List',
+  history: 'History',
+  noFavorites: 'No favorites (hover item and press A to favorite)',
+  savedLines: 'Saved Lines',
+  totalItems: 'Total {count}',
+  itemsPerPage: '{size} per page',
+  selectItem: 'Select an item to view Recipes / Uses.',
+  panelTitle: 'Center Panel',
+  panelDesc: 'Right side is item list, left side is favorites; click item to open popup.',
+
+  // Tabs
+  tabsFavorites: 'Favorites',
+  tabsPanel: 'Details',
+  tabsList: 'List',
+  tabsRecipes: 'Recipes',
+  tabsRecipesWithLabel: 'Recipes (R)',
+  tabsUses: 'Uses',
+  tabsUsesWithLabel: 'Uses (U)',
+  tabsWiki: 'Wiki',
+  tabsWikiWithLabel: 'Wiki (W)',
+  tabsPlanner: 'Planner',
+  tabsPlannerWithLabel: 'Planner (P)',
+  tabsAdvanced: 'Advanced Planner',
+
+  // Center Panel
+  recipeViewer: 'Recipe Viewer',
+  advancedPlanner: 'Advanced Planner',
+  middleArea: 'Center Panel',
+  middleAreaDesc: 'Right side is item list, left side is favorites; click item to open popup.',
+
+  // Bottom Bar
+  filterPlaceholder: 'Enter name to filter… (supports @itemid/@gameid/@tag)',
+  advancedFilter: 'Advanced Filter',
+  itemName: 'Item Name',
+  itemNamePlaceholder: 'Enter item name keywords',
+  itemId: 'Item ID',
+  itemIdPlaceholder: 'Select or enter item ID',
+  namespace: 'Namespace',
+  namespacePlaceholder: 'Select or enter namespace',
+  tags: 'Tags',
+  tagPlaceholder: 'Select or enter tag',
+  clear: 'Clear',
+  cancel: 'Cancel',
+  apply: 'Apply',
+  add: 'Add',
+
+  // Settings
+  settings: 'Settings',
+  historyLimit: 'History Display Count',
+  debugScroll: 'Enable Debug Scrolling',
+  debugNavPanel: 'Navigation Stack Debug Panel',
+  recipeViewMode: 'Recipe Display Mode',
+  recipeViewDialog: 'Dialog',
+  recipeViewPanel: 'Center Panel',
+  recipeSlotShowName: 'Show Item Names in Recipe Slots',
+  close: 'Close',
+
+  // Context Menu
+  recipes: 'Recipes (R)',
+  uses: 'Uses (U)',
+  wiki: 'Wiki (W)',
+  planner: 'Planner (P)',
+  addToAdvanced: 'Add to Advanced Planner (D)',
+  favorite: 'Favorite (A)',
+  unfavorite: 'Unfavorite (A)',
+
+  // Recipe Groups
+  allRecipes: 'All',
+  providingRecipes: 'Providing: ',
+
+  // Pack
+  localPack: 'Local: ',
+
+  // Advanced Planner
+  targetProducts: 'Target Products',
+  productionSpeed: 'Production Speed',
+  resourceSummary: 'Resource Summary',
+  rawMaterialRequirements: 'Raw Material Requirements ({count} types)',
+  addProduct: 'Add Product',
+  saveLine: 'Save Line',
+  redesign: 'Redesign',
+  pendingChoices: 'Pending: ',
+  completed: 'Completed',
+  noOptions: 'No options',
+  targetOutput: 'Target Output',
+  noRecipeDetails: 'No recipe details found.',
+  removeTarget: 'Remove Target',
+  noTargets: 'No target products',
+  addTargetHint: 'Use context menu or D key to add items',
+  autoOptimize: 'Auto Optimize',
+  autoOptimizeHint: 'Auto-select optimal recipe combination',
+  recipeSelection: 'Recipe Selection',
+  chooseSynthesisMethod: 'Choose synthesis method',
+  tagSelection: 'Tag Selection',
+  chooseSpecificItem: 'Choose specific item',
+  multiTargetPlanning: 'Multi-target Production Planning',
+  savePlan: 'Save Plan',
+  targetCount: 'targets',
+  targetOverview: 'Target Overview',
+  resources: 'Resources',
+  recipes2: 'Recipes',
+  machines: 'Machines',
+  inputItems: 'Input Items',
+  outputItems: 'Output Items',
+  machineName: 'Machine Name',
+
+  // Planner
+  plannerTabTree: 'Tree (T)',
+  plannerTabGraph: 'Graph (G)',
+  plannerTabLine: 'Line (L)',
+  plannerTabCalc: 'Calc (C)',
+  
+  // Advanced Planner Tabs
+  startPlanning: 'Start Planning',
+  synthesisTree: 'Synthesis Tree',
+  nodeGraph: 'Node Graph',
+  productionLine: 'Production Line',
+  calculator: 'Calculator',
+  displayUnit: 'Display Unit',
+  
+  // Advanced Planner Graph Options
+  showFluids: 'Show Fluids',
+  mergeRawMaterials: 'Merge Raw Materials',
+  
+  // Advanced Planner Line Options
+  hideIntermediate: 'Hide Intermediate',
+  showCycleSeeds: 'Show Cycle Seeds',
+  
+  // Advanced Planner Details
+  rawMaterialFluidRequirements: 'Raw Material Fluid Requirements ({count} types)',
+  catalystRequirements: 'Catalyst Requirements ({count} types)',
+  cycleSeedAnalysis: 'Cycle Seed Analysis ({count} types)',
+  need: 'Need',
+  seeds: 'Seeds',
+  growthFactor: 'Growth Factor',
+  
+  // Dialog
+  lineName: 'Line Name',
+  save: 'Save',
+  itemUnit: '',
+  perMinute: '/ minute',
+  lineSelection: 'Line Selection',
+  chooseSynthesisMethod2: ': Choose synthesis method',
+  
+  // Recipe Content
+  noTags: 'No tags',
+  description: 'Description',
+  noRecipesFound: 'No recipes found.',
+  
+  // Planner Details
+  target: 'Target',
+  treeStructure: 'Tree Structure',
+  conveyorBelt: 'Conveyor Belt',
+  equipment: 'Equipment',
+  power: 'Power',
+  total: 'Total',
+  powerUsage: 'Power',
+  pollution: 'Pollution',
+  pollutionPerMinute: '/min',
+  requiredMaterials: 'Required Materials',
+  requiredMachines: 'Required Machines',
+  totalConsumption: 'Total Consumption',
+  saveSynthesisLine: 'Save Synthesis Line',
+  totalPower: 'Total Power',
+  totalEquipment: 'Total Equipment',
+  outputTypes: 'Output Types',
+  summaryByNode: 'Summary by Node',
+  equipmentRequirements: 'Equipment Requirements',
+  outputRate: 'Output Rate',
+  addTargetToStart: 'Add target products to start planning',
+  noNodes: 'No nodes',
+} as const;

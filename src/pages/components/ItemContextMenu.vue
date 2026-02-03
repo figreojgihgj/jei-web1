@@ -13,32 +13,32 @@
         <q-item-section avatar>
           <q-icon name="handyman" size="xs" />
         </q-item-section>
-        <q-item-section>配方 (R)</q-item-section>
+        <q-item-section>{{ t('recipes') }}</q-item-section>
       </q-item>
       <q-item clickable v-close-popup @click="$emit('action', 'uses')">
         <q-item-section avatar>
           <q-icon name="input" size="xs" />
         </q-item-section>
-        <q-item-section>用途 (U)</q-item-section>
+        <q-item-section>{{ t('uses') }}</q-item-section>
       </q-item>
       <q-item clickable v-close-popup @click="$emit('action', 'wiki')">
         <q-item-section avatar>
           <q-icon name="menu_book" size="xs" />
         </q-item-section>
-        <q-item-section>维基 (W)</q-item-section>
+        <q-item-section>{{ t('wiki') }}</q-item-section>
       </q-item>
       <q-item clickable v-close-popup @click="$emit('action', 'planner')">
         <q-item-section avatar>
           <q-icon name="calculate" size="xs" />
         </q-item-section>
-        <q-item-section>规划器 (P)</q-item-section>
+        <q-item-section>{{ t('planner') }}</q-item-section>
       </q-item>
       <q-separator />
       <q-item clickable v-close-popup @click="$emit('action', 'advanced')">
         <q-item-section avatar>
           <q-icon name="add_chart" size="xs" color="primary" />
         </q-item-section>
-        <q-item-section>添加到高级计划 (D)</q-item-section>
+        <q-item-section>{{ t('addToAdvanced') }}</q-item-section>
       </q-item>
       <q-separator />
       <q-item clickable v-close-popup @click="$emit('action', 'fav')">
@@ -49,7 +49,7 @@
             size="xs"
           />
         </q-item-section>
-        <q-item-section>收藏 (A)</q-item-section>
+        <q-item-section>{{ isFavorite ? t('unfavorite') : t('favorite') }}</q-item-section>
       </q-item>
     </q-list>
   </q-menu>
@@ -57,6 +57,9 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 defineProps<{
   open: boolean;

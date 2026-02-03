@@ -17,7 +17,7 @@
     <!-- 展开状态下的内容 -->
     <template v-if="!collapsed">
       <div class="jei-list__head col-auto row items-center q-gutter-sm">
-        <div class="text-subtitle2">收藏夹</div>
+        <div class="text-subtitle2">{{ t('favorites') }}</div>
         <q-space />
         <q-btn
           flat
@@ -27,13 +27,13 @@
           size="sm"
           @click="$emit('update:collapsed', true)"
         >
-          <q-tooltip>收起</q-tooltip>
+          <q-tooltip>{{ t('collapse') }}</q-tooltip>
         </q-btn>
       </div>
 
       <div class="jei-list__scroll col">
         <div v-if="savedPlans.length" class="jei-plans">
-          <div class="jei-plans__head text-caption text-grey-8">已保存线路</div>
+          <div class="jei-plans__head text-caption text-grey-8">{{ t('savedLines') }}</div>
           <q-list dense class="jei-plans__list">
             <q-item
               v-for="p in savedPlans"
@@ -115,7 +115,7 @@
             </div>
           </q-card>
         </div>
-        <div v-else class="text-caption text-grey-7">暂无收藏（悬停物品按 A 收藏）</div>
+        <div v-else class="text-caption text-grey-7">{{ t('noFavorites') }}</div>
       </div>
     </template>
   </q-card>
@@ -124,6 +124,9 @@
 <script setup lang="ts">
 import type { ItemDef, ItemKey } from 'src/jei/types';
 import StackView from 'src/jei/components/StackView.vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 type SavedPlan = {
   id: string;

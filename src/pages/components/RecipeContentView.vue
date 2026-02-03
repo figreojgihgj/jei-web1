@@ -37,7 +37,7 @@
             />
           </div>
           <div class="col column q-gutter-sm">
-            <div class="text-caption text-grey-8">物品 ID</div>
+            <div class="text-caption text-grey-8">{{ t('itemId') }}</div>
             <div class="text-body2">{{ currentItemDef.key.id }}</div>
             <div
               v-if="currentItemDef.key.meta !== undefined"
@@ -52,18 +52,18 @@
         </div>
         <q-separator />
         <div v-if="currentItemDef.description">
-          <div class="text-subtitle2 q-mb-sm">描述</div>
+          <div class="text-subtitle2 q-mb-sm">{{ t('description') }}</div>
           <div class="wiki-description" v-html="renderedDescription"></div>
         </div>
         <q-separator v-if="currentItemDef.description" />
         <div>
-          <div class="text-subtitle2 q-mb-sm">标签</div>
+          <div class="text-subtitle2 q-mb-sm">{{ t('tags') }}</div>
           <div v-if="currentItemDef.tags?.length" class="row q-gutter-xs">
             <q-badge v-for="tag in currentItemDef.tags" :key="tag" color="grey-7">
               {{ tag }}
             </q-badge>
           </div>
-          <div v-else class="text-caption text-grey-7">无标签</div>
+          <div v-else class="text-caption text-grey-7">{{ t('noTags') }}</div>
         </div>
       </div>
     </div>
@@ -195,18 +195,21 @@
           </q-tab-panels>
         </div>
       </div>
-      <div v-else class="q-pa-md text-caption">没有找到相关配方。</div>
+      <div v-else class="q-pa-md text-caption">{{ t('noRecipesFound') }}</div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import type { PackData, ItemDef, ItemKey } from 'src/jei/types';
 import type { JeiIndex } from 'src/jei/indexing/buildIndex';
 import type { PlannerInitialState, PlannerLiveState } from 'src/jei/planner/plannerUi';
 import StackView from 'src/jei/components/StackView.vue';
 import RecipeViewer from 'src/jei/components/RecipeViewer.vue';
 import CraftingPlannerView from 'src/jei/components/CraftingPlannerView.vue';
+
+const { t } = useI18n();
 
 interface RecipeGroup {
   typeKey: string;
