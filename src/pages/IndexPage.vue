@@ -1064,7 +1064,12 @@ async function reloadPack(packId: string) {
           label: startupDialog.confirmText || 'OK',
           color: 'primary',
         },
-      } as { message: string; persistent: true; ok: { label: string; color: string }; title?: string };
+      } as {
+        message: string;
+        persistent: true;
+        ok: { label: string; color: string };
+        title?: string;
+      };
       if (startupDialog.title) dialogOptions.title = startupDialog.title;
       $q.dialog(dialogOptions).onOk(() => {
         settingsStore.addAcceptedStartupDialog(startupDialog.id);
