@@ -19,7 +19,7 @@
         outlined
         clearable
         :disable="filterDisabled"
-        placeholder="{{ t('filterPlaceholder') }}"
+        :placeholder="t('filterPlaceholder')"
         class="col"
       >
         <template #append>

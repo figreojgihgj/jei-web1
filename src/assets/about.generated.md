@@ -1,16 +1,24 @@
 # About
 
 ## Build
-- Version: d59133f-dirty
-- Commit: d59133f (d59133f97fa442010ecea9d60bbfdd2dde1079c5)
-- Commit count: 39
-- Subject: feat: 更新构建信息，添加原生暗色模式支持，优化页面结构和元数据
+- Version: 13d61ef-dirty
+- Commit: 13d61ef (13d61ef1ebd1c56896dfc5e0ee8fcca9be41a633)
+- Commit count: 41
+- Subject: feat: 更新 CenterPanel 组件中的标签文本以提高可读性
 - Author: AndreaFrederica
-- Date: 2026-02-03T09:56:51+08:00
-- Generated at: 2026-02-03T02:07:05.817Z
+- Date: 2026-02-03T10:11:30+08:00
+- Generated at: 2026-02-03T02:15:51.275Z
 - Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History
+
+### r41 (2026-02-03T10:11:30+08:00)
+- 13d61ef
+  feat: 更新 CenterPanel 组件中的标签文本以提高可读性
+
+### r40 (2026-02-03T10:07:21+08:00)
+- fcf2bf7
+  feat: 添加 Cloudflare 构建脚本以支持更好的构建管理
 
 ### r39 (2026-02-03T09:56:51+08:00)
 - d59133f
