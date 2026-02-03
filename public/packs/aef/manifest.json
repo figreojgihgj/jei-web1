@@ -8,5 +8,11 @@
     "tags": "tags.json",
     "recipeTypes": "recipeTypes.json",
     "recipes": "recipes.json"
+  },
+  "startupDialog": {
+    "id": "aef-item-id-notice-v1",
+    "title": "重要说明",
+    "message": "请注意：本工具中显示的物品 ID（如 endfield.xxx）仅供本站内部索引与配方关联使用，并非游戏内的真实物品 ID。请勿将其作为游戏内控制台代码或其他修改工具的参考依据。",
+    "confirmText": "我知道了"
   }
 }

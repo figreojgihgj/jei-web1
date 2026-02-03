@@ -31,6 +31,7 @@ export const useSettingsStore = defineStore('settings', {
       darkMode: 'auto' as DarkMode,
       language: detectBrowserLanguage(),
       debugPanelPos: { x: 10, y: 10 },
+      acceptedStartupDialogs: [] as string[],
     };
     try {
       const raw = localStorage.getItem('jei.settings');
@@ -71,6 +72,9 @@ export const useSettingsStore = defineStore('settings', {
           parsed.debugPanelPos && typeof parsed.debugPanelPos.x === 'number' && typeof parsed.debugPanelPos.y === 'number'
             ? parsed.debugPanelPos
             : defaults.debugPanelPos,
+        acceptedStartupDialogs: Array.isArray(parsed.acceptedStartupDialogs)
+          ? parsed.acceptedStartupDialogs.filter((x): x is string => typeof x === 'string')
+          : defaults.acceptedStartupDialogs,
       };
     } catch {
       Dark.set('auto');
@@ -123,6 +127,12 @@ export const useSettingsStore = defineStore('settings', {
       this.debugPanelPos = pos;
       this.save();
     },
+    addAcceptedStartupDialog(id: string) {
+      if (!this.acceptedStartupDialogs.includes(id)) {
+        this.acceptedStartupDialogs.push(id);
+        this.save();
+      }
+    },
     save() {
       localStorage.setItem(
         'jei.settings',
@@ -138,6 +148,7 @@ export const useSettingsStore = defineStore('settings', {
           darkMode: this.darkMode,
           language: this.language,
           debugPanelPos: this.debugPanelPos,
+          acceptedStartupDialogs: this.acceptedStartupDialogs,
         }),
       );
     },

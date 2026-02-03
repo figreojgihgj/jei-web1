@@ -118,6 +118,12 @@ export interface PackManifest {
     recipeTypes: string;
     recipes: string;
   };
+  startupDialog?: {
+    id: string;
+    message: string;
+    confirmText?: string;
+    title?: string;
+  };
 }
 
 export interface PackData {

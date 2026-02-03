@@ -283,6 +283,17 @@ export function assertPackManifest(value: unknown, jsonPath: string): PackManife
   };
   if (itemsPath !== undefined) out.files.items = itemsPath;
   if (tagsPath !== undefined) out.files.tags = tagsPath;
+
+  if (isRecord(obj.startupDialog)) {
+    const d = obj.startupDialog;
+    out.startupDialog = {
+      id: assertString(d.id, `${jsonPath}.startupDialog.id`),
+      message: assertString(d.message, `${jsonPath}.startupDialog.message`),
+      confirmText: assertOptionalString(d.confirmText, `${jsonPath}.startupDialog.confirmText`),
+      title: assertOptionalString(d.title, `${jsonPath}.startupDialog.title`),
+    };
+  }
+
   return out;
 }
 

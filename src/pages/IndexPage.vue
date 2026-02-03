@@ -1037,6 +1037,22 @@ async function reloadPack(packId: string) {
     const loaded = await loadRuntimePack(packId);
     runtimePackDispose.value = loaded.dispose;
     pack.value = loaded.pack;
+
+    const startupDialog = loaded.pack.manifest.startupDialog;
+    if (startupDialog && !settingsStore.acceptedStartupDialogs.includes(startupDialog.id)) {
+      $q.dialog({
+        title: startupDialog.title,
+        message: startupDialog.message,
+        persistent: true,
+        ok: {
+          label: startupDialog.confirmText || 'OK',
+          color: 'primary',
+        },
+      }).onOk(() => {
+        settingsStore.addAcceptedStartupDialog(startupDialog.id);
+      });
+    }
+
     index.value = buildJeiIndex(loaded.pack);
     favorites.value = loadFavorites(loaded.pack.manifest.packId);
     savedPlans.value = loadPlans(loaded.pack.manifest.packId);
