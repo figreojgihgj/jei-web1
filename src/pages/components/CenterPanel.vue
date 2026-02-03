@@ -76,7 +76,7 @@
                 inline-label
                 class="q-px-sm q-pt-sm"
               >
-                <q-tab name="recipes" :label="t('tabsWithLabel')" />
+                <q-tab name="recipes" :label="t('tabsRecipesWithLabel')" />
                 <q-tab name="uses" :label="t('tabsUsesWithLabel')" />
                 <q-tab name="wiki" :label="t('tabsWikiWithLabel')" />
                 <q-tab name="planner" :label="t('tabsPlannerWithLabel')" />

@@ -1,16 +1,20 @@
 # About
 
 ## Build
-- Version: 255f0a3
-- Commit: 255f0a3 (255f0a3075b152b223cc0876899df1f8886792de)
-- Commit count: 38
-- Subject: feat: 添加原生暗色模式支持，优化页面结构和元数据，避免vue启动前的闪烁
+- Version: d59133f-dirty
+- Commit: d59133f (d59133f97fa442010ecea9d60bbfdd2dde1079c5)
+- Commit count: 39
+- Subject: feat: 更新构建信息，添加原生暗色模式支持，优化页面结构和元数据
 - Author: AndreaFrederica
-- Date: 2026-02-03T09:04:37+08:00
-- Generated at: 2026-02-03T01:56:31.811Z
+- Date: 2026-02-03T09:56:51+08:00
+- Generated at: 2026-02-03T02:07:05.817Z
 - Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History
+
+### r39 (2026-02-03T09:56:51+08:00)
+- d59133f
+  feat: 更新构建信息，添加原生暗色模式支持，优化页面结构和元数据
 
 ### r38 (2026-02-03T09:04:37+08:00)
 - 255f0a3
