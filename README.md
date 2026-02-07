@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/icons/icon.svg" alt="JEI-web Icon" width="20%">
+  <img src="/icons/icon.svg" alt="JEI-web Icon" width="20%">
 </p>
 
 # JEI-web
@@ -8,7 +8,7 @@ Just Enough Items but Running in web - 一个基于 Web 的物品查看和合成
 
 > **注意**：本项目与 Minecraft 的 JEI (Just Enough Items) mod 无任何关系。仅从 JEI 获取了物品查看和合成规划的设计灵感，两者在代码和功能上完全独立。
 
-## 功能特性
+## 功能特性![1770429718229](image/README/1770429718229.png)
 
 ### 基础功能
 

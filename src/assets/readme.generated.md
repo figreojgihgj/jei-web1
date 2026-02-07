@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/icons/icon.svg" alt="JEI-web Icon" width="20%">
+  <img src="/icons/icon.svg" alt="JEI-web Icon" width="20%">
 </p>
 
 # JEI-web
