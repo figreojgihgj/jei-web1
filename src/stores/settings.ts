@@ -32,6 +32,7 @@ export const useSettingsStore = defineStore('settings', {
       language: detectBrowserLanguage(),
       debugPanelPos: { x: 10, y: 10 },
       acceptedStartupDialogs: [] as string[],
+      completedTutorial: false,
       favoritesOpensNewStack: false,
       // Wiki 渲染器设置
       wikiImageUseProxy: false,
@@ -80,6 +81,10 @@ export const useSettingsStore = defineStore('settings', {
         acceptedStartupDialogs: Array.isArray(parsed.acceptedStartupDialogs)
           ? parsed.acceptedStartupDialogs.filter((x): x is string => typeof x === 'string')
           : defaults.acceptedStartupDialogs,
+        completedTutorial:
+          typeof parsed.completedTutorial === 'boolean'
+            ? parsed.completedTutorial
+            : defaults.completedTutorial,
         favoritesOpensNewStack:
           typeof parsed.favoritesOpensNewStack === 'boolean'
             ? parsed.favoritesOpensNewStack
@@ -170,6 +175,10 @@ export const useSettingsStore = defineStore('settings', {
       this.wikiCatalogFileName = value;
       this.save();
     },
+    setCompletedTutorial(value: boolean) {
+      this.completedTutorial = value;
+      this.save();
+    },
     save() {
       localStorage.setItem(
         'jei.settings',
@@ -186,6 +195,7 @@ export const useSettingsStore = defineStore('settings', {
           language: this.language,
           debugPanelPos: this.debugPanelPos,
           acceptedStartupDialogs: this.acceptedStartupDialogs,
+          completedTutorial: this.completedTutorial,
           favoritesOpensNewStack: this.favoritesOpensNewStack,
           wikiImageUseProxy: this.wikiImageUseProxy,
           wikiImageProxyUrl: this.wikiImageProxyUrl,

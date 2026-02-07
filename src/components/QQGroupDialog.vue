@@ -38,12 +38,14 @@ interface Props {
   visible?: boolean;
   title?: string;
   showDontShowAgain?: boolean;
+  managed?: boolean;
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   visible: false,
   title: 'JEI Web 官方 QQ 群',
   showDontShowAgain: false,
+  managed: false,
 });
 
 const emit = defineEmits<{
@@ -54,23 +56,33 @@ const emit = defineEmits<{
 
 function handleClose() {
   emit('close', false);
-  emit('update:visible', false);
+  if (!props.managed) {
+    emit('update:visible', false);
+  }
 }
 
 function handleDontShowAgain() {
   emit('close', true);
-  emit('update:visible', false);
+  if (!props.managed) {
+    emit('update:visible', false);
+  }
 }
 
 function handleJoin() {
   window.open(QQ_GROUP_JOIN_URL, '_blank');
+  emit('close', false);
   emit('join');
-  emit('update:visible', false);
+  if (!props.managed) {
+    emit('update:visible', false);
+  }
 }
 
 function onClose(value: boolean) {
   if (!value) {
     emit('close', false);
+    if (!props.managed) {
+      emit('update:visible', false);
+    }
   }
 }
 </script>

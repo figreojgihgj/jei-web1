@@ -227,6 +227,7 @@ import { useQuasar } from 'quasar';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import type { ItemDef, ItemKey, PackData } from 'src/jei/types';
+import { useDialogManager } from 'src/stores/dialogManager';
 import { loadRuntimePack } from 'src/jei/pack/loader';
 import {
   buildJeiIndex,
@@ -254,6 +255,7 @@ import { autoPlanSelections } from 'src/jei/planner/planner';
 import { useSettingsStore } from 'src/stores/settings';
 
 const settingsStore = useSettingsStore();
+const dialogManager = useDialogManager();
 const { t } = useI18n();
 const contextMenuTarget = ref<HTMLElement | null>(null);
 const $q = useQuasar();
@@ -1057,24 +1059,48 @@ async function reloadPack(packId: string) {
 
     const startupDialog = loaded.pack.manifest.startupDialog;
     if (startupDialog && !settingsStore.acceptedStartupDialogs.includes(startupDialog.id)) {
-      const dialogOptions = {
-        message: startupDialog.message,
-        persistent: true,
-        ok: {
-          label: startupDialog.confirmText || 'OK',
-          color: 'primary',
+      // 注册包弹窗到弹窗管理器
+      const packDialogId = `pack-${loaded.pack.manifest.packId}-startup`;
+
+      dialogManager.registerDialog({
+        id: packDialogId,
+        priority: 'high',
+        title: startupDialog.title || '包欢迎弹窗',
+        canShow: () => {
+          // 只有在未被接受时才显示
+          return !settingsStore.acceptedStartupDialogs.includes(startupDialog.id);
         },
-      } as {
-        message: string;
-        persistent: true;
-        ok: { label: string; color: string };
-        title?: string;
-      };
-      if (startupDialog.title) dialogOptions.title = startupDialog.title;
-      $q.dialog(dialogOptions).onOk(() => {
-        settingsStore.addAcceptedStartupDialog(startupDialog.id);
+        onShow: () => {
+          const dialogOptions = {
+            message: startupDialog.message,
+            persistent: true,
+            ok: {
+              label: startupDialog.confirmText || 'OK',
+              color: 'primary',
+            },
+          } as {
+            message: string;
+            persistent: true;
+            ok: { label: string; color: string };
+            title?: string;
+          };
+          if (startupDialog.title) dialogOptions.title = startupDialog.title;
+
+          $q.dialog(dialogOptions).onOk(() => {
+            settingsStore.addAcceptedStartupDialog(startupDialog.id);
+            // 通知弹窗管理器当前弹窗已完成
+            dialogManager.completeDialog();
+          });
+        },
       });
     }
+
+    // 通知MainLayout包弹窗已加载（无论是否有包弹窗）
+    // 稍微延迟确保弹窗注册完成
+    setTimeout(() => {
+      const globalWindow = window as unknown as { jeiPackDialogLoaded?: () => void };
+      globalWindow.jeiPackDialogLoaded?.();
+    }, 100);
 
     index.value = buildJeiIndex(loaded.pack);
     favorites.value = loadFavorites(loaded.pack.manifest.packId);

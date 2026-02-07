@@ -1,16 +1,28 @@
 # About
 
 ## Build
-- Version: 515b8c6-dirty
-- Commit: 515b8c6 (515b8c61d2b1204eec56e7580b70711b957716f7)
-- Commit count: 48
-- Subject: feat: add Wiki Renderer page and related functionality
+- Version: 68be2d3-dirty
+- Commit: 68be2d3 (68be2d39f454e6371ca0311a280a34d545038c33)
+- Commit count: 49
+- Subject: feat: add QQ Group dialog and enhance item handling
 - Author: AndreaFrederica
-- Date: 2026-02-04T05:40:10+08:00
-- Generated at: 2026-02-06T23:25:57.132Z
+- Date: 2026-02-07T07:29:08+08:00
+- Generated at: 2026-02-06T23:40:12.576Z
 - Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History
+
+### r49 (2026-02-07T07:29:08+08:00)
+- 68be2d3
+  feat: add QQ Group dialog and enhance item handling
+  
+  - Introduced QQGroupDialog component for displaying the official QQ group information.
+  - Updated EditorLayout and MainLayout to include buttons for showing the QQ group dialog.
+  - Enhanced item loading to support both directory and array modes, including the creation of an itemsIndex for directory mode.
+  - Extracted inline recipes and wiki data from item definitions for better organization.
+  - Updated pack validation to include itemsIndex in the manifest.
+  - Improved item merging logic to handle inline recipes and ensure unique items.
+  - Added functionality to export items in both directory and array formats.
 
 ### r48 (2026-02-04T05:40:10+08:00)
 - 515b8c6

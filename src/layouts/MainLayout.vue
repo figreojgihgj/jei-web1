@@ -161,6 +161,20 @@
             <q-item-label caption>JEI Web官方群</q-item-label>
           </q-item-section>
         </q-item>
+
+        <q-separator />
+
+        <q-item-label header> 帮助 </q-item-label>
+
+        <q-item clickable @click="showTutorial">
+          <q-item-section avatar>
+            <q-icon name="school" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>新手教程</q-item-label>
+            <q-item-label caption>学习如何使用 JEI Web</q-item-label>
+          </q-item-section>
+        </q-item>
       </q-list>
     </q-drawer>
 
@@ -168,7 +182,18 @@
       v-model:visible="qqGroupDialogVisible"
       title="欢迎来到 JEI Web"
       :show-dont-show-again="true"
-      @close="closeQQGroupDialog"
+      :managed="true"
+      @close="handleQQGroupDialogClose"
+    />
+
+    <InteractiveTour
+      v-model="tutorialManager.tutorialState.value.visible"
+      :steps="tutorialManager.currentSteps.value"
+      :progress="tutorialProgress"
+      :managed="true"
+      @next="tutorialManager.nextStep"
+      @finish="handleTutorialFinish"
+      @skip="handleTutorialSkip"
     />
 
     <q-page-container :class="settingsStore.debugLayout ? 'debug-scroll' : 'no-scroll'">
@@ -183,13 +208,48 @@ import { Dark, useQuasar } from 'quasar';
 import { useI18n } from 'vue-i18n';
 import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue';
 import QQGroupDialog from 'components/QQGroupDialog.vue';
+import InteractiveTour, { type TutorialProgress } from 'components/InteractiveTour.vue';
 import { useSettingsStore, type DarkMode, type Language } from 'src/stores/settings';
+import { useDialogManager, TUTORIAL_DIALOG_ID } from 'src/stores/dialogManager';
+import { getTutorialManager } from 'src/composables/useTutorialManager';
 
 const settingsStore = useSettingsStore();
+const dialogManager = useDialogManager();
+const tutorialManager = getTutorialManager();
 const $q = useQuasar();
 const { locale } = useI18n();
 // 开发环境使用 package.json 版本，生产环境使用 git commit hash
 const appVersion = import.meta.env.DEV ? '0.0.1-dev' : (__APP_VERSION__ ?? 'unknown');
+
+// 阶段名称映射
+const stageNames: Record<string, string> = {
+  welcome: '欢迎',
+  sidebar: '侧边栏',
+  itemList: '物品列表',
+  recipeViewer: '配方查看',
+  planner: '计划器',
+  advancedPlanner: '高级计划',
+  complete: '完成',
+};
+
+// 教程进度信息
+const tutorialProgress = computed<TutorialProgress>(() => {
+  const stages = [
+    'welcome',
+    'sidebar',
+    'itemList',
+    'recipeViewer',
+    'planner',
+    'advancedPlanner',
+    'complete',
+  ];
+  const currentStageIndex = stages.indexOf(tutorialManager.tutorialState.value.currentStage);
+  return {
+    currentStage: currentStageIndex,
+    totalStages: stages.length,
+    stageName: stageNames[tutorialManager.tutorialState.value.currentStage] || '未知',
+  };
+});
 
 // 语言相关
 const languageList = [
@@ -292,33 +352,128 @@ const linksList: EssentialLinkProps[] = [
 
 const leftDrawerOpen = ref(false);
 const qqGroupDialogVisible = ref(false);
+const tutorialForceShow = ref(false);
+const qqGroupForceShow = ref(false);
 const QQ_GROUP_DIALOG_ID = 'qq-group-intro';
+
+// 检测是否是PC端
+function isDesktop(): boolean {
+  return !!$q.platform.is.desktop;
+}
 
 function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
 }
 
 function showQQGroupDialog() {
-  qqGroupDialogVisible.value = true;
+  qqGroupForceShow.value = true;
+  dialogManager.resetDialogStatus(QQ_GROUP_DIALOG_ID);
+  dialogManager.triggerProcess();
 }
 
-function closeQQGroupDialog(dontShowAgain: boolean) {
-  qqGroupDialogVisible.value = false;
+function handleQQGroupDialogClose(dontShowAgain: boolean) {
+  console.log('[MainLayout] QQGroupDialog close', { dontShowAgain });
   if (dontShowAgain) {
     settingsStore.addAcceptedStartupDialog(QQ_GROUP_DIALOG_ID);
   }
+  // 通知弹窗管理器当前弹窗已完成
+  dialogManager.completeDialog();
+}
+
+function showTutorial() {
+  // 手动显示教程（由侧边栏菜单触发）
+  tutorialForceShow.value = true;
+  dialogManager.resetDialogStatus(TUTORIAL_DIALOG_ID);
+  dialogManager.triggerProcess();
+}
+
+function handleTutorialFinish() {
+  console.log('[MainLayout] tutorial finish');
+  // 检查是否是最后一个阶段
+  if (tutorialManager.tutorialState.value.currentStage === 'complete') {
+    tutorialManager.finishTutorial();
+    settingsStore.setCompletedTutorial(true);
+    // 通知弹窗管理器教程已完成
+    dialogManager.completeTutorial();
+  } else {
+    // 进入下一阶段
+    tutorialManager.nextStep();
+  }
+}
+
+function handleTutorialSkip() {
+  console.log('[MainLayout] tutorial skip');
+  tutorialManager.skipTutorial();
+  settingsStore.setCompletedTutorial(true);
+  // 通知弹窗管理器教程已跳过
+  dialogManager.skipTutorial();
+}
+
+// 注册QQ群弹窗到弹窗管理器
+dialogManager.registerDialog({
+  id: QQ_GROUP_DIALOG_ID,
+  priority: 'high',
+  title: 'QQ群欢迎弹窗',
+  canShow: () => {
+    // 只有在未被接受时才显示，或手动强制展示
+    return (
+      !settingsStore.acceptedStartupDialogs.includes(QQ_GROUP_DIALOG_ID) || qqGroupForceShow.value
+    );
+  },
+  onShow: () => {
+    qqGroupDialogVisible.value = true;
+    qqGroupForceShow.value = false;
+  },
+  onClose: () => {
+    qqGroupDialogVisible.value = false;
+    qqGroupForceShow.value = false;
+  },
+});
+
+// 注册教程弹窗到弹窗管理器
+const tutorialShouldRegister = isDesktop();
+if (tutorialShouldRegister) {
+  // 只在桌面端注册教程
+  dialogManager.registerDialog({
+    id: TUTORIAL_DIALOG_ID,
+    priority: 'low',
+    title: '新手教程',
+    canShow: () => {
+      // 只有在PC端且教程未完成时才显示
+      const canShow = isDesktop() && (!settingsStore.completedTutorial || tutorialForceShow.value);
+      console.log('[MainLayout] tutorial canShow', {
+        isDesktop: isDesktop(),
+        completedTutorial: settingsStore.completedTutorial,
+        tutorialForceShow: tutorialForceShow.value,
+        result: canShow,
+      });
+      return canShow;
+    },
+    onShow: () => {
+      tutorialManager.startTutorial('welcome');
+      leftDrawerOpen.value = false;
+    },
+    onClose: () => {
+      tutorialManager.tutorialState.value.visible = false;
+      leftDrawerOpen.value = false;
+      tutorialForceShow.value = false;
+    },
+  });
 }
 
 onMounted(() => {
-  // 第一次打开网页时显示QQ群弹窗
-  if (!settingsStore.acceptedStartupDialogs.includes(QQ_GROUP_DIALOG_ID)) {
-    qqGroupDialogVisible.value = true;
-  }
+  // 暴露函数供IndexPage调用（包加载完成后触发）
+  (window as unknown as { jeiPackDialogLoaded?: () => void }).jeiPackDialogLoaded = () => {
+    // 包加载完成，触发弹窗队列处理
+    dialogManager.triggerProcess();
+  };
+
   document.addEventListener('fullscreenchange', handleFullscreenChange);
   handleFullscreenChange();
 });
 
 onUnmounted(() => {
+  delete (window as unknown as { jeiPackDialogLoaded?: () => void }).jeiPackDialogLoaded;
   document.removeEventListener('fullscreenchange', handleFullscreenChange);
 });
 </script>
