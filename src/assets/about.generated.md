@@ -1,16 +1,28 @@
 # About
 
 ## Build
-- Version: 68be2d3-dirty
-- Commit: 68be2d3 (68be2d39f454e6371ca0311a280a34d545038c33)
-- Commit count: 49
-- Subject: feat: add QQ Group dialog and enhance item handling
+- Version: aa6d8c0-dirty
+- Commit: aa6d8c0 (aa6d8c0d9cbef64d4cf0db7fd1ee186a3fbe0014)
+- Commit count: 50
+- Subject: feat: add tutorial manager and integrate with dialog system
 - Author: AndreaFrederica
-- Date: 2026-02-07T07:29:08+08:00
-- Generated at: 2026-02-06T23:40:12.576Z
+- Date: 2026-02-07T09:36:44+08:00
+- Generated at: 2026-02-07T01:38:47.003Z
 - Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History
+
+### r50 (2026-02-07T09:36:44+08:00)
+- aa6d8c0
+  feat: add tutorial manager and integrate with dialog system
+  
+  - Implemented a new tutorial manager to guide users through the application.
+  - Added tutorial steps for various stages including welcome, sidebar, item list, recipe viewer, planner, and advanced planner.
+  - Integrated tutorial manager with the dialog manager to handle showing and completing tutorials.
+  - Updated QQGroupDialog to manage visibility based on whether it is user-managed or not.
+  - Enhanced MainLayout to include a sidebar item for accessing the tutorial.
+  - Registered dialogs for both the QQ group and tutorial in the dialog manager, allowing for controlled display based on user interactions and settings.
+  - Added functionality to track tutorial completion status in settings store.
 
 ### r49 (2026-02-07T07:29:08+08:00)
 - 68be2d3

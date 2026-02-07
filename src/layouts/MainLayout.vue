@@ -303,6 +303,12 @@ const linksList: EssentialLinkProps[] = [
     link: '/editor',
   },
   {
+    title: 'Storage Editor',
+    caption: 'LocalStorage Manager',
+    icon: 'storage',
+    link: '/storage-editor',
+  },
+  {
     title: 'README',
     icon: 'description',
     link: '/readme',

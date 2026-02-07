@@ -152,6 +152,16 @@
     color: rgba(255, 255, 255, 0.6) !important;
   }
 
+  // Storage Editor JSON 预览深色模式
+  .json-preview {
+    background: #1e1e1e;
+    color: #e5e5e5;
+  }
+
+  .json-preview-error {
+    background: rgba(255, 82, 82, 0.12);
+  }
+
   // === 规划器深色模式 ===
 
   // 决策区块

@@ -12,6 +12,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'license', component: () => import('pages/LicensePage.vue') },
       { path: 'third-party-licenses', component: () => import('pages/ThirdPartyLicensesPage.vue') },
       { path: 'wiki-renderer', component: () => import('pages/WikiRendererPage.vue') },
+      { path: 'storage-editor', component: () => import('pages/StorageEditorPage.vue') },
     ],
   },
 
