@@ -51,11 +51,48 @@
           </div>
         </div>
         <q-separator />
-        <div v-if="currentItemDef.description">
-          <div class="text-subtitle2 q-mb-sm">{{ t('description') }}</div>
-          <div class="wiki-description" v-html="renderedDescription"></div>
-        </div>
-        <q-separator v-if="currentItemDef.description" />
+
+        <template v-if="hasStructuredWiki">
+          <div v-if="briefDescriptionDocument" class="wiki-brief">
+            <div class="text-subtitle2 q-mb-sm">{{ t('description') }}</div>
+            <WikiDocument :document="briefDescriptionDocument" />
+          </div>
+
+          <div class="wiki-body">
+            <template v-if="chapterGroup.length">
+              <WikiChapterGroup
+                v-for="group in chapterGroup"
+                :key="group.title"
+                :group="group"
+                :widget-common-map="widgetCommonMap"
+                :document-map="documentMap"
+              />
+            </template>
+
+            <template v-else>
+              <div class="fallback-docs">
+                <section
+                  v-for="(doc, docId) in documentMap"
+                  :key="docId"
+                  class="fallback-section q-mb-md"
+                >
+                  <div class="text-subtitle2 q-mb-sm">{{ getDocumentTitle(doc, docId) }}</div>
+                  <WikiDocument :document="doc" />
+                </section>
+              </div>
+            </template>
+          </div>
+          <q-separator />
+        </template>
+
+        <template v-else>
+          <div v-if="currentItemDef.description">
+            <div class="text-subtitle2 q-mb-sm">{{ t('description') }}</div>
+            <div class="wiki-description" v-html="renderedDescription"></div>
+          </div>
+          <q-separator v-if="currentItemDef.description" />
+        </template>
+
         <div>
           <div class="text-subtitle2 q-mb-sm">{{ t('tags') }}</div>
           <div v-if="currentItemDef.tags?.length" class="row q-gutter-xs">
@@ -201,15 +238,27 @@
 </template>
 
 <script setup lang="ts">
+import { computed, provide } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { PackData, ItemDef, ItemKey } from 'src/jei/types';
 import type { JeiIndex } from 'src/jei/indexing/buildIndex';
 import type { PlannerInitialState, PlannerLiveState } from 'src/jei/planner/plannerUi';
+import { useSettingsStore } from 'src/stores/settings';
 import StackView from 'src/jei/components/StackView.vue';
 import RecipeViewer from 'src/jei/components/RecipeViewer.vue';
 import CraftingPlannerView from 'src/jei/components/CraftingPlannerView.vue';
+import WikiDocument from 'src/components/wiki/WikiDocument.vue';
+import WikiChapterGroup from 'src/components/wiki/layout/WikiChapterGroup.vue';
+import type {
+  ChapterGroup,
+  Document,
+  WikiItem,
+  WidgetCommon,
+  CatalogItemMap,
+} from 'src/types/wiki';
 
 const { t } = useI18n();
+const settingsStore = useSettingsStore();
 
 interface RecipeGroup {
   typeKey: string;
@@ -224,7 +273,7 @@ interface MachineIcon {
   machineItemId: string;
 }
 
-defineProps<{
+const props = defineProps<{
   pack: PackData | null;
   index: JeiIndex | null;
   currentItemKey: ItemKey | null;
@@ -243,6 +292,78 @@ defineProps<{
   containerClass?: string;
   panelClass?: string;
 }>();
+
+function normalizeWikiItem(raw: unknown): WikiItem | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const dataItem = (raw as { data?: { item?: unknown } }).data?.item;
+  if (dataItem && typeof dataItem === 'object') return dataItem as WikiItem;
+  const item = (raw as { item?: unknown }).item;
+  if (item && typeof item === 'object') return item as WikiItem;
+  if ((raw as { itemId?: unknown }).itemId) return raw as WikiItem;
+  return null;
+}
+
+const wikiItem = computed(() => normalizeWikiItem(props.currentItemDef?.wiki));
+const hasStructuredWiki = computed(() => Boolean(wikiItem.value?.document?.documentMap));
+
+const documentMap = computed<Record<string, Document>>(() => {
+  return wikiItem.value?.document?.documentMap || {};
+});
+
+const chapterGroup = computed<ChapterGroup[]>(() => {
+  return wikiItem.value?.document?.chapterGroup || [];
+});
+
+const widgetCommonMap = computed<Record<string, WidgetCommon>>(() => {
+  return wikiItem.value?.document?.widgetCommonMap || {};
+});
+
+const briefDescriptionDocument = computed<Document | null>(() => {
+  const desc = wikiItem.value?.brief?.description;
+  if (desc && typeof desc === 'object' && 'blockIds' in desc && 'blockMap' in desc) {
+    return desc;
+  }
+  return null;
+});
+
+function getDocumentTitle(doc: Document, fallback: string) {
+  for (const blockId of doc.blockIds || []) {
+    const block = doc.blockMap?.[blockId];
+    if (!block || block.kind !== 'text') continue;
+    const kind = block.text?.kind || '';
+    if (!kind.startsWith('heading') && kind !== 'title' && kind !== 'subtitle') continue;
+    const text = (block.text?.inlineElements || [])
+      .filter((el) => el.kind === 'text')
+      .map((el) => el.text?.text || '')
+      .join('')
+      .trim();
+    if (text) return text;
+  }
+  return fallback;
+}
+
+const wikiCatalogMap = computed<CatalogItemMap>(() => {
+  const out: CatalogItemMap = {};
+  const values = Object.values(props.itemDefsByKeyHash || {});
+  for (const item of values) {
+    const m = String(item?.key?.id || '').match(/item_(\d+)$/);
+    if (!m?.[1]) continue;
+    const id = m[1];
+    out[id] = {
+      itemId: id,
+      name: item.name || id,
+      cover: item.icon || item.iconSprite?.url || '',
+    };
+  }
+  return out;
+});
+
+const imageUseProxy = computed(() => settingsStore.wikiImageUseProxy);
+const imageProxyUrl = computed(() => settingsStore.wikiImageProxyUrl);
+
+provide('wikiCatalogMap', wikiCatalogMap);
+provide('wikiImageUseProxy', imageUseProxy);
+provide('wikiImageProxyUrl', imageProxyUrl);
 
 defineEmits<{
   'item-click': [keyHash: ItemKey];

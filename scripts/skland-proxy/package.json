@@ -1,0 +1,23 @@
+{
+  "name": "skland-api-client",
+  "version": "1.0.0",
+  "description": "Skland API client with device ID and signature generation",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "server": "node server.js"
+  },
+  "keywords": [
+    "skland",
+    "api",
+    "arknights"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.5",
+    "express": "^4.22.1",
+    "jsdom": "^24.0.0"
+  }
+}

@@ -111,6 +111,9 @@ export function assertItemDef(value: unknown, jsonPath: string): ItemDef {
   }
   const source = assertOptionalString(obj.source, `${jsonPath}.source`);
   const description = assertOptionalString(obj.description, `${jsonPath}.description`);
+  const wikiRaw = assertOptionalRecord(obj.wiki, `${jsonPath}.wiki`);
+  const recipesRaw = assertOptionalArray(obj.recipes, `${jsonPath}.recipes`);
+  const recipes = recipesRaw?.map((r, i) => assertRecipe(r, `${jsonPath}.recipes[${i}]`));
 
   const def: ItemDef = {
     key: assertItemKey(obj.key, `${jsonPath}.key`),
@@ -122,6 +125,8 @@ export function assertItemDef(value: unknown, jsonPath: string): ItemDef {
   if (source !== undefined) def.source = source;
   if (description !== undefined) def.description = description;
   if (belt !== undefined) def.belt = belt;
+  if (wikiRaw !== undefined) def.wiki = wikiRaw;
+  if (recipes !== undefined) def.recipes = recipes;
   return def;
 }
 

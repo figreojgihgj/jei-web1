@@ -119,10 +119,24 @@ function listFiles(inputPath) {
   const stat = fs.statSync(full);
   if (stat.isFile()) return [full];
   const out = [];
-  const entries = fs.readdirSync(full, { withFileTypes: true });
-  for (const entry of entries) {
-    if (entry.isFile()) out.push(path.join(full, entry.name));
+  const stack = [full];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    const entries = fs.readdirSync(current, { withFileTypes: true });
+    for (const entry of entries) {
+      const abs = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(abs);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      const ext = path.extname(entry.name).toLowerCase();
+      if (ext !== '.json' && ext !== '.md') continue;
+      if (entry.name.toLowerCase() === 'index.json') continue;
+      out.push(abs);
+    }
   }
+  out.sort((a, b) => a.localeCompare(b));
   return out;
 }
 

@@ -322,3 +322,26 @@ export const COLOR_MAP: Record<string, string> = {
   light_rank_purple: '#8e24aa',
   light_rank_gray: '#9e9e9e',
 };
+
+export const DARK_COLOR_MAP: Record<string, string> = {
+  light_text_primary: '#e6e6e6',
+  light_text_secondary: '#c8c8c8',
+  light_text_tertiary: '#a8a8a8',
+  light_text_quaternary: '#8a8a8a',
+  light_function_blue: '#64b5f6',
+  light_function_blueness: '#81d4fa',
+  light_function_red: '#ef9a9a',
+  light_function_green: '#81c784',
+  light_function_yellow: '#ffd54f',
+  light_function_orange: '#ffb74d',
+  light_function_brown: '#bcaaa4',
+  light_function_turquoise: '#80deea',
+  light_function_violet: '#b39ddb',
+  light_function_sandstone: '#d7ccc8',
+  light_rank_blue: '#90caf9',
+  light_rank_yellow: '#ffcc80',
+  light_rank_orange: '#ffb74d',
+  light_rank_purple: '#ce93d8',
+  light_rank_gray: '#b0bec5',
+  light_rank_green: '#a5d6a7',
+};

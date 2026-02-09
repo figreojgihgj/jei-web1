@@ -1,16 +1,20 @@
 # About
 
 ## Build
-- Version: 5506c06-dirty
-- Commit: 5506c06 (5506c069ccf1fb17627b1e2e7c6237cb138b115d)
-- Commit count: 53
-- Subject: fix: 修正 README 中图标路径
+- Version: 8dac017-dirty
+- Commit: 8dac017 (8dac017f1311dcdaf00061059f4231c296ed4d9e)
+- Commit count: 54
+- Subject: fix: 修正 README 中图标路径并更新生成的文档
 - Author: AndreaFrederica
-- Date: 2026-02-07T10:04:45+08:00
-- Generated at: 2026-02-07T02:10:35.483Z
+- Date: 2026-02-07T10:10:59+08:00
+- Generated at: 2026-02-09T15:38:17.248Z
 - Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History
+
+### r54 (2026-02-07T10:10:59+08:00)
+- 8dac017
+  fix: 修正 README 中图标路径并更新生成的文档
 
 ### r53 (2026-02-07T10:04:45+08:00)
 - 5506c06
