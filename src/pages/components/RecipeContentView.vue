@@ -353,6 +353,7 @@ const wikiCatalogMap = computed<CatalogItemMap>(() => {
       itemId: id,
       name: item.name || id,
       cover: item.icon || item.iconSprite?.url || '',
+      fullId: item.key.id,
     };
   }
   return out;

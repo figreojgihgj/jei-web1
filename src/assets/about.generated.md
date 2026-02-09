@@ -7,7 +7,7 @@
 - Subject: fix: 修正 README 中图标路径并更新生成的文档
 - Author: AndreaFrederica
 - Date: 2026-02-07T10:10:59+08:00
-- Generated at: 2026-02-09T15:38:17.248Z
+- Generated at: 2026-02-09T16:33:34.334Z
 - Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History

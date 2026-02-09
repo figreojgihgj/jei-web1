@@ -40,6 +40,7 @@ export interface CatalogItemSummary {
   itemId: string;
   name: string;
   cover?: string;
+  fullId?: string;
 }
 
 export type CatalogItemMap = Record<string, CatalogItemSummary>;
