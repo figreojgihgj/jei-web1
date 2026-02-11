@@ -6,6 +6,17 @@
     :item-defs-by-key-hash="itemDefsByKeyHash"
     @item-click="emit('item-click', $event)"
   />
+  <wiki-doc-recipe-view
+    v-else-if="recipeType.renderer === 'wiki_doc_panel'"
+    :recipe="recipe"
+    :recipe-type="recipeType"
+    :item-defs-by-key-hash="itemDefsByKeyHash"
+    @item-click="emit('item-click', $event)"
+    @item-mouseenter="emit('item-mouseenter', $event)"
+    @item-mouseleave="emit('item-mouseleave')"
+    @item-context-menu="(evt: Event, keyHash: string) => emit('item-context-menu', evt, keyHash)"
+    @item-touch-hold="(evt: unknown, keyHash: string) => emit('item-touch-hold', evt, keyHash)"
+  />
   <slot-layout-recipe-view
     v-else
     :recipe="recipe"
@@ -23,6 +34,7 @@
 import type { ItemDef, ItemKey, Recipe, RecipeTypeDef } from 'src/jei/types';
 import SlotLayoutRecipeView from './SlotLayoutRecipeView.vue';
 import WorldgenRecipeView from './WorldgenRecipeView.vue';
+import WikiDocRecipeView from './WikiDocRecipeView.vue';
 
 const emit = defineEmits<{
   (e: 'item-click', itemKey: ItemKey): void;

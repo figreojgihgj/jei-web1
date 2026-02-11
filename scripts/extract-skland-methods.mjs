@@ -15,6 +15,7 @@ const DEFAULTS = {
 
 const SYNTH_RE = /(\u5408\u6210|\u914d\u65b9|\u5236\u9020|\u5236\u4f5c|\u952d\u9020|\u5de5\u4e1a\u5408\u6210|\u7b80\u6613\u5236\u4f5c|\u76f8\u5173\u914d\u65b9|\u53c2\u4e0e\u914d\u65b9|\u539f\u6599\u9700\u6c42|\u5408\u6210\u4ea7\u7269|\u5236\u4f5c\u4ea7\u7269|\u6d88\u8017\u65f6\u957f|\u8017\u65f6)/;
 const ACQUIRE_RE = /(\u83b7\u53d6|\u6765\u6e90|\u6389\u843d|\u4ea7\u51fa|\u83b7\u53d6\u65b9\u5f0f|\u7269\u54c1\u6765\u6e90|\u76f8\u5173\u6765\u6e90|\u6240\u5c5e\u533a\u57df|\u914d\u65b9\u6765\u6e90|\u91ce\u5916\u91c7\u96c6)/;
+const USAGE_RE = /(\u7528\u9014|\u4f7f\u7528|\u6548\u679c|\u88c5\u5907|\u6218\u672f\u7269\u54c1|\u4ed3\u50a8|\u88c5\u7bb1|\u6d88\u8017|\u76f8\u5173\u7528\u9014|\u7269\u54c1\u7528\u9014)/;
 
 const INGREDIENT_HEADER_RE = /(\u539f\u6599|\u6750\u6599|\u9700\u6c42|\u6d88\u8017|\u6295\u5165)/;
 const OUTPUT_HEADER_RE = /(\u4ea7\u7269|\u4ea7\u51fa|\u7ed3\u679c|\u5408\u6210\u4ea7\u7269|\u5236\u4f5c\u4ea7\u7269|\u83b7\u5f97)/;
@@ -63,7 +64,7 @@ Options:
   --input-root <path>   Wiki info root directory (default: temp/info)
   --catalog <path>      Catalog full.json for id->name mapping (default: temp/catalog/full.json)
   --out-dir <path>      Output directory (default: temp/skland-methods)
-  --include-empty       Also output items without synthesis/acquisition hits
+  --include-empty       Also output items without synthesis/acquisition/usage hits
 
 Examples:
   node scripts/extract-skland-methods.mjs --input-root D:\\data\\skland\\info --catalog D:\\data\\skland\\catalog\\full.json --out-dir D:\\data\\skland\\converted
@@ -93,7 +94,12 @@ function sanitizePathSegment(v, fallback = 'unknown') {
   const raw = String(v ?? '').trim() || fallback;
   let s = raw
     .replace(/[\\/:*?"<>|]/g, '_')
-    .replace(/[\u0000-\u001f]/g, '')
+    .split('')
+    .filter((ch) => {
+      const code = ch.charCodeAt(0);
+      return code < 0 || code > 31;
+    })
+    .join('')
     .replace(/[. ]+$/g, '')
     .trim();
   if (!s) s = fallback;
@@ -283,6 +289,111 @@ function blockToPlainText(block, blockMap, catalogMap) {
     return rows.join('\n');
   }
   return '';
+}
+
+function inlineToMarkdown(inline, catalogMap) {
+  if (!inline) return '';
+  if (inline.kind === 'text') return String(inline.text?.text || '');
+  if (inline.kind === 'entry') {
+    const entry = entryRefFromInline(inline, catalogMap);
+    if (!entry) return '';
+    const label = entry.name || entry.id;
+    return entry.count ? `[${label}x${entry.count}]` : `[${label}]`;
+  }
+  return '';
+}
+
+function blockToMarkdownLines(block, blockMap, catalogMap, indent = 0) {
+  if (!block) return [];
+
+  if (block.kind === 'text') {
+    const content = (block.text?.inlineElements || []).map((inline) => inlineToMarkdown(inline, catalogMap)).join('');
+    return content ? [content] : [];
+  }
+
+  if (block.kind === 'list') {
+    const rows = [];
+    const prefix = block.list?.kind === 'ordered' ? (index) => `${index + 1}. ` : () => '- ';
+    const itemIds = block.list?.itemIds || [];
+    for (let i = 0; i < itemIds.length; i += 1) {
+      const itemId = itemIds[i];
+      const item = block.list?.itemMap?.[itemId];
+      const childLines = [];
+      for (const childId of item?.childIds || []) {
+        childLines.push(...blockToMarkdownLines(blockMap?.[childId], blockMap, catalogMap, indent + 1));
+      }
+      if (!childLines.length) continue;
+      const pad = '  '.repeat(indent);
+      rows.push(`${pad}${prefix(i)}${childLines[0]}`.trimEnd());
+      for (const extra of childLines.slice(1)) {
+        rows.push(`${'  '.repeat(indent + 1)}${extra}`.trimEnd());
+      }
+    }
+    return rows;
+  }
+
+  if (block.kind === 'quote') {
+    return (block.quote?.childIds || [])
+      .flatMap((childId) => blockToMarkdownLines(blockMap?.[childId], blockMap, catalogMap, indent))
+      .filter(Boolean)
+      .map((line) => `> ${line}`);
+  }
+
+  if (block.kind === 'table') {
+    const rows = [];
+    const rowIds = block.table?.rowIds || [];
+    const colIds = block.table?.columnIds || [];
+    for (const rowId of rowIds) {
+      const cells = [];
+      for (const colId of colIds) {
+        const cell = block.table?.cellMap?.[`${rowId}_${colId}`];
+        const text = (cell?.childIds || [])
+          .flatMap((childId) => blockToMarkdownLines(blockMap?.[childId], blockMap, catalogMap))
+          .join(' ')
+          .trim();
+        cells.push(text || ' ');
+      }
+      rows.push(cells);
+    }
+    if (!rows.length) return [];
+    const header = rows[0];
+    const sep = header.map(() => '---');
+    const out = [
+      `| ${header.join(' | ')} |`,
+      `| ${sep.join(' | ')} |`,
+    ];
+    for (const row of rows.slice(1)) {
+      out.push(`| ${row.join(' | ')} |`);
+    }
+    return out;
+  }
+
+  if (block.kind === 'image') {
+    const url = String(block.image?.url || '').trim();
+    if (!url) return [];
+    const alt = String(block.image?.description || '').trim();
+    return [`![${alt}](${url})`];
+  }
+
+  if (block.kind === 'horizontalLine') {
+    return ['---'];
+  }
+
+  return [];
+}
+
+function documentToMarkdown(doc, catalogMap) {
+  const blockMap = doc?.blockMap || {};
+  const lines = [];
+  for (const blockId of doc?.blockIds || []) {
+    const block = blockMap[blockId];
+    if (!block) continue;
+    const sectionLines = blockToMarkdownLines(block, blockMap, catalogMap);
+    if (!sectionLines.length) continue;
+    lines.push(...sectionLines);
+    lines.push('');
+  }
+  return lines.join('\n').trim();
 }
 
 function textLinesFromDocument(doc, catalogMap) {
@@ -513,6 +624,11 @@ function shouldMarkAcquisition(contextText, lines) {
   return ACQUIRE_RE.test(`${contextText} ${lineText}`);
 }
 
+function shouldMarkUsage(contextText, lines) {
+  const lineText = lines.map((line) => line.text).join(' ');
+  return USAGE_RE.test(`${contextText} ${lineText}`);
+}
+
 function analyzeDoc(doc, context, catalogMap) {
   const lines = textLinesFromDocument(doc, catalogMap);
   const recipes = recipesFromDocument(doc, catalogMap);
@@ -520,17 +636,22 @@ function analyzeDoc(doc, context, catalogMap) {
   const contextText = contextToString(context);
   const isSynthesis = shouldMarkSynthesis(contextText, recipes);
   const isAcquisition = shouldMarkAcquisition(contextText, lines);
-  if (!isSynthesis && !isAcquisition) return null;
+  const isUsage = shouldMarkUsage(contextText, lines);
+  if (!isSynthesis && !isAcquisition && !isUsage) return null;
 
   const entries = dedupeEntries(lines.flatMap((line) => line.entries || []));
   const methods = lines.map((line) => line.text).filter(Boolean);
+  const markdown = documentToMarkdown(doc, catalogMap);
   return {
     context,
     isSynthesis,
     isAcquisition,
+    isUsage,
     methods,
     entries,
     recipes,
+    markdown,
+    wikiDoc: doc,
   };
 }
 
@@ -619,13 +740,32 @@ function analyzeItem(item, sourceFileAbs, sourceFileRel, catalogMap) {
 
   const synthesisSections = sections.filter((section) => section.isSynthesis);
   const acquisitionSections = sections.filter((section) => section.isAcquisition);
+  const usageSections = sections.filter((section) => section.isUsage);
 
   const synthesisMethods = dedupeMethods(synthesisSections.flatMap((section) => section.methods));
   const acquisitionMethods = dedupeMethods(acquisitionSections.flatMap((section) => section.methods));
+  const usageMethods = dedupeMethods(usageSections.flatMap((section) => section.methods));
   const synthesisEntries = dedupeEntries(synthesisSections.flatMap((section) => section.entries));
   const acquisitionEntries = dedupeEntries(acquisitionSections.flatMap((section) => section.entries));
+  const usageEntries = dedupeEntries(usageSections.flatMap((section) => section.entries));
   const synthesisRecipes = dedupeRecipes(
     synthesisSections.flatMap((section) =>
+      (section.recipes || []).map((recipe) => ({
+        ...recipe,
+        context: section.context,
+      })),
+    ),
+  );
+  const acquisitionRecipes = dedupeRecipes(
+    acquisitionSections.flatMap((section) =>
+      (section.recipes || []).map((recipe) => ({
+        ...recipe,
+        context: section.context,
+      })),
+    ),
+  );
+  const usageRecipes = dedupeRecipes(
+    usageSections.flatMap((section) =>
       (section.recipes || []).map((recipe) => ({
         ...recipe,
         context: section.context,
@@ -654,6 +794,13 @@ function analyzeItem(item, sourceFileAbs, sourceFileRel, catalogMap) {
       sections: acquisitionSections,
       methods: acquisitionMethods,
       entries: acquisitionEntries,
+      recipes: acquisitionRecipes,
+    },
+    usage: {
+      sections: usageSections,
+      methods: usageMethods,
+      entries: usageEntries,
+      recipes: usageRecipes,
     },
   };
 }
@@ -715,11 +862,13 @@ async function main() {
   const itemFiles = [];
   const allRecipes = [];
   const allAcquisitionMethods = [];
+  const allUsageMethods = [];
 
   let processed = 0;
   let included = 0;
   let withSynthesis = 0;
   let withAcquisition = 0;
+  let withUsage = 0;
 
   for (const infoFileAbs of infoFiles) {
     let payload = null;
@@ -743,11 +892,13 @@ async function main() {
     const converted = analyzeItem(item, infoFileAbs, sourceFileRel, catalogMap);
     const hasSynthesis = converted.synthesis.sections.length > 0;
     const hasAcquisition = converted.acquisition.sections.length > 0;
-    if (!args.includeEmpty && !hasSynthesis && !hasAcquisition) continue;
+    const hasUsage = converted.usage.sections.length > 0;
+    if (!args.includeEmpty && !hasSynthesis && !hasAcquisition && !hasUsage) continue;
 
     included += 1;
     if (hasSynthesis) withSynthesis += 1;
     if (hasAcquisition) withAcquisition += 1;
+    if (hasUsage) withUsage += 1;
 
     const categoryDir = toCategoryPath(converted.meta);
     const outRel = path.join(categoryDir, `id${converted.meta.itemId}.json`);
@@ -761,9 +912,11 @@ async function main() {
       subTypeName: converted.meta.subTypeName,
       hasSynthesis,
       hasAcquisition,
+      hasUsage,
       recipeCount: converted.synthesis.recipes.length,
       synthesisMethodCount: converted.synthesis.methods.length,
       acquisitionMethodCount: converted.acquisition.methods.length,
+      usageMethodCount: converted.usage.methods.length,
       path: path.join('items', outRel).replaceAll('\\', '/'),
       absolutePath: outAbs,
       sourceFile: converted.meta.sourceFileRelative,
@@ -795,6 +948,16 @@ async function main() {
       });
     }
 
+    for (const method of converted.usage.methods) {
+      allUsageMethods.push({
+        itemId: converted.meta.itemId,
+        itemName: converted.meta.name,
+        mainTypeName: converted.meta.mainTypeName,
+        subTypeName: converted.meta.subTypeName,
+        text: method,
+      });
+    }
+
     if (included % 100 === 0) {
       console.log(`Progress: ${included} items converted`);
     }
@@ -805,6 +968,7 @@ async function main() {
   writeJson(path.join(outDirAbs, 'index.json'), { files: itemFiles });
   writeJson(path.join(outDirAbs, 'recipes.json'), { recipes: allRecipes });
   writeJson(path.join(outDirAbs, 'acquisition.json'), { methods: allAcquisitionMethods });
+  writeJson(path.join(outDirAbs, 'usage.json'), { methods: allUsageMethods });
 
   const summary = {
     generatedAt: new Date().toISOString(),
@@ -816,8 +980,10 @@ async function main() {
       convertedItems: included,
       withSynthesis,
       withAcquisition,
+      withUsage,
       synthesisRecipes: allRecipes.length,
       acquisitionMethods: allAcquisitionMethods.length,
+      usageMethods: allUsageMethods.length,
     },
     topGroupTitles: topEntries(groupTitleCount, 50),
     topWidgetTitles: topEntries(widgetTitleCount, 80),
@@ -826,8 +992,8 @@ async function main() {
 
   console.log('Done.');
   console.log(`processed: ${processed}, converted: ${included}`);
-  console.log(`with synthesis: ${withSynthesis}, with acquisition: ${withAcquisition}`);
-  console.log(`recipes: ${allRecipes.length}, acquisition methods: ${allAcquisitionMethods.length}`);
+  console.log(`with synthesis: ${withSynthesis}, with acquisition: ${withAcquisition}, with usage: ${withUsage}`);
+  console.log(`recipes: ${allRecipes.length}, acquisition methods: ${allAcquisitionMethods.length}, usage methods: ${allUsageMethods.length}`);
 }
 
 main().catch((err) => {

@@ -134,7 +134,12 @@ function sanitizePathSegment(v, fallback = 'unknown') {
   const raw = String(v ?? '').trim() || fallback;
   let s = raw
     .replace(/[\\/:*?"<>|]/g, '_')
-    .replace(/[\u0000-\u001f]/g, '')
+    .split('')
+    .filter((ch) => {
+      const code = ch.charCodeAt(0);
+      return code < 0 || code > 31;
+    })
+    .join('')
     .replace(/[. ]+$/g, '')
     .trim();
   if (!s) s = fallback;
@@ -247,6 +252,27 @@ function parseDurationSeconds(v) {
   if (unit === 'm' || unit === 'min') return n * 60;
   if (unit === 'h' || unit === 'hr') return n * 3600;
   return n;
+}
+
+function asStringArray(v) {
+  if (!Array.isArray(v)) return [];
+  return v.map((s) => String(s ?? '').trim()).filter(Boolean);
+}
+
+function buildItemDescription(methodPayload) {
+  const acquisitionMethods = asStringArray(methodPayload?.acquisition?.methods);
+  const usageMethods = asStringArray(methodPayload?.usage?.methods);
+  const lines = [];
+  if (acquisitionMethods.length) {
+    lines.push('获取方式:');
+    lines.push(...acquisitionMethods.slice(0, 6));
+  }
+  if (usageMethods.length) {
+    if (lines.length) lines.push('');
+    lines.push('用途:');
+    lines.push(...usageMethods.slice(0, 6));
+  }
+  return lines.join('\n').trim();
 }
 
 function normalizeMachineName(v) {
@@ -468,6 +494,8 @@ async function main() {
   const infoFiles = listInfoFiles(infoRootAbs);
   const methodsByItemId = loadMethodsByItemId(methodsRootAbs);
   const methodRecipes = loadMethodRecipes(methodsRootAbs);
+  const DOC_ACQUIRE_TYPE_KEY = `${args.gameId}:wiki_doc/acquisition`;
+  const DOC_USAGE_TYPE_KEY = `${args.gameId}:wiki_doc/usage`;
 
   const itemRecords = [];
   for (const f of infoFiles) {
@@ -537,10 +565,7 @@ async function main() {
 
     const cover = String(wikiItem?.brief?.cover || '');
     const methodPayload = methodsByItemId.get(itemId);
-    const acquisitionMethods = Array.isArray(methodPayload?.acquisition?.methods)
-      ? methodPayload.acquisition.methods
-      : [];
-    const description = acquisitionMethods.slice(0, 8).join('\n');
+    const description = buildItemDescription(methodPayload);
     const tags = [];
     if (rec.mainName) tags.push(`main:${rec.mainName}`);
     if (rec.subName) tags.push(`sub:${rec.subName}`);
@@ -564,6 +589,9 @@ async function main() {
   const extraItemsById = new Map();
   const machineGroups = new Map();
   const recipes = [];
+  let docAcquireMaxIn = 1;
+  let docUsageMaxOut = 1;
+  let docRecipes = 0;
   let recipeSeq = 0;
 
   function ensureItemForEntry(entry) {
@@ -586,6 +614,86 @@ async function main() {
       id: packItemId,
       amount: parseAmount(entry?.count),
     };
+  }
+
+  function sectionTitle(sectionType, context) {
+    const prefix = sectionType === 'acquisition' ? '获取' : '用途';
+    const parts = [
+      String(context?.groupTitle || '').trim(),
+      String(context?.widgetTitle || '').trim(),
+      String(context?.panelTitle || '').trim(),
+    ].filter(Boolean);
+    if (!parts.length) return prefix;
+    return `${prefix}: ${parts.join(' / ')}`;
+  }
+
+  function buildDocRecipesForItem(itemId, methodPayload) {
+    const targetPackItemId = itemIdToPackId.get(itemId);
+    if (!targetPackItemId) return;
+
+    const sectionGroups = [
+      {
+        sectionType: 'acquisition',
+        typeKey: DOC_ACQUIRE_TYPE_KEY,
+        sections: Array.isArray(methodPayload?.acquisition?.sections)
+          ? methodPayload.acquisition.sections
+          : [],
+      },
+      {
+        sectionType: 'usage',
+        typeKey: DOC_USAGE_TYPE_KEY,
+        sections: Array.isArray(methodPayload?.usage?.sections) ? methodPayload.usage.sections : [],
+      },
+    ];
+
+    for (const group of sectionGroups) {
+      group.sections.forEach((section) => {
+        const sectionEntries = Array.isArray(section?.entries) ? section.entries : [];
+        const relatedStacks = sectionEntries
+          .map((entry) => ensureItemForEntry(entry))
+          .filter(Boolean)
+          .filter((stack) => stack.id !== targetPackItemId);
+
+        const slotContents = {};
+        if (group.sectionType === 'acquisition') {
+          slotContents.out1 = { kind: 'item', id: targetPackItemId, amount: 1 };
+          relatedStacks.slice(0, 8).forEach((stack, i) => {
+            slotContents[`in${i + 1}`] = stack;
+          });
+          docAcquireMaxIn = Math.max(docAcquireMaxIn, Math.max(1, relatedStacks.length));
+        } else {
+          slotContents.in1 = { kind: 'item', id: targetPackItemId, amount: 1 };
+          relatedStacks.slice(0, 8).forEach((stack, i) => {
+            slotContents[`out${i + 1}`] = stack;
+          });
+          docUsageMaxOut = Math.max(docUsageMaxOut, Math.max(1, relatedStacks.length));
+        }
+
+        const markdown = String(section?.markdown || '').trim();
+        const html = String(section?.html || '').trim();
+        const methods = asStringArray(section?.methods);
+        const wikiDoc =
+          section?.wikiDoc && typeof section.wikiDoc === 'object' ? section.wikiDoc : undefined;
+        const context = section?.context && typeof section.context === 'object' ? section.context : {};
+
+        recipeSeq += 1;
+        recipes.push({
+          id: `${args.gameId}:doc/${itemId}/${group.sectionType}/${recipeSeq}`,
+          type: group.typeKey,
+          slotContents,
+          params: {
+            sectionType: group.sectionType,
+            title: sectionTitle(group.sectionType, context),
+            context,
+            methods,
+            ...(markdown ? { markdown } : {}),
+            ...(html ? { html } : {}),
+            ...(wikiDoc ? { wikiDoc } : {}),
+          },
+        });
+        docRecipes += 1;
+      });
+    }
   }
 
   for (const rec of methodRecipes) {
@@ -640,6 +748,12 @@ async function main() {
     });
   }
 
+  for (const rec of itemRecords) {
+    const methodPayload = methodsByItemId.get(rec.itemId);
+    if (!methodPayload) continue;
+    buildDocRecipesForItem(rec.itemId, methodPayload);
+  }
+
   for (const [rawId, itemDef] of extraItemsById.entries()) {
     const rel = path.join('items', '_extra', `id${rawId}.json`).replaceAll('\\', '/');
     writeJson(path.join(outDirAbs, rel), itemDef);
@@ -665,8 +779,23 @@ async function main() {
           time: { displayName: 'Time', unit: 's', format: 'duration' },
         },
       };
-    })
-    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+    });
+
+  recipeTypes.push({
+    key: DOC_ACQUIRE_TYPE_KEY,
+    displayName: '获取方式',
+    renderer: 'wiki_doc_panel',
+    slots: buildSlots(Math.max(1, docAcquireMaxIn), 1),
+  });
+
+  recipeTypes.push({
+    key: DOC_USAGE_TYPE_KEY,
+    displayName: '用途说明',
+    renderer: 'wiki_doc_panel',
+    slots: buildSlots(1, Math.max(1, docUsageMaxOut)),
+  });
+
+  recipeTypes.sort((a, b) => a.displayName.localeCompare(b.displayName));
 
   itemFiles.sort((a, b) => a.localeCompare(b));
   writeJson(path.join(outDirAbs, 'itemsIndex.json'), itemFiles);
@@ -704,6 +833,7 @@ async function main() {
       extraItems: extraItemsById.size,
       recipeTypes: recipeTypes.length,
       recipes: recipes.length,
+      docRecipes,
       downloadedImages: imageUrlMap.size,
     },
   };
@@ -715,7 +845,7 @@ async function main() {
 
   console.log('Done.');
   console.log(`items: ${items.length} (base=${itemRecords.length}, extra=${extraItemsById.size})`);
-  console.log(`recipeTypes: ${recipeTypes.length}, recipes: ${recipes.length}`);
+  console.log(`recipeTypes: ${recipeTypes.length}, recipes: ${recipes.length} (doc=${docRecipes})`);
   console.log(`downloaded images: ${imageUrlMap.size}`);
 }
 
