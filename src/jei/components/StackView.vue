@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="stackViewEl"
     class="stack-view"
     :class="{
       'stack-view--clickable': clickable,
@@ -12,14 +13,24 @@
     v-touch-hold:600="onTouchHold"
   >
     <div class="stack-view__main">
-      <q-img v-if="iconSrc" :src="iconSrc" :ratio="1" fit="contain" class="stack-view__icon" />
+      <q-img
+        v-if="showIconSrc"
+        :src="iconSrc"
+        :ratio="1"
+        fit="contain"
+        loading="lazy"
+        decoding="async"
+        fetchpriority="low"
+        class="stack-view__icon"
+      />
       <div
-        v-else-if="iconSprite"
+        v-else-if="showIconSprite"
         class="stack-view__icon stack-view__icon-sprite"
         :style="spriteWrapperStyle"
       >
         <div class="stack-view__icon-sprite-image" :style="spriteImageStyle"></div>
       </div>
+      <div v-else-if="showIconPlaceholder" class="stack-view__icon stack-view__icon-placeholder"></div>
       <q-icon v-else :name="fallbackIcon" size="22px" class="stack-view__icon-fallback" />
       <div class="stack-view__text">
         <div v-if="props.showName" class="stack-view__name">{{ displayName }}</div>
@@ -43,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { ItemDef, ItemKey, SlotContent, Stack } from 'src/jei/types';
 import { itemKeyHash } from 'src/jei/indexing/key';
 
@@ -54,11 +65,13 @@ const props = withDefaults(
     variant?: 'list' | 'slot';
     showName?: boolean;
     showSubtitle?: boolean;
+    lazyVisual?: boolean;
   }>(),
   {
     variant: 'list',
     showName: true,
     showSubtitle: true,
+    lazyVisual: false,
   },
 );
 
@@ -96,6 +109,81 @@ const iconSprite = computed(() => {
   if (!s || s.kind !== 'item') return undefined;
   const def = props.itemDefsByKeyHash[stackItemKeyHash(s)];
   return def?.iconSprite;
+});
+
+const stackViewEl = ref<HTMLElement | null>(null);
+const shouldRenderVisual = ref(!props.lazyVisual);
+
+const hasImageVisual = computed(() => !!iconSrc.value || !!iconSprite.value);
+const showIconSrc = computed(() => shouldRenderVisual.value && !!iconSrc.value);
+const showIconSprite = computed(() => shouldRenderVisual.value && !iconSrc.value && !!iconSprite.value);
+const showIconPlaceholder = computed(
+  () => props.lazyVisual && hasImageVisual.value && !shouldRenderVisual.value,
+);
+
+let visibilityObserver: IntersectionObserver | null = null;
+
+function stopVisualObserver() {
+  if (!visibilityObserver) return;
+  visibilityObserver.disconnect();
+  visibilityObserver = null;
+}
+
+function enableVisualRender() {
+  if (shouldRenderVisual.value) return;
+  shouldRenderVisual.value = true;
+  stopVisualObserver();
+}
+
+function setupVisualObserver() {
+  stopVisualObserver();
+  if (!props.lazyVisual || shouldRenderVisual.value || !hasImageVisual.value) return;
+  const target = stackViewEl.value;
+  if (!target) return;
+  if (typeof IntersectionObserver === 'undefined') {
+    enableVisualRender();
+    return;
+  }
+  visibilityObserver = new IntersectionObserver(
+    (entries) => {
+      const visible = entries.some((entry) => entry.isIntersecting || entry.intersectionRatio > 0);
+      if (visible) enableVisualRender();
+    },
+    { rootMargin: '200px' },
+  );
+  visibilityObserver.observe(target);
+}
+
+watch(
+  () => props.lazyVisual,
+  (lazyVisual) => {
+    if (!lazyVisual) {
+      shouldRenderVisual.value = true;
+      stopVisualObserver();
+      return;
+    }
+    if (!hasImageVisual.value) return;
+    if (!shouldRenderVisual.value) setupVisualObserver();
+  },
+  { immediate: true },
+);
+
+watch(
+  hasImageVisual,
+  (hasVisual) => {
+    if (!props.lazyVisual) return;
+    if (!hasVisual) return;
+    if (!shouldRenderVisual.value) setupVisualObserver();
+  },
+  { immediate: true },
+);
+
+onMounted(() => {
+  setupVisualObserver();
+});
+
+onUnmounted(() => {
+  stopVisualObserver();
 });
 
 const spriteWrapperStyle = computed(() => {
@@ -299,6 +387,10 @@ function onTouchHold(evt: unknown) {
   width: 28px;
   height: 28px;
   border-radius: 4px;
+}
+
+.stack-view__icon-placeholder {
+  background: rgba(0, 0, 0, 0.08);
 }
 
 .stack-view__icon-sprite {

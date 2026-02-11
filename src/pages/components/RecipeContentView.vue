@@ -125,6 +125,7 @@
               variant="slot"
               :show-name="false"
               :show-subtitle="false"
+              :lazy-visual="true"
             />
           </q-btn>
         </div>
@@ -180,6 +181,7 @@
                           variant="slot"
                           :show-name="false"
                           :show-subtitle="false"
+                          :lazy-visual="true"
                           class="cursor-pointer"
                           @item-click="$emit('machine-item-click', m.machineItemId)"
                         />
@@ -199,6 +201,7 @@
                           :recipe="recipesById.get(rid)"
                           :recipe-type="recipeTypesByKey.get(recipesById.get(rid)?.type || '')"
                           :item-defs-by-key-hash="itemDefsByKeyHash"
+                          :lazy-visual="true"
                           @item-click="$emit('item-click', $event)"
                           @item-mouseenter="$emit('item-mouseenter', $event)"
                           @item-mouseleave="$emit('item-mouseleave')"
@@ -219,6 +222,7 @@
                       :recipe="recipesById.get(rid)"
                       :recipe-type="recipeTypesByKey.get(recipesById.get(rid)?.type || '')"
                       :item-defs-by-key-hash="itemDefsByKeyHash"
+                      :lazy-visual="true"
                       @item-click="$emit('item-click', $event)"
                       @item-mouseenter="$emit('item-mouseenter', $event)"
                       @item-mouseleave="$emit('item-mouseleave')"

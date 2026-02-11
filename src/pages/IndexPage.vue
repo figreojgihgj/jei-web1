@@ -226,9 +226,9 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import type { ItemDef, ItemKey, PackData } from 'src/jei/types';
+import type { ItemDef, ItemKey, PackData, Recipe } from 'src/jei/types';
 import { useDialogManager } from 'src/stores/dialogManager';
-import { loadRuntimePack } from 'src/jei/pack/loader';
+import { loadPackItemDetail, loadRuntimePack } from 'src/jei/pack/loader';
 import {
   buildJeiIndex,
   recipesConsumingItem,
@@ -489,6 +489,111 @@ const renderedDescription = computed(() => {
   if (!currentItemDef.value?.description) return '';
   return md.render(currentItemDef.value.description);
 });
+
+function mergeInlineItems(items: ItemDef[], recipes: Recipe[]): ItemDef[] {
+  const byHash = new Map<string, ItemDef>();
+  items.forEach((it) => byHash.set(itemKeyHash(it.key), it));
+  recipes.forEach((r) => {
+    r.inlineItems?.forEach((it) => {
+      const h = itemKeyHash(it.key);
+      if (!byHash.has(h)) byHash.set(h, it);
+    });
+  });
+  return Array.from(byHash.values());
+}
+
+const itemDetailLoadTasks = new Map<string, Promise<void>>();
+
+async function ensureItemDetailLoadedByKeyHash(keyHash: string): Promise<void> {
+  const inflight = itemDetailLoadTasks.get(keyHash);
+  if (inflight) return inflight;
+
+  const task = (async () => {
+    try {
+      const p = pack.value;
+      const idx = index.value;
+      if (!p || !idx) return;
+
+      const def = idx.itemsByKeyHash.get(keyHash);
+      if (!def || def.detailLoaded || !def.detailPath) return;
+
+      const selectedPackAtStart = activePackId.value;
+      const packIdAtStart = p.manifest.packId;
+      const detailPath = def.detailPath;
+      const detail = await loadPackItemDetail(packIdAtStart, detailPath);
+
+      const currentPack = pack.value;
+      if (
+        !currentPack ||
+        currentPack.manifest.packId !== packIdAtStart ||
+        activePackId.value !== selectedPackAtStart
+      )
+        return;
+
+      const merged: ItemDef = {
+        ...def,
+        ...detail,
+        detailPath,
+        detailLoaded: true,
+      };
+
+      const nextItems = currentPack.items.map((it) =>
+        itemKeyHash(it.key) === keyHash ? merged : it,
+      );
+      if (!nextItems.some((it) => itemKeyHash(it.key) === keyHash)) {
+        nextItems.push(merged);
+      }
+      currentPack.items = nextItems;
+
+      if (merged.wiki) {
+        currentPack.wiki = {
+          ...(currentPack.wiki ?? {}),
+          [merged.key.id]: merged.wiki,
+        };
+      }
+
+      if (Array.isArray(merged.recipes) && merged.recipes.length) {
+        const existingRecipeIds = new Set(currentPack.recipes.map((r) => r.id));
+        const append = merged.recipes
+          .filter((r) => !existingRecipeIds.has(r.id))
+          .map((r) => ({
+            id: r.id,
+            type: r.type,
+            slotContents: r.slotContents,
+            ...(r.params ? { params: r.params } : {}),
+            ...(r.inlineItems ? { inlineItems: r.inlineItems } : {}),
+          }));
+        if (append.length) {
+          currentPack.recipes = [...currentPack.recipes, ...append];
+          currentPack.items = mergeInlineItems(currentPack.items, currentPack.recipes);
+        }
+      }
+
+      index.value = buildJeiIndex(currentPack);
+    } catch (e) {
+      console.warn(`Failed to lazy-load item detail for ${keyHash}`, e);
+    }
+  })();
+
+  itemDetailLoadTasks.set(keyHash, task);
+  try {
+    await task;
+  } finally {
+    itemDetailLoadTasks.delete(keyHash);
+  }
+}
+
+watch(
+  () => {
+    const key = currentItemKey.value;
+    return key ? itemKeyHash(key) : '';
+  },
+  (keyHash) => {
+    if (!keyHash) return;
+    void ensureItemDetailLoadedByKeyHash(keyHash);
+  },
+  { immediate: true },
+);
 
 type ParsedSearch = {
   text: string[];
@@ -1047,6 +1152,7 @@ async function reloadPack(packId: string) {
   error.value = '';
   loading.value = true;
   try {
+    itemDetailLoadTasks.clear();
     applyingRoute.value = true;
     closeDialog();
     applyingRoute.value = false;

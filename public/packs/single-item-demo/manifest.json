@@ -1,13 +1,14 @@
 {
-    "packId": "single-item-demo",
-    "gameId": "demo",
-    "displayName": "Single Item Demo Pack",
-    "version": "0.1.0",
-    "files": {
-        "items": "items/",
-        "itemsIndex": "itemsIndex.json",
-        "tags": "tags.json",
-        "recipeTypes": "recipeTypes.json",
-        "recipes": "recipes.json"
-    }
+  "packId": "single-item-demo",
+  "gameId": "demo",
+  "displayName": "Single Item Demo Pack",
+  "version": "0.1.0",
+  "files": {
+    "items": "items/",
+    "itemsIndex": "itemsIndex.json",
+    "tags": "tags.json",
+    "recipeTypes": "recipeTypes.json",
+    "recipes": "recipes.json",
+    "itemsLite": "itemsLite.json"
+  }
 }

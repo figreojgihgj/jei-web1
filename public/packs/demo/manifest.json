@@ -7,6 +7,7 @@
     "items": "items.json",
     "tags": "tags.json",
     "recipeTypes": "recipeTypes.json",
-    "recipes": "recipes.json"
+    "recipes": "recipes.json",
+    "itemsLite": "itemsLite.json"
   }
 }

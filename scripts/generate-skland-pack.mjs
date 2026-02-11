@@ -553,6 +553,7 @@ async function main() {
   const imageUrlMap = await downloadAssets(Array.from(imageUrlSet), args, outDirAbs);
 
   const items = [];
+  const itemsLite = [];
   const itemFiles = [];
   for (const rec of itemRecords) {
     const payload = JSON.parse(JSON.stringify(rec.payload));
@@ -584,6 +585,13 @@ async function main() {
     writeJson(path.join(outDirAbs, rel), itemDef);
     itemFiles.push(rel);
     items.push(itemDef);
+    const liteItemDef = { ...itemDef };
+    delete liteItemDef.wiki;
+    delete liteItemDef.recipes;
+    itemsLite.push({
+      ...liteItemDef,
+      detailPath: rel,
+    });
   }
 
   const extraItemsById = new Map();
@@ -759,6 +767,10 @@ async function main() {
     writeJson(path.join(outDirAbs, rel), itemDef);
     itemFiles.push(rel);
     items.push(itemDef);
+    itemsLite.push({
+      ...itemDef,
+      detailPath: rel,
+    });
   }
 
   const recipeTypes = Array.from(machineGroups.values())
@@ -798,7 +810,9 @@ async function main() {
   recipeTypes.sort((a, b) => a.displayName.localeCompare(b.displayName));
 
   itemFiles.sort((a, b) => a.localeCompare(b));
+  itemsLite.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
   writeJson(path.join(outDirAbs, 'itemsIndex.json'), itemFiles);
+  writeJson(path.join(outDirAbs, 'itemsLite.json'), itemsLite);
   writeJson(path.join(outDirAbs, 'recipeTypes.json'), recipeTypes);
   writeJson(path.join(outDirAbs, 'recipes.json'), recipes);
   writeJson(path.join(outDirAbs, 'manifest.json'), {
@@ -809,6 +823,7 @@ async function main() {
     files: {
       items: 'items/',
       itemsIndex: 'itemsIndex.json',
+      itemsLite: 'itemsLite.json',
       recipeTypes: 'recipeTypes.json',
       recipes: 'recipes.json',
     },

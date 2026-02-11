@@ -26,6 +26,8 @@ export interface ItemDef {
   belt?: {
     speed: number;
   };
+  detailPath?: string;
+  detailLoaded?: boolean;
 }
 
 export interface StackItem {
@@ -118,6 +120,8 @@ export interface ItemDef {
   belt?: {
     speed: number;
   };
+  detailPath?: string;
+  detailLoaded?: boolean;
   recipes?: InlineRecipe[];
   wiki?: Record<string, unknown>;
 }
@@ -146,6 +150,7 @@ export interface PackManifest {
   files: {
     items?: string;
     itemsIndex?: string;
+    itemsLite?: string;
     tags?: string;
     recipeTypes: string;
     recipes: string;

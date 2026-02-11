@@ -10,6 +10,7 @@
             :content="recipe.slotContents[slotId]"
             :item-defs-by-key-hash="itemDefsByKeyHash"
             :show-subtitle="false"
+            :lazy-visual="lazyVisual"
             @item-click="emit('item-click', $event)"
             @item-mouseenter="emit('item-mouseenter', $event)"
             @item-mouseleave="emit('item-mouseleave')"
@@ -28,6 +29,7 @@
             :content="recipe.slotContents[slotId]"
             :item-defs-by-key-hash="itemDefsByKeyHash"
             :show-subtitle="false"
+            :lazy-visual="lazyVisual"
             @item-click="emit('item-click', $event)"
             @item-mouseenter="emit('item-mouseenter', $event)"
             @item-mouseleave="emit('item-mouseleave')"
@@ -65,6 +67,7 @@ const props = defineProps<{
   recipe: Recipe;
   recipeType: RecipeTypeDef;
   itemDefsByKeyHash: Record<string, ItemDef>;
+  lazyVisual?: boolean;
 }>();
 
 const emit = defineEmits<{

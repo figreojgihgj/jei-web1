@@ -13,6 +13,8 @@ async function fetchJson(url: string): Promise<unknown> {
   return res.json();
 }
 
+const jsonArrayCache = new Map<string, Promise<unknown>>();
+
 function packBaseUrl(packId: string): string {
   const safe = encodeURIComponent(packId);
   return `/packs/${safe}`;
@@ -110,6 +112,20 @@ async function loadItems(base: string, manifest: PackManifest): Promise<ItemDef[
     throw new Error('$.items: expected array');
   }
   return raw.map((v, i) => assertItemDef(v, `$.items[${i}]`));
+}
+
+async function loadItemsLite(base: string, manifest: PackManifest): Promise<ItemDef[] | null> {
+  const litePath = manifest.files.itemsLite;
+  if (!litePath) return null;
+  const raw = await fetchJson(`${base}/${litePath}`);
+  if (!Array.isArray(raw)) {
+    throw new Error('$.itemsLite: expected array');
+  }
+  return raw.map((v, i) => {
+    const item = assertItemDef(v, `$.itemsLite[${i}]`);
+    if (item.detailLoaded === undefined) item.detailLoaded = false;
+    return item;
+  });
 }
 
 async function loadRecipeTypes(base: string, manifest: PackManifest): Promise<RecipeTypeDef[]> {
@@ -225,6 +241,7 @@ async function zipToPackData(zipBlob: Blob): Promise<{ pack: PackData; assets: {
     if (rel === manifest.files.recipeTypes) return;
     if (rel === manifest.files.recipes) return;
     if (rel === manifest.files.itemsIndex) return;
+    if (rel === manifest.files.itemsLite) return;
     assets.push({ path: rel, blob: new Blob([]) });
   });
 
@@ -295,13 +312,17 @@ export async function loadRuntimePack(packIdOrLocal: string): Promise<RuntimePac
 export async function loadPack(packId: string): Promise<PackData> {
   const base = packBaseUrl(packId);
   const manifest = await loadManifest(packId);
+  const itemsPromise = manifest.files.itemsLite
+    ? loadItemsLite(base, manifest)
+    : loadItems(base, manifest);
 
-  const [items, tags, recipeTypes, recipes] = await Promise.all([
-    loadItems(base, manifest),
+  const [itemsMaybeLite, tags, recipeTypes, recipes] = await Promise.all([
+    itemsPromise,
     loadTags(base, manifest),
     loadRecipeTypes(base, manifest),
     loadRecipes(base, manifest),
   ]);
+  const items = itemsMaybeLite ?? [];
 
   // 从物品文件中提取内联的 recipes 和 wiki 数据
   const inlineRecipes = extractInlineRecipes(items);
@@ -319,4 +340,38 @@ export async function loadPack(packId: string): Promise<PackData> {
   if (tags !== undefined) out.tags = tags;
   if (Object.keys(wikiData).length > 0) out.wiki = wikiData;
   return out;
+}
+
+export async function loadPackItemDetail(packId: string, detailPath: string): Promise<ItemDef> {
+  const base = packBaseUrl(packId);
+  const normalizedPath = detailPath.replace(/^\/+/, '');
+  const sharp = normalizedPath.lastIndexOf('#');
+  const sourcePath = sharp > 0 ? normalizedPath.slice(0, sharp) : normalizedPath;
+  const frag = sharp > 0 ? normalizedPath.slice(sharp + 1) : '';
+  const idx = frag !== '' ? Number.parseInt(frag, 10) : Number.NaN;
+
+  let raw: unknown;
+  if (Number.isInteger(idx) && idx >= 0) {
+    const cacheKey = `${packId}:${sourcePath}`;
+    let arrayPromise = jsonArrayCache.get(cacheKey);
+    if (!arrayPromise) {
+      arrayPromise = fetchJson(`${base}/${sourcePath}`);
+      jsonArrayCache.set(cacheKey, arrayPromise);
+    }
+    const arr = await arrayPromise;
+    if (!Array.isArray(arr)) {
+      throw new Error(`Failed to load item detail from ${sourcePath}: expected array`);
+    }
+    raw = arr[idx];
+    if (raw === undefined) {
+      throw new Error(`Failed to load item detail from ${sourcePath}: index ${idx} out of range`);
+    }
+  } else {
+    raw = await fetchJson(`${base}/${sourcePath}`);
+  }
+
+  const item = assertItemDef(raw, '$.itemDetail');
+  item.detailPath = normalizedPath;
+  item.detailLoaded = true;
+  return item;
 }

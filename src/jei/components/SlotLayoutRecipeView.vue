@@ -24,6 +24,7 @@
               :item-defs-by-key-hash="itemDefsByKeyHash"
               variant="slot"
               :show-name="settingsStore.recipeSlotShowName"
+              :lazy-visual="lazyVisual"
               @item-click="emit('item-click', $event)"
               @item-mouseenter="emit('item-mouseenter', $event)"
               @item-mouseleave="emit('item-mouseleave')"
@@ -56,6 +57,7 @@ const props = defineProps<{
   recipe: Recipe;
   recipeType: RecipeTypeDef;
   itemDefsByKeyHash: Record<string, ItemDef>;
+  lazyVisual?: boolean;
 }>();
 
 const emit = defineEmits<{

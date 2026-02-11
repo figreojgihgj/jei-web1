@@ -4,6 +4,7 @@
     :recipe="recipe"
     :recipe-type="recipeType"
     :item-defs-by-key-hash="itemDefsByKeyHash"
+    :lazy-visual="lazyVisual"
     @item-click="emit('item-click', $event)"
   />
   <wiki-doc-recipe-view
@@ -11,6 +12,7 @@
     :recipe="recipe"
     :recipe-type="recipeType"
     :item-defs-by-key-hash="itemDefsByKeyHash"
+    :lazy-visual="lazyVisual"
     @item-click="emit('item-click', $event)"
     @item-mouseenter="emit('item-mouseenter', $event)"
     @item-mouseleave="emit('item-mouseleave')"
@@ -22,6 +24,7 @@
     :recipe="recipe"
     :recipe-type="recipeType"
     :item-defs-by-key-hash="itemDefsByKeyHash"
+    :lazy-visual="lazyVisual"
     @item-click="emit('item-click', $event)"
     @item-mouseenter="emit('item-mouseenter', $event)"
     @item-mouseleave="emit('item-mouseleave')"
@@ -44,9 +47,15 @@ const emit = defineEmits<{
   (e: 'item-touch-hold', evt: unknown, keyHash: string): void;
 }>();
 
-defineProps<{
-  recipe: Recipe;
-  recipeType: RecipeTypeDef;
-  itemDefsByKeyHash: Record<string, ItemDef>;
-}>();
+withDefaults(
+  defineProps<{
+    recipe: Recipe;
+    recipeType: RecipeTypeDef;
+    itemDefsByKeyHash: Record<string, ItemDef>;
+    lazyVisual?: boolean;
+  }>(),
+  {
+    lazyVisual: false,
+  },
+);
 </script>

@@ -111,6 +111,7 @@ export function assertItemDef(value: unknown, jsonPath: string): ItemDef {
   }
   const source = assertOptionalString(obj.source, `${jsonPath}.source`);
   const description = assertOptionalString(obj.description, `${jsonPath}.description`);
+  const detailPath = assertOptionalString(obj.detailPath, `${jsonPath}.detailPath`);
   const wikiRaw = assertOptionalRecord(obj.wiki, `${jsonPath}.wiki`);
   const recipesRaw = assertOptionalArray(obj.recipes, `${jsonPath}.recipes`);
   const recipes = recipesRaw?.map((r, i) => assertRecipe(r, `${jsonPath}.recipes[${i}]`));
@@ -124,6 +125,7 @@ export function assertItemDef(value: unknown, jsonPath: string): ItemDef {
   if (tags !== undefined) def.tags = tags;
   if (source !== undefined) def.source = source;
   if (description !== undefined) def.description = description;
+  if (detailPath !== undefined) def.detailPath = detailPath;
   if (belt !== undefined) def.belt = belt;
   if (wikiRaw !== undefined) def.wiki = wikiRaw;
   if (recipes !== undefined) def.recipes = recipes;
@@ -286,6 +288,7 @@ export function assertPackManifest(value: unknown, jsonPath: string): PackManife
   const files = assertRecord(obj.files, `${jsonPath}.files`);
   const itemsPath = assertOptionalString(files.items, `${jsonPath}.files.items`);
   const itemsIndexPath = assertOptionalString(files.itemsIndex, `${jsonPath}.files.itemsIndex`);
+  const itemsLitePath = assertOptionalString(files.itemsLite, `${jsonPath}.files.itemsLite`);
   const tagsPath = assertOptionalString(files.tags, `${jsonPath}.files.tags`);
   const out: PackManifest = {
     packId: assertString(obj.packId, `${jsonPath}.packId`),
@@ -299,6 +302,7 @@ export function assertPackManifest(value: unknown, jsonPath: string): PackManife
   };
   if (itemsPath !== undefined) out.files.items = itemsPath;
   if (itemsIndexPath !== undefined) out.files.itemsIndex = itemsIndexPath;
+  if (itemsLitePath !== undefined) out.files.itemsLite = itemsLitePath;
   if (tagsPath !== undefined) out.files.tags = tagsPath;
 
   if (isRecord(obj.startupDialog)) {

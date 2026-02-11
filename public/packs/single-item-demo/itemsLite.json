@@ -1,0 +1,99 @@
+[
+  {
+    "key": {
+      "id": "demo.base.diamond_pickaxe"
+    },
+    "name": "Diamond Pickaxe",
+    "iconSprite": {
+      "url": "/packs/single-item-demo/icons.webp",
+      "position": "64px 0px",
+      "size": 64,
+      "color": "#6b9fff"
+    },
+    "tags": [
+      "tool",
+      "diamond",
+      "mining"
+    ],
+    "description": "一把用钻石制成的镐子，具有极高的硬度和耐久度。",
+    "detailPath": "items/diamond_pickaxe.json"
+  },
+  {
+    "key": {
+      "id": "demo.base.iron_dust"
+    },
+    "name": "Iron Dust",
+    "tags": [
+      "dust"
+    ],
+    "detailPath": "items/iron_dust.json"
+  },
+  {
+    "key": {
+      "id": "demo.base.iron_ingot"
+    },
+    "name": "Iron Ingot",
+    "tags": [
+      "ingot"
+    ],
+    "detailPath": "items/iron_ingot.json"
+  },
+  {
+    "key": {
+      "id": "demo.base.iron_ore"
+    },
+    "name": "Iron Ore",
+    "tags": [
+      "ore",
+      "worldgen"
+    ],
+    "detailPath": "items/iron_ore.json"
+  },
+  {
+    "key": {
+      "id": "demo.base.iron_pickaxe"
+    },
+    "name": "Iron Pickaxe",
+    "tags": [
+      "tool"
+    ],
+    "detailPath": "items/iron_pickaxe.json"
+  },
+  {
+    "key": {
+      "id": "demo.base.magic_pickaxe",
+      "nbt": {
+        "enchants": [
+          {
+            "id": "efficiency",
+            "lvl": 3
+          }
+        ]
+      }
+    },
+    "name": "Magic Pickaxe (Efficiency III)",
+    "iconSprite": {
+      "url": "/packs/single-item-demo/icons.webp",
+      "position": "0px 0px",
+      "size": 64,
+      "color": "#ff6b6b"
+    },
+    "tags": [
+      "tool",
+      "enchanted",
+      "mining"
+    ],
+    "description": "一把附有效率附魔的神奇镐子，可以快速挖掘矿石。",
+    "detailPath": "items/magic_pickaxe.json"
+  },
+  {
+    "key": {
+      "id": "demo.base.stick"
+    },
+    "name": "Stick",
+    "tags": [
+      "wood"
+    ],
+    "detailPath": "items/stick.json"
+  }
+]

@@ -60,6 +60,7 @@
                     : {}),
                 }"
                 :item-defs-by-key-hash="itemDefsByKeyHash"
+                :lazy-visual="true"
               />
             </div>
           </q-card>
@@ -106,6 +107,7 @@
                 ...(it.def.key.nbt !== undefined ? { nbt: it.def.key.nbt } : {}),
               }"
               :item-defs-by-key-hash="itemDefsByKeyHash"
+              :lazy-visual="true"
             />
           </div>
         </q-card>
@@ -154,6 +156,7 @@
                 ...(it.def.key.nbt !== undefined ? { nbt: it.def.key.nbt } : {}),
               }"
               :item-defs-by-key-hash="itemDefsByKeyHash"
+              :lazy-visual="true"
             />
           </q-card>
           <div

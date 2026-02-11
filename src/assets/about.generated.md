@@ -1,16 +1,33 @@
 # About
 
 ## Build
-- Version: b2fe075-dirty
-- Commit: b2fe075 (b2fe0759645d3165280f5663bf7331cd84acc270)
-- Commit count: 57
-- Subject: feat: 添加 WikiDocRecipeView 组件以支持文档视图，更新 RecipeViewer 以集成新组件
+- Version: 2d6492c-dirty
+- Commit: 2d6492c (2d6492c9db69189f0e41c3035d3ff77375a3ea57)
+- Commit count: 59
+- Subject: feat: adjust layout scroll behavior
 - Author: AndreaFrederica
-- Date: 2026-02-11T14:25:12+08:00
-- Generated at: 2026-02-11T14:36:19.409Z
+- Date: 2026-02-11T23:36:32+08:00
+- Generated at: 2026-02-11T17:03:14.947Z
 - Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History
+
+### r59 (2026-02-11T23:36:32+08:00)
+- 2d6492c
+  feat: adjust layout scroll behavior
+  
+  Introduce `no-scroll` and `debug-scroll` classes to manage viewport overflow and scrolling behavior dynamically. Update MainLayout to enforce full-height flex layout on home/item routes.
+  
+  Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+### r58 (2026-02-11T23:17:29+08:00)
+- 3b09d7f
+  feat: add Vitest testing and CircuitPage component
+  
+  - Configure Vitest, jsdom, and @vitest/ui for unit testing.
+  - Add test scripts (test, test:run, test:ui, test:coverage) to package.json.
+  - Implement CircuitPage.vue with play and editor modes, including features for URL sharing and level management.
+  - Update .gitignore to exclude public/packs/aef-skland.
 
 ### r57 (2026-02-11T14:25:12+08:00)
 - b2fe075
