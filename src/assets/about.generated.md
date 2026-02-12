@@ -1,16 +1,34 @@
 # About
 
 ## Build
-- Version: afb0a92-dirty
-- Commit: afb0a92 (afb0a92db1c0dc31e7c646aede90acfc6fc6ad9f)
-- Commit count: 60
-- Subject: feat: integrate itemsLite index and lazy loading
+- Version: 8f93cc8-dirty
+- Commit: 8f93cc8 (8f93cc82225a1ff72c821c1977620cb7eab5a2a7)
+- Commit count: 62
+- Subject: feat: implement v3 URL format for multi-level puzzles
 - Author: AndreaFrederica
-- Date: 2026-02-12T01:09:05+08:00
-- Generated at: 2026-02-11T20:53:17.699Z
-- Remote: https://github.com/AndreaFrederica/jei-web.git
+- Date: 2026-02-12T08:19:51+08:00
+- Generated at: 2026-02-12T16:19:54.620Z
+- Remote: https://github.com/MicIsHere/jei-web-proxy.git
 
 ## Version History
+
+### r62 (2026-02-12T08:19:51+08:00)
+- 8f93cc8
+  feat: implement v3 URL format for multi-level puzzles
+  
+  - Add encoding and decoding functions for multi-level puzzles in v3 format.
+  - Create tests for the new URL format functions to ensure correct encoding/decoding.
+  - Update existing URL format functions to support fixed placements in levels.
+  - Enhance CircuitPuzzleCollectionPage and CircuitPuzzlePage to handle multi-level puzzles.
+  - Introduce UI elements for managing multi-level stages in the editor.
+  - Ensure compatibility with previous URL formats while transitioning to v3.
+
+### r61 (2026-02-12T05:28:56+08:00)
+- d9fd7ce
+  feat: add CircuitPuzzleShapeCanvas component and enhance settings store for circuit editor panel state
+  
+  - Introduced CircuitPuzzleShapeCanvas.vue for rendering a grid-based puzzle interface with hover and click interactions.
+  - Updated settings store to include state management for the circuit editor piece panel, allowing for position, size, and minimized/docked states.
 
 ### r60 (2026-02-12T01:09:05+08:00)
 - afb0a92
