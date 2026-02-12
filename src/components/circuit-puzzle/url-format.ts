@@ -231,6 +231,19 @@ export function encodeLevelForUrl(level: PuzzleLevelDefinition, options: UrlForm
     piecesStr += colorChar + cellCount + cellsStr + countStr;
   }
 
+  const fixedEntries = (level.fixedPlacements ?? [])
+    .map((fixed) => {
+      const colorChar = encodeColor(fixed.color, customColors);
+      const rotation = encodeNumber(((fixed.rotation ?? 0) % 4 + 4) % 4);
+      const anchorX = encodeNumber(fixed.anchor.x);
+      const anchorY = encodeNumber(fixed.anchor.y);
+      const cells = fixed.cells ?? [];
+      const cellCount = encodeNumber(cells.length);
+      const cellsStr = cells.map((cell) => `${encodeNumber(cell.x)}${encodeNumber(cell.y)}`).join('');
+      return `${colorChar}${rotation}${anchorX}${anchorY}${cellCount}${cellsStr}`;
+    })
+    .filter((entry) => entry.length > 0);
+
   // 编码自定义颜色表
   let customColorsStr = '';
   if (customColors.size > 0) {
@@ -251,7 +264,12 @@ export function encodeLevelForUrl(level: PuzzleLevelDefinition, options: UrlForm
     targetsStr += encodeNumber(t);
   }
 
-  return `${header}${sizeStr}${blockedStr}${hintsStr}${piecesStr}${customColorsStr}${targetsStr}`;
+  const extensionStr =
+    fixedEntries.length > 0
+      ? `xf${encodeNumber(fixedEntries.length)}${fixedEntries.join('')}`
+      : '';
+
+  return `${header}${sizeStr}${blockedStr}${hintsStr}${piecesStr}${customColorsStr}${targetsStr}${extensionStr}`;
 }
 
 /**
@@ -384,6 +402,45 @@ export function decodeLevelFromUrl(encoded: string): PuzzleLevelDefinition {
     pos++;
   }
 
+  const fixedPlacements: NonNullable<PuzzleLevelDefinition['fixedPlacements']> = [];
+  if (encoded[pos] === 'x') {
+    pos++;
+    while (pos < encoded.length) {
+      const section = encoded[pos] ?? '';
+      pos++;
+      if (section !== 'f') break;
+      const fixedCount = decodeNumber(encoded[pos] ?? '0');
+      pos++;
+      for (let i = 0; i < fixedCount; i++) {
+        const colorIdx = colorIndexFromChar(encoded[pos] ?? '0');
+        pos++;
+        const rotation = decodeNumber(encoded[pos] ?? '0') % 4;
+        pos++;
+        const anchorX = decodeNumber(encoded[pos] ?? '0');
+        pos++;
+        const anchorY = decodeNumber(encoded[pos] ?? '0');
+        pos++;
+        const cellCount = decodeNumber(encoded[pos] ?? '0');
+        pos++;
+        const cells: GridCell[] = [];
+        for (let j = 0; j < cellCount; j++) {
+          const x = decodeNumber(encoded[pos] ?? '0');
+          pos++;
+          const y = decodeNumber(encoded[pos] ?? '0');
+          pos++;
+          cells.push({ x, y });
+        }
+        fixedPlacements.push({
+          id: `fx-${i + 1}`,
+          color: decodeColorFromIndex(colorIdx, customColors),
+          anchor: { x: anchorX, y: anchorY },
+          rotation,
+          cells,
+        });
+      }
+    }
+  }
+
   const hintColors: Record<string, string> = {};
   for (const entry of hintColorRefs) {
     const cell = hintCells[entry.cellIdx];
@@ -413,6 +470,9 @@ export function decodeLevelFromUrl(encoded: string): PuzzleLevelDefinition {
 
   if (Object.keys(hintColors).length > 0) {
     level.hintColors = hintColors;
+  }
+  if (fixedPlacements.length > 0) {
+    level.fixedPlacements = fixedPlacements;
   }
 
   return level;

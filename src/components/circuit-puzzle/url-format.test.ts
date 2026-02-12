@@ -404,6 +404,47 @@ describe('url-format', () => {
       expect(decoded.pieces[0]!.count).toBe(5);
     });
 
+    it('should decode fixed placements from extension segment', () => {
+      const level: PuzzleLevelDefinition = {
+        id: 'test-fixed',
+        name: 'Fixed Test',
+        rows: 4,
+        cols: 4,
+        blocked: [],
+        hintCells: [],
+        rowTargets: [0, 0, 0, 0],
+        colTargets: [0, 0, 0, 0],
+        pieces: [],
+        fixedPlacements: [
+          {
+            id: 'fx-a',
+            color: '#9ddb22',
+            anchor: { x: 1, y: 1 },
+            rotation: 1,
+            cells: [
+              { x: 0, y: 0 },
+              { x: 1, y: 0 },
+            ],
+          },
+        ],
+      };
+
+      const encoded = encodeLevelForUrl(level);
+      const decoded = decodeLevelFromUrl(encoded);
+
+      expect(decoded.fixedPlacements).toHaveLength(1);
+      expect(decoded.fixedPlacements?.[0]).toEqual({
+        id: 'fx-1',
+        color: '#9ddb22',
+        anchor: { x: 1, y: 1 },
+        rotation: 1,
+        cells: [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+        ],
+      });
+    });
+
     it('should decode row and col targets correctly', () => {
       const level: PuzzleLevelDefinition = {
         id: 'test-targets',
@@ -523,6 +564,18 @@ describe('url-format', () => {
         },
         rowTargets: [2, 3, 2, 1, 2],
         colTargets: [1, 2, 2, 2, 2, 1],
+        fixedPlacements: [
+          {
+            id: 'fx-r',
+            color: '#ff6f6f',
+            anchor: { x: 2, y: 2 },
+            rotation: 0,
+            cells: [
+              { x: 0, y: 0 },
+              { x: 1, y: 0 },
+            ],
+          },
+        ],
         pieces: [
           {
             id: 'p-a',
@@ -569,6 +622,21 @@ describe('url-format', () => {
       expect(decodedLevel.hintColors).toEqual(originalLevel.hintColors);
       expect(decodedLevel.rowTargets).toEqual(originalLevel.rowTargets);
       expect(decodedLevel.colTargets).toEqual(originalLevel.colTargets);
+      expect(
+        (decodedLevel.fixedPlacements ?? []).map((fixed) => ({
+          color: fixed.color,
+          anchor: fixed.anchor,
+          rotation: fixed.rotation ?? 0,
+          cells: fixed.cells,
+        })),
+      ).toEqual(
+        (originalLevel.fixedPlacements ?? []).map((fixed) => ({
+          color: fixed.color,
+          anchor: fixed.anchor,
+          rotation: fixed.rotation ?? 0,
+          cells: fixed.cells,
+        })),
+      );
       expect(decodedLevel.pieces).toHaveLength(originalLevel.pieces.length);
 
       for (let i = 0; i < decodedLevel.pieces.length; i++) {

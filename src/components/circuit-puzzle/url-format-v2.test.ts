@@ -70,6 +70,48 @@ describe('url-format-v2', () => {
     expect(decoded.pieces[0]!.color).toBe('#112233');
   });
 
+  it('should decode fixed placements from extension segment', () => {
+    const level: PuzzleLevelDefinition = {
+      id: 'fixed-v2',
+      name: 'Fixed V2',
+      rows: 4,
+      cols: 4,
+      blocked: [],
+      hintCells: [],
+      rowTargets: [0, 0, 0, 0],
+      colTargets: [0, 0, 0, 0],
+      pieces: [],
+      fixedPlacements: [
+        {
+          id: 'fx-a',
+          color: '#9ddb22',
+          anchor: { x: 1, y: 2 },
+          rotation: 2,
+          cells: [
+            { x: 0, y: 0 },
+            { x: 1, y: 0 },
+          ],
+        },
+      ],
+    };
+
+    const encoded = encodeLevelForUrlV2(level);
+    const decoded = decodeLevelFromUrlV2(encoded);
+
+    expect(decoded.fixedPlacements).toEqual([
+      {
+        id: 'fx-1',
+        color: '#9ddb22',
+        anchor: { x: 1, y: 2 },
+        rotation: 2,
+        cells: [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+        ],
+      },
+    ]);
+  });
+
   it('should support boards larger than 62 cells', () => {
     const level: PuzzleLevelDefinition = {
       id: 'large',

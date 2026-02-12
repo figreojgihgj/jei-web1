@@ -10,7 +10,11 @@
       "markdown": "sample-3x3-l.md",
       "difficulty": "easy",
       "author": "local",
-      "tags": ["sample", "tutorial", "single-piece"]
+      "tags": [
+        "sample",
+        "tutorial",
+        "single-piece"
+      ]
     },
     {
       "id": "sample-4x4-dual",
@@ -19,7 +23,11 @@
       "markdown": "sample-4x4-dual.md",
       "difficulty": "easy",
       "author": "local",
-      "tags": ["sample", "two-pieces", "basic"]
+      "tags": [
+        "sample",
+        "two-pieces",
+        "basic"
+      ]
     },
     {
       "id": "sample-5x5-two-color",
@@ -28,7 +36,11 @@
       "markdown": "sample-5x5-two-color.md",
       "difficulty": "normal",
       "author": "local",
-      "tags": ["sample", "color", "hint-color"]
+      "tags": [
+        "sample",
+        "color",
+        "hint-color"
+      ]
     },
     {
       "id": "sample-6x6-blocked",
@@ -37,7 +49,35 @@
       "markdown": "sample-6x6-blocked.md",
       "difficulty": "normal",
       "author": "local",
-      "tags": ["sample", "blocked", "count"]
+      "tags": [
+        "sample",
+        "blocked",
+        "count"
+      ]
+    },
+    {
+      "id": "c1-wxzdy-d1",
+      "title": "维修总动员-修门1",
+      "json": "维修总动员/修门1.json",
+      "markdown": "维修总动员/修门1.md",
+      "difficulty": "normal",
+      "author": "local",
+      "tags": [
+        "维修总动员",
+        "修门"
+      ]
+    },
+    {
+      "id": "c1-wxzdy-all",
+      "title": "维修总动员-所有任务",
+      "json": "维修总动员/all.json",
+      "markdown": "维修总动员/all.md",
+      "difficulty": "hard",
+      "author": "local",
+      "tags": [
+        "维修总动员",
+        "合集"
+      ]
     }
   ]
 }

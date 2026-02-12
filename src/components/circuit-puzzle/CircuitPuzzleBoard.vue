@@ -58,6 +58,7 @@
           />
 
           <span v-if="cell.blocked" class="blocked-mark">X</span>
+          <span v-else-if="cell.locked" class="locked-mark">LOCK</span>
         </button>
       </div>
     </div>
@@ -67,6 +68,7 @@
       <span class="caption-key caption-key--preview" /> preview
       <span class="caption-key caption-key--blocked" /> blocked
       <span class="caption-key caption-key--hint" /> hint
+      <span class="caption-key caption-key--locked" /> fixed
       <span v-if="selectedPieceName" class="caption-selected">selected: {{ selectedPieceName }}</span>
     </div>
   </div>
@@ -102,6 +104,7 @@ const props = defineProps<{
   cols: number;
   maxBoardSize?: number;
   blockedKeys: string[];
+  lockedKeys?: string[];
   hintKeys: string[];
   hintCells?: BoardOverlayCell[];
   showHints: boolean;
@@ -162,6 +165,7 @@ const ringStyle = computed(() => ({
 }));
 
 const blockedSet = computed(() => new Set(props.blockedKeys));
+const lockedSet = computed(() => new Set(props.lockedKeys ?? []));
 const hintOverlayMap = computed(() => buildOverlayMap(props.hintKeys, props.hintCells, '#9ddb22'));
 const occupiedOverlayMap = computed(() => buildOverlayMap(props.occupiedKeys, props.occupiedCells, '#9ddb22'));
 const previewOverlayMap = computed(() =>
@@ -183,6 +187,7 @@ const cells = computed(() => {
     y: number;
     key: string;
     blocked: boolean;
+    locked: boolean;
     hinted: boolean;
     filled: boolean;
     preview: boolean;
@@ -199,6 +204,7 @@ const cells = computed(() => {
     for (let x = 0; x < props.cols; x += 1) {
       const key = `${x},${y}`;
       const blocked = blockedSet.value.has(key);
+      const locked = lockedSet.value.has(key);
       const hintCell = props.showHints ? hintOverlayMap.value.get(key) : undefined;
       const hinted = props.showHints && !!hintCell;
       const filledCell = occupiedOverlayMap.value.get(key);
@@ -227,6 +233,7 @@ const cells = computed(() => {
         y,
         key,
         blocked,
+        locked,
         hinted,
         filled,
         preview,
@@ -254,6 +261,7 @@ const cells = computed(() => {
           : undefined,
         classMap: {
           'board-cell--blocked': blocked,
+          'board-cell--locked': locked,
           'board-cell--hint': hinted,
           'board-cell--filled': filled,
           'board-cell--preview': preview,
@@ -436,6 +444,10 @@ function getContrastOutlineColor(color: string): string {
   border-color: rgba(200, 255, 88, 0.72);
 }
 
+.board-cell--locked {
+  box-shadow: inset 0 0 0 1px rgba(255, 238, 120, 0.45);
+}
+
 .board-cell--blocked {
   cursor: not-allowed;
   background:
@@ -501,6 +513,18 @@ function getContrastOutlineColor(color: string): string {
   color: rgba(225, 232, 232, 0.85);
 }
 
+.locked-mark {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  z-index: 6;
+  font-size: 8px;
+  letter-spacing: 0.2px;
+  color: rgba(245, 239, 166, 0.95);
+  text-shadow: 0 0 4px rgba(248, 232, 122, 0.35);
+  pointer-events: none;
+}
+
 .board-caption {
   font-size: 12px;
   color: var(--bd-caption);
@@ -535,6 +559,11 @@ function getContrastOutlineColor(color: string): string {
 .caption-key--hint {
   border: 1px dashed rgba(196, 255, 53, 0.8);
   background: transparent;
+}
+
+.caption-key--locked {
+  border: 1px solid rgba(255, 229, 120, 0.75);
+  background: rgba(255, 230, 120, 0.28);
 }
 
 .caption-selected {

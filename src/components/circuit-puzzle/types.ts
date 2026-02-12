@@ -20,6 +20,15 @@ export type PuzzlePieceDefinition = {
   count: number;
 };
 
+export type PuzzleFixedPlacementDefinition = {
+  id: string;
+  name?: string;
+  color: string;
+  cells: GridCell[];
+  anchor: GridCell;
+  rotation?: number;
+};
+
 export type PuzzleLevelDefinition = {
   id: string;
   name: string;
@@ -32,6 +41,7 @@ export type PuzzleLevelDefinition = {
   colTargets: number[];
   colorWeights?: PuzzleColorWeights;
   pieces: PuzzlePieceDefinition[];
+  fixedPlacements?: PuzzleFixedPlacementDefinition[];
 };
 
 export type CoordTuple = [number, number];
@@ -54,6 +64,14 @@ export type PuzzleLevelJson = {
     blocked: CoordTuple[];
     hintCells?: CoordTuple[];
     hintColors: Array<{ cell: CoordTuple; color: string }>;
+    fixedPlacements?: Array<{
+      id: string;
+      name?: string;
+      color: string;
+      cells: CoordTuple[];
+      anchor: CoordTuple;
+      rotation?: number;
+    }>;
   };
   clues: {
     rows: number[];
@@ -78,6 +96,14 @@ export type FullPuzzleLevelJson = {
     blocked: CoordTuple[];
     hintCells?: CoordTuple[];
     hintColors: Array<{ cell: CoordTuple; color: string }>;
+    fixedPlacements?: Array<{
+      id: string;
+      name?: string;
+      color: string;
+      cells: CoordTuple[];
+      anchor: CoordTuple;
+      rotation?: number;
+    }>;
   };
   clues: {
     rows: number[];
@@ -108,6 +134,14 @@ export function levelToJson(level: PuzzleLevelDefinition): FullPuzzleLevelJson {
         cell: key.split(',').map(Number) as CoordTuple,
         color,
       })),
+      fixedPlacements: (level.fixedPlacements ?? []).map((fixed) => ({
+        id: fixed.id,
+        ...(fixed.name ? { name: fixed.name } : {}),
+        color: fixed.color,
+        cells: fixed.cells.map((c) => [c.x, c.y] as CoordTuple),
+        anchor: [fixed.anchor.x, fixed.anchor.y] as CoordTuple,
+        ...(typeof fixed.rotation === 'number' ? { rotation: fixed.rotation } : {}),
+      })),
     },
     clues: {
       rows: level.rowTargets,
@@ -133,6 +167,14 @@ export function jsonToLevel(json: FullPuzzleLevelJson): PuzzleLevelDefinition {
     return acc;
   }, {} as Record<string, string>);
   const colorWeights = json.scoring?.colorWeights;
+  const fixedPlacements = (json.board.fixedPlacements ?? []).map((fixed) => ({
+    id: fixed.id,
+    ...(typeof fixed.name === 'string' && fixed.name.trim().length > 0 ? { name: fixed.name } : {}),
+    color: fixed.color,
+    cells: fixed.cells.map(([x, y]) => ({ x, y })),
+    anchor: { x: fixed.anchor[0], y: fixed.anchor[1] },
+    ...(typeof fixed.rotation === 'number' ? { rotation: fixed.rotation } : {}),
+  }));
 
   const level: PuzzleLevelDefinition = {
     id: json.id,
@@ -157,6 +199,9 @@ export function jsonToLevel(json: FullPuzzleLevelJson): PuzzleLevelDefinition {
   }
   if (colorWeights) {
     level.colorWeights = colorWeights;
+  }
+  if (fixedPlacements.length > 0) {
+    level.fixedPlacements = fixedPlacements;
   }
 
   return level;

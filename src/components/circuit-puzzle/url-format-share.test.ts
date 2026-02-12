@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { cloneLevel, DEFAULT_CIRCUIT_LEVEL } from './defaultLevel';
 import { decodeLevelFromUrl, encodeLevelForUrl } from './url-format';
 import { decodeLevelFromUrlV2, encodeLevelForUrlV2 } from './url-format-v2';
-import { decodeLevelFromSharedUrl, encodeLevelForShortestUrl } from './url-format-share';
+import { encodeMultiLevelForUrlV3 } from './url-format-v3';
+import {
+  decodeLevelFromSharedUrl,
+  decodeMultiLevelFromSharedUrl,
+  encodeLevelForShortestUrl,
+} from './url-format-share';
 import type { PuzzleLevelDefinition } from './types';
 
 describe('url-format-share', () => {
@@ -54,5 +59,32 @@ describe('url-format-share', () => {
     expect(decoded.rows).toBe(1);
     expect(decoded.cols).toBe(1);
     expect(decoded.pieces).toHaveLength(0);
+  });
+
+  it('should decode v3 encoded string to first level for compatibility', () => {
+    const levelA = cloneLevel(DEFAULT_CIRCUIT_LEVEL);
+    levelA.id = 'first';
+    const levelB = cloneLevel(DEFAULT_CIRCUIT_LEVEL);
+    levelB.id = 'second';
+
+    const encoded = encodeMultiLevelForUrlV3({
+      id: 'pack-share',
+      name: 'Pack Share',
+      mode: 'sequential',
+      levels: [levelA, levelB],
+    });
+
+    const decoded = decodeLevelFromSharedUrl(encoded);
+    expect(decoded.id).toBe('first');
+  });
+
+  it('should decode v1 and v2 as single-level multi payload when requested', () => {
+    const level = cloneLevel(DEFAULT_CIRCUIT_LEVEL);
+    const encodedV2 = encodeLevelForUrlV2(level);
+    const decodedV2 = decodeMultiLevelFromSharedUrl(encodedV2);
+
+    expect(decodedV2.levels).toHaveLength(1);
+    expect(decodedV2.levels[0]?.rows).toBe(level.rows);
+    expect(decodedV2.mode).toBe('sequential');
   });
 });

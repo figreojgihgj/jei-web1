@@ -1,5 +1,7 @@
 import { decodeLevelFromUrl, encodeLevelForUrl } from './url-format';
 import { decodeLevelFromUrlV2, encodeLevelForUrlV2 } from './url-format-v2';
+import { decodeMultiLevelFromUrlV3 } from './url-format-v3';
+import type { PuzzleMultiLevelDefinition } from './multi-level-format';
 import type { PuzzleLevelDefinition } from './types';
 
 export type UrlEncodingVersion = 'v1' | 'v2';
@@ -33,6 +35,15 @@ export function encodeLevelForShortestUrl(level: PuzzleLevelDefinition): UrlEnco
 }
 
 export function decodeLevelFromSharedUrl(encoded: string): PuzzleLevelDefinition {
+  if (encoded.startsWith('v3-')) {
+    const puzzle = decodeMultiLevelFromUrlV3(encoded);
+    const firstLevel = puzzle.levels[0];
+    if (!firstLevel) {
+      throw new Error('Invalid v3 URL format: no levels');
+    }
+    return firstLevel;
+  }
+
   if (encoded.startsWith('v2-')) {
     return decodeLevelFromUrlV2(encoded);
   }
@@ -46,4 +57,17 @@ export function decodeLevelFromSharedUrl(encoded: string): PuzzleLevelDefinition
       throw v1Error;
     }
   }
+}
+
+export function decodeMultiLevelFromSharedUrl(encoded: string): PuzzleMultiLevelDefinition {
+  if (encoded.startsWith('v3-')) {
+    return decodeMultiLevelFromUrlV3(encoded);
+  }
+
+  return {
+    id: 'shared-single',
+    name: 'Shared Single Level',
+    mode: 'sequential',
+    levels: [decodeLevelFromSharedUrl(encoded)],
+  };
 }

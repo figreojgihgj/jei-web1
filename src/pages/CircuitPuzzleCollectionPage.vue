@@ -145,8 +145,15 @@ import {
   type PuzzleCollectionIndex,
 } from 'src/components/circuit-puzzle/collection-index';
 import { solveLevel } from 'src/components/circuit-puzzle/auto-solver';
-import { levelToJson, parseLevelJson } from 'src/components/circuit-puzzle/levelFormat';
+import { levelToJson } from 'src/components/circuit-puzzle/levelFormat';
+import {
+  multiPuzzleToJson,
+  multiPuzzleToSingleLevel,
+  parsePuzzleJsonDocument,
+  type PuzzleMultiLevelDefinition,
+} from 'src/components/circuit-puzzle/multi-level-format';
 import { buildSharePayload, getShareValue, resolveShareMode } from 'src/components/circuit-puzzle/url-share-options';
+import { encodeMultiLevelForUrlV3 } from 'src/components/circuit-puzzle/url-format-v3';
 import type { PuzzleLevelDefinition } from 'src/components/circuit-puzzle/types';
 import { useSettingsStore } from 'src/stores/settings';
 
@@ -196,6 +203,7 @@ const selectedEntryId = ref<string | null>(null);
 const entryLoading = ref(false);
 const entryError = ref('');
 const loadedLevel = ref<PuzzleLevelDefinition | null>(null);
+const loadedMultiPuzzle = ref<PuzzleMultiLevelDefinition | null>(null);
 const loadedMarkdown = ref('');
 const previewById = ref<Record<string, EntryPreview>>({});
 const previewLoadingById = ref<Record<string, boolean>>({});
@@ -218,9 +226,34 @@ const resolvedMarkdownPath = computed(() => {
 });
 const renderedMarkdown = computed(() => markdown.render(loadedMarkdown.value || '_暂无题目说明。_'));
 const levelJsonPreview = computed(() => {
+  if (loadedMultiPuzzle.value) {
+    return JSON.stringify(multiPuzzleToJson(loadedMultiPuzzle.value), null, 2);
+  }
   if (!loadedLevel.value) return '';
   return JSON.stringify(levelToJson(loadedLevel.value), null, 2);
 });
+
+function parsePrimaryLevelFromDocument(value: unknown): {
+  level: PuzzleLevelDefinition | null;
+  errors: string[];
+} {
+  const parsed = parsePuzzleJsonDocument(value);
+  if (!parsed.document) {
+    return { level: null, errors: parsed.errors };
+  }
+
+  if (parsed.document.kind === 'single') {
+    return { level: parsed.document.level, errors: [] };
+  }
+
+  try {
+    const first = multiPuzzleToSingleLevel(parsed.document.puzzle, 0);
+    return { level: first, errors: [] };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'multi puzzle first level parse failed';
+    return { level: null, errors: [message] };
+  }
+}
 
 function getSingleQueryValue(value: unknown): string | null {
   if (typeof value === 'string') return value;
@@ -369,8 +402,8 @@ async function loadEntryPreview(entry: PuzzleCollectionEntry): Promise<void> {
     const jsonResp = await fetch(jsonPath, { headers: { Accept: 'application/json' } });
     if (!jsonResp.ok) throw new Error(`preview json fetch failed: ${jsonPath}`);
     const rawJson = (await jsonResp.json()) as unknown;
-    const parsed = parseLevelJson(rawJson);
-    if (!parsed.level) throw new Error(`preview json invalid: ${entry.id}`);
+    const parsed = parsePrimaryLevelFromDocument(rawJson);
+    if (!parsed.level) throw new Error(`preview json invalid: ${entry.id}; ${parsed.errors.join('; ')}`);
 
     previewLevelById.value = {
       ...previewLevelById.value,
@@ -466,6 +499,7 @@ async function loadEntryAssets(entry: PuzzleCollectionEntry): Promise<void> {
   entryLoading.value = true;
   entryError.value = '';
   loadedLevel.value = null;
+  loadedMultiPuzzle.value = null;
   loadedMarkdown.value = '';
 
   try {
@@ -473,11 +507,17 @@ async function loadEntryAssets(entry: PuzzleCollectionEntry): Promise<void> {
     const jsonResp = await fetch(jsonPath, { headers: { Accept: 'application/json' } });
     if (!jsonResp.ok) throw new Error(`JSON 文件加载失败: ${jsonPath}`);
     const rawJson = (await jsonResp.json()) as unknown;
-    const parsed = parseLevelJson(rawJson);
-    if (!parsed.level) {
+    const parsed = parsePuzzleJsonDocument(rawJson);
+    if (!parsed.document) {
       throw new Error(`关卡 JSON 校验失败: ${parsed.errors.join('; ')}`);
     }
-    loadedLevel.value = parsed.level;
+    if (parsed.document.kind === 'multi') {
+      loadedMultiPuzzle.value = parsed.document.puzzle;
+      loadedLevel.value = multiPuzzleToSingleLevel(parsed.document.puzzle, 0);
+    } else {
+      loadedMultiPuzzle.value = null;
+      loadedLevel.value = parsed.document.level;
+    }
 
     if (entry.markdown) {
       const mdPath = resolveCollectionAssetPath(collectionIndex.value.basePath, entry.markdown);
@@ -498,6 +538,7 @@ async function reloadIndex(): Promise<void> {
   collectionIndex.value = null;
   selectedEntryId.value = null;
   loadedLevel.value = null;
+  loadedMultiPuzzle.value = null;
   loadedMarkdown.value = '';
   entryError.value = '';
   previewById.value = {};
@@ -540,9 +581,13 @@ function openInPuzzle(tab: 'play' | 'editor'): void {
   if (!level || !entry) return;
 
   try {
-    const payload = buildSharePayload(level);
-    const mode = resolveShareMode(payload, 'auto');
-    const encoded = getShareValue(payload, mode);
+    let encoded = '';
+    if (loadedMultiPuzzle.value) {
+      encoded = encodeMultiLevelForUrlV3(loadedMultiPuzzle.value);
+    } else {
+      const payload = buildSharePayload(level);
+      encoded = getShareValue(payload, resolveShareMode(payload, 'auto'));
+    }
     void router.push({
       path: '/circuit-puzzle',
       query: {

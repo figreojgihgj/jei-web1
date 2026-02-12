@@ -148,5 +148,14 @@ export function cloneLevel(level: PuzzleLevelDefinition): PuzzleLevelDefinition 
       count: p.count ?? 1,
       cells: p.cells.map((c) => ({ ...c })),
     })),
+    ...(level.fixedPlacements
+      ? {
+          fixedPlacements: level.fixedPlacements.map((fixed) => ({
+            ...fixed,
+            anchor: { ...fixed.anchor },
+            cells: fixed.cells.map((c) => ({ ...c })),
+          })),
+        }
+      : {}),
   };
 }

@@ -141,6 +141,41 @@ describe('types format conversion', () => {
       });
     });
 
+    it('should convert fixed placements correctly', () => {
+      const level: PuzzleLevelDefinition = {
+        ...sampleLevel,
+        fixedPlacements: [
+          {
+            id: 'fx-a',
+            name: 'Locked A',
+            color: '#9ddb22',
+            cells: [
+              { x: 0, y: 0 },
+              { x: 1, y: 0 },
+            ],
+            anchor: { x: 2, y: 1 },
+            rotation: 1,
+          },
+        ],
+      };
+
+      const json = levelToJson(level);
+
+      expect(json.board.fixedPlacements).toEqual([
+        {
+          id: 'fx-a',
+          name: 'Locked A',
+          color: '#9ddb22',
+          cells: [
+            [0, 0],
+            [1, 0],
+          ],
+          anchor: [2, 1],
+          rotation: 1,
+        },
+      ]);
+    });
+
     it('should handle empty hintCells', () => {
       const baseLevel: PuzzleLevelDefinition = { ...sampleLevel };
       delete (baseLevel as Partial<PuzzleLevelDefinition>).hintColors;
@@ -266,6 +301,39 @@ describe('types format conversion', () => {
         '#9ddb22': 1,
         '#ff6f6f': 2,
       });
+    });
+
+    it('should convert fixed placements back to level format', () => {
+      const json = levelToJson({
+        ...sampleLevel,
+        fixedPlacements: [
+          {
+            id: 'fx-a',
+            name: 'Locked A',
+            color: '#9ddb22',
+            cells: [
+              { x: 0, y: 0 },
+              { x: 1, y: 0 },
+            ],
+            anchor: { x: 2, y: 1 },
+            rotation: 2,
+          },
+        ],
+      });
+      const level = jsonToLevel(json);
+      expect(level.fixedPlacements).toEqual([
+        {
+          id: 'fx-a',
+          name: 'Locked A',
+          color: '#9ddb22',
+          cells: [
+            { x: 0, y: 0 },
+            { x: 1, y: 0 },
+          ],
+          anchor: { x: 2, y: 1 },
+          rotation: 2,
+        },
+      ]);
     });
 
     it('should handle missing scoring', () => {

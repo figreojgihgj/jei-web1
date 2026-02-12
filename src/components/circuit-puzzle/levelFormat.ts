@@ -1,6 +1,7 @@
 import type {
   CoordTuple,
   GridCell,
+  PuzzleFixedPlacementDefinition,
   PuzzleLevelDefinition,
   PuzzleLevelJson,
   PuzzlePieceDefinition,
@@ -37,6 +38,14 @@ export function levelToJson(level: PuzzleLevelDefinition): PuzzleLevelJson {
             color: color.trim(),
           };
         }),
+      fixedPlacements: (level.fixedPlacements ?? []).map((fixed) => ({
+        id: fixed.id,
+        ...(fixed.name ? { name: fixed.name } : {}),
+        color: fixed.color,
+        cells: fixed.cells.map(toTuple),
+        anchor: toTuple(fixed.anchor),
+        ...(typeof fixed.rotation === 'number' ? { rotation: fixed.rotation } : {}),
+      })),
     },
     clues: {
       rows: [...level.rowTargets],
@@ -105,6 +114,53 @@ function parsePiece(raw: unknown, index: number, errors: string[]): PuzzlePieceD
   };
 }
 
+function parseFixedPlacement(
+  raw: unknown,
+  index: number,
+  errors: string[],
+): PuzzleFixedPlacementDefinition | null {
+  if (!raw || typeof raw !== 'object') {
+    errors.push(`board.fixedPlacements[${index}] must be an object`);
+    return null;
+  }
+
+  const item = raw as Record<string, unknown>;
+  const id = typeof item.id === 'string' ? item.id.trim() : '';
+  const name = typeof item.name === 'string' ? item.name.trim() : '';
+  const color = typeof item.color === 'string' ? item.color.trim() : '';
+  const cellsRaw = Array.isArray(item.cells) ? item.cells : [];
+  const rotationRaw = Number(item.rotation ?? 0);
+  const rotation = Number.isInteger(rotationRaw) ? ((rotationRaw % 4) + 4) % 4 : 0;
+
+  if (!id) errors.push(`board.fixedPlacements[${index}].id is required`);
+  if (!color) errors.push(`board.fixedPlacements[${index}].color is required`);
+  if (!isTuple(item.anchor)) {
+    errors.push(`board.fixedPlacements[${index}].anchor must be [x,y] integer tuple`);
+  }
+  if (!cellsRaw.length) errors.push(`board.fixedPlacements[${index}].cells must not be empty`);
+
+  const cells: GridCell[] = [];
+  for (let i = 0; i < cellsRaw.length; i += 1) {
+    const coord = cellsRaw[i];
+    if (!isTuple(coord)) {
+      errors.push(`board.fixedPlacements[${index}].cells[${i}] must be [x,y] integer tuple`);
+      continue;
+    }
+    cells.push(fromTuple(coord));
+  }
+
+  if (!id || !color || !isTuple(item.anchor) || !cells.length) return null;
+  const anchor = fromTuple(item.anchor);
+  return {
+    id,
+    ...(name ? { name } : {}),
+    color,
+    cells,
+    anchor,
+    ...(rotation ? { rotation } : {}),
+  };
+}
+
 export function parseLevelJson(value: unknown): { level: PuzzleLevelDefinition | null; errors: string[] } {
   const errors: string[] = [];
   if (!value || typeof value !== 'object') {
@@ -125,6 +181,7 @@ export function parseLevelJson(value: unknown): { level: PuzzleLevelDefinition |
   const blockedRaw = Array.isArray(board.blocked) ? board.blocked : [];
   const hintRaw = Array.isArray(board.hintCells) ? board.hintCells : [];
   const hintColorsRaw = Array.isArray(board.hintColors) ? board.hintColors : [];
+  const fixedPlacementsRaw = Array.isArray(board.fixedPlacements) ? board.fixedPlacements : [];
   const rowTargetsRaw = Array.isArray(clues.rows) ? clues.rows : [];
   const colTargetsRaw = Array.isArray(clues.cols) ? clues.cols : [];
   const colorWeightsRaw =
@@ -211,6 +268,19 @@ export function parseLevelJson(value: unknown): { level: PuzzleLevelDefinition |
     idSet.add(piece.id);
   }
 
+  const fixedPlacements: PuzzleFixedPlacementDefinition[] = [];
+  const fixedIdSet = new Set<string>();
+  for (let i = 0; i < fixedPlacementsRaw.length; i += 1) {
+    const fixed = parseFixedPlacement(fixedPlacementsRaw[i], i, errors);
+    if (!fixed) continue;
+    if (fixedIdSet.has(fixed.id)) {
+      errors.push(`duplicate fixed placement id: ${fixed.id}`);
+      continue;
+    }
+    fixedIdSet.add(fixed.id);
+    fixedPlacements.push(fixed);
+  }
+
   const colorWeights: Record<string, number> = {};
   for (const [color, value] of Object.entries(colorWeightsRaw)) {
     const weight = Number(value);
@@ -237,6 +307,9 @@ export function parseLevelJson(value: unknown): { level: PuzzleLevelDefinition |
   };
   if (Object.keys(colorWeights).length) {
     level.colorWeights = colorWeights;
+  }
+  if (fixedPlacements.length > 0) {
+    level.fixedPlacements = fixedPlacements;
   }
 
   return { level, errors: [] };

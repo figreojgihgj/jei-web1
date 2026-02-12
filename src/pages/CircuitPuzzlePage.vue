@@ -20,6 +20,24 @@
             关卡编辑器
           </button>
         </div>
+        <div v-if="activeTab === 'editor'" class="tab-group">
+          <button
+            type="button"
+            class="tab-btn"
+            :class="{ 'tab-btn--active': !isMultiMode }"
+            @click="setEditorMode('single')"
+          >
+            单关模式
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            :class="{ 'tab-btn--active': isMultiMode }"
+            @click="setEditorMode('multi')"
+          >
+            多关模式
+          </button>
+        </div>
 
         <div class="toolbar-actions">
           <button type="button" class="toolbar-btn" @click="openCollectionPage">题目收录</button>
@@ -32,11 +50,83 @@
       <p v-if="loadedFromUrl" class="toolbar-tip">当前关卡来自 URL 参数，可直接分享当前地址。</p>
 
       <div v-if="activeTab === 'play'" class="tab-panel">
-        <CircuitPuzzleGame :level="activeLevel" />
+        <div v-if="isMultiMode && stageCount > 1" class="stage-nav">
+          <button type="button" class="toolbar-btn" :disabled="!hasPrevStage" @click="goPrevStage">
+            上一关
+          </button>
+          <span class="stage-nav-label">
+            第 {{ activeStageIndex + 1 }} / {{ stageCount }} 关：{{ activeStageName }}
+          </span>
+          <button type="button" class="toolbar-btn" :disabled="!hasNextStage" @click="goNextStage">
+            下一关
+          </button>
+        </div>
+        <CircuitPuzzleGame :level="activeLevel" @solved="onPlaySolved" />
       </div>
 
       <div v-else class="tab-panel">
-        <CircuitPuzzleLevelEditor v-model:level="activeLevel" />
+        <div v-if="isMultiMode" class="stage-editor-nav">
+          <div class="stage-editor-main">
+            <button type="button" class="toolbar-btn" :disabled="!hasPrevStage" @click="goPrevStage">
+              上一关
+            </button>
+            <span class="stage-nav-label">
+              第 {{ activeStageIndex + 1 }} / {{ stageCount }} 关：{{ activeStageName }}
+            </span>
+            <button type="button" class="toolbar-btn" :disabled="!hasNextStage" @click="goNextStage">
+              下一关
+            </button>
+          </div>
+
+          <div class="stage-editor-main">
+            <button type="button" class="toolbar-btn" @click="addStageAfterCurrent">+ 新增关卡</button>
+            <button type="button" class="toolbar-btn" @click="duplicateCurrentStage">复制当前关卡</button>
+            <button type="button" class="toolbar-btn" :disabled="stageCount <= 1" @click="removeCurrentStage">
+              删除当前关卡
+            </button>
+          </div>
+
+          <div class="stage-editor-meta">
+            <label class="stage-meta-field">
+              <span>题组 ID</span>
+              <input v-model.trim="puzzleId" type="text" />
+            </label>
+            <label class="stage-meta-field">
+              <span>题组名称</span>
+              <input v-model.trim="puzzleName" type="text" />
+            </label>
+            <label class="stage-meta-field">
+              <span>题组模式</span>
+              <select v-model="puzzleMode">
+                <option value="sequential">顺序闯关</option>
+                <option value="independent">独立关卡</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="stage-chip-list">
+            <button
+              v-for="(stage, index) in activePuzzle.levels"
+              :key="`stage-chip-${stage.id}-${index}`"
+              type="button"
+              class="stage-chip-btn"
+              :class="{ 'stage-chip-btn--active': index === activeStageIndex }"
+              @click="switchStage(index)"
+            >
+              {{ index + 1 }}. {{ stage.name || stage.id || `Stage ${index + 1}` }}
+            </button>
+          </div>
+
+          <p class="toolbar-tip">切换关卡前建议先点编辑器里的“应用到试玩”，避免未应用改动丢失。</p>
+        </div>
+        <p v-else class="toolbar-tip">当前是旧版单关模式，分享与编辑行为与旧逻辑一致。</p>
+        <CircuitPuzzleLevelEditor
+          ref="levelEditorRef"
+          v-model:level="activeLevel"
+          :multi-puzzle="isMultiMode ? activePuzzle : null"
+          :active-stage-index="isMultiMode ? activeStageIndex : 0"
+          @import:multi-puzzle="onEditorImportMultiPuzzle"
+        />
       </div>
     </div>
   </q-page>
@@ -49,8 +139,14 @@ import { useRoute, useRouter } from 'vue-router';
 import CircuitPuzzleGame from 'src/components/circuit-puzzle/CircuitPuzzleGame.vue';
 import CircuitPuzzleLevelEditor from 'src/components/circuit-puzzle/CircuitPuzzleLevelEditor.vue';
 import { cloneLevel, DEFAULT_CIRCUIT_LEVEL } from 'src/components/circuit-puzzle/defaultLevel';
-import { decodeLevelFromSharedUrl } from 'src/components/circuit-puzzle/url-format-share';
+import { decodeMultiLevelFromSharedUrl } from 'src/components/circuit-puzzle/url-format-share';
 import { buildSharePayload, getShareValue, resolveShareMode } from 'src/components/circuit-puzzle/url-share-options';
+import { encodeMultiLevelForUrlV3 } from 'src/components/circuit-puzzle/url-format-v3';
+import {
+  multiPuzzleToJson,
+  singleLevelToMultiPuzzle,
+  type PuzzleMultiLevelDefinition,
+} from 'src/components/circuit-puzzle/multi-level-format';
 import type { PuzzleLevelDefinition } from 'src/components/circuit-puzzle/types';
 
 const $q = useQuasar();
@@ -60,14 +156,214 @@ const isDark = computed(() => $q.dark.isActive);
 
 const SHARE_QUERY_KEY = 'l';
 const TAB_QUERY_KEY = 'tab';
+type EditorMode = 'single' | 'multi';
+type LevelEditorExpose = {
+  flushDraftUpdate: () => void;
+};
 
 const activeTab = ref<'play' | 'editor'>('play');
-const activeLevel = ref<PuzzleLevelDefinition>(cloneLevel(DEFAULT_CIRCUIT_LEVEL));
+const levelEditorRef = ref<LevelEditorExpose | null>(null);
+const activeEditorMode = ref<EditorMode>('single');
+const singleLevel = ref<PuzzleLevelDefinition>(cloneLevel(DEFAULT_CIRCUIT_LEVEL));
+const activePuzzle = ref<PuzzleMultiLevelDefinition>(
+  singleLevelToMultiPuzzle(cloneLevel(DEFAULT_CIRCUIT_LEVEL), {
+    id: DEFAULT_CIRCUIT_LEVEL.id,
+    name: DEFAULT_CIRCUIT_LEVEL.name,
+  }),
+);
+const activeStageIndex = ref(0);
 const loadedFromUrl = ref(false);
 const lastLoadedShareCode = ref<string | null>(null);
 
+const isMultiMode = computed(() => activeEditorMode.value === 'multi');
+const stageCount = computed(() => activePuzzle.value.levels.length);
+const hasPrevStage = computed(() => activeStageIndex.value > 0);
+const hasNextStage = computed(() => activeStageIndex.value + 1 < stageCount.value);
+const activeStageName = computed(
+  () =>
+    activePuzzle.value.levels[activeStageIndex.value]?.name
+    ?? `Stage ${activeStageIndex.value + 1}`,
+);
+const puzzleId = computed({
+  get: () => activePuzzle.value.id,
+  set: (value: string) => {
+    activePuzzle.value = { ...activePuzzle.value, id: value.trim() || 'multi-puzzle' };
+  },
+});
+const puzzleName = computed({
+  get: () => activePuzzle.value.name,
+  set: (value: string) => {
+    activePuzzle.value = { ...activePuzzle.value, name: value.trim() || 'Multi Puzzle' };
+  },
+});
+const puzzleMode = computed({
+  get: () => activePuzzle.value.mode,
+  set: (value: PuzzleMultiLevelDefinition['mode']) => {
+    activePuzzle.value = { ...activePuzzle.value, mode: value === 'independent' ? 'independent' : 'sequential' };
+  },
+});
+const activeLevel = computed<PuzzleLevelDefinition>({
+  get() {
+    if (!isMultiMode.value) {
+      return singleLevel.value;
+    }
+    const level = activePuzzle.value.levels[activeStageIndex.value];
+    return level ?? cloneLevel(DEFAULT_CIRCUIT_LEVEL);
+  },
+  set(nextLevel) {
+    if (!isMultiMode.value) {
+      singleLevel.value = cloneLevel(nextLevel);
+      return;
+    }
+    const levels = [...activePuzzle.value.levels];
+    levels[activeStageIndex.value] = cloneLevel(nextLevel);
+    activePuzzle.value = {
+      ...activePuzzle.value,
+      levels,
+    };
+  },
+});
+
+function clonePuzzle(puzzle: PuzzleMultiLevelDefinition): PuzzleMultiLevelDefinition {
+  return {
+    id: puzzle.id,
+    name: puzzle.name,
+    mode: puzzle.mode,
+    levels: puzzle.levels.map((level) => cloneLevel(level)),
+  };
+}
+
+function flushEditorDraft(): void {
+  levelEditorRef.value?.flushDraftUpdate();
+}
+
+function setEditorMode(mode: EditorMode): void {
+  if (mode === activeEditorMode.value) return;
+  flushEditorDraft();
+
+  if (mode === 'single') {
+    const source = activePuzzle.value.levels[activeStageIndex.value] ?? activePuzzle.value.levels[0];
+    if (source) singleLevel.value = cloneLevel(source);
+    activeEditorMode.value = 'single';
+    return;
+  }
+
+  activePuzzle.value = singleLevelToMultiPuzzle(cloneLevel(singleLevel.value), {
+    id: activePuzzle.value.id || singleLevel.value.id || 'multi-puzzle',
+    name: activePuzzle.value.name || singleLevel.value.name || 'Multi Puzzle',
+    mode: activePuzzle.value.mode,
+  });
+  activeStageIndex.value = 0;
+  activeEditorMode.value = 'multi';
+}
+
+function setActiveStage(index: number): void {
+  if (!stageCount.value) {
+    activeStageIndex.value = 0;
+    return;
+  }
+  const clamped = Math.max(0, Math.min(stageCount.value - 1, Math.floor(index)));
+  activeStageIndex.value = clamped;
+}
+
+function goPrevStage(): void {
+  switchStage(activeStageIndex.value - 1);
+}
+
+function goNextStage(): void {
+  switchStage(activeStageIndex.value + 1);
+}
+
+function switchStage(index: number): void {
+  flushEditorDraft();
+  setActiveStage(index);
+}
+
+function createBlankStage(stageIndex: number): PuzzleLevelDefinition {
+  const id = `stage-${stageIndex + 1}`;
+  const name = `第 ${stageIndex + 1} 关`;
+  const rows = 6;
+  const cols = 6;
+  return {
+    id,
+    name,
+    rows,
+    cols,
+    blocked: [],
+    hintCells: [],
+    hintColors: {},
+    rowTargets: Array.from({ length: rows }, () => 0),
+    colTargets: Array.from({ length: cols }, () => 0),
+    pieces: [],
+    fixedPlacements: [],
+  };
+}
+
+function addStageAfterCurrent(): void {
+  if (!isMultiMode.value) return;
+  flushEditorDraft();
+  const insertIndex = activeStageIndex.value + 1;
+  const levels = [...activePuzzle.value.levels];
+  levels.splice(insertIndex, 0, createBlankStage(insertIndex));
+  for (let i = insertIndex + 1; i < levels.length; i += 1) {
+    const stage = levels[i];
+    if (!stage) continue;
+    if (/^stage-\d+$/.test(stage.id)) stage.id = `stage-${i + 1}`;
+    if (/^第 \d+ 关$/.test(stage.name)) stage.name = `第 ${i + 1} 关`;
+  }
+  activePuzzle.value = { ...activePuzzle.value, levels };
+  setActiveStage(insertIndex);
+}
+
+function duplicateCurrentStage(): void {
+  if (!isMultiMode.value) return;
+  flushEditorDraft();
+  const levels = [...activePuzzle.value.levels];
+  const source = levels[activeStageIndex.value];
+  if (!source) return;
+  const insertIndex = activeStageIndex.value + 1;
+  const cloned = cloneLevel(source);
+  cloned.id = `${source.id || 'stage'}-copy-${Date.now().toString(36).slice(-4)}`;
+  cloned.name = `${source.name || `Stage ${activeStageIndex.value + 1}`} (复制)`;
+  levels.splice(insertIndex, 0, cloned);
+  activePuzzle.value = { ...activePuzzle.value, levels };
+  setActiveStage(insertIndex);
+}
+
+function removeCurrentStage(): void {
+  if (!isMultiMode.value) return;
+  flushEditorDraft();
+  if (stageCount.value <= 1) return;
+  const levels = [...activePuzzle.value.levels];
+  levels.splice(activeStageIndex.value, 1);
+  activePuzzle.value = { ...activePuzzle.value, levels };
+  setActiveStage(activeStageIndex.value);
+}
+
+function onEditorImportMultiPuzzle(payload: {
+  puzzle: PuzzleMultiLevelDefinition;
+  stageIndex: number;
+}): void {
+  const nextPuzzle = clonePuzzle(payload.puzzle);
+  if (!nextPuzzle.levels.length) return;
+  activePuzzle.value = nextPuzzle;
+  activeEditorMode.value = 'multi';
+  setActiveStage(payload.stageIndex);
+  const current = nextPuzzle.levels[Math.max(0, Math.min(nextPuzzle.levels.length - 1, payload.stageIndex))]
+    ?? nextPuzzle.levels[0];
+  if (current) {
+    singleLevel.value = cloneLevel(current);
+  }
+}
+
 function restoreDefaultLevel(): void {
-  activeLevel.value = cloneLevel(DEFAULT_CIRCUIT_LEVEL);
+  const baseLevel = cloneLevel(DEFAULT_CIRCUIT_LEVEL);
+  singleLevel.value = cloneLevel(baseLevel);
+  activePuzzle.value = singleLevelToMultiPuzzle(cloneLevel(DEFAULT_CIRCUIT_LEVEL), {
+    id: DEFAULT_CIRCUIT_LEVEL.id,
+    name: DEFAULT_CIRCUIT_LEVEL.name,
+  });
+  activeStageIndex.value = 0;
   loadedFromUrl.value = false;
   lastLoadedShareCode.value = null;
   const nextQuery = buildQueryFromRoute();
@@ -110,8 +406,27 @@ function loadLevelFromQuery(rawCode: string | null): void {
   if (rawCode === lastLoadedShareCode.value) return;
 
   try {
-    const decoded = decodeLevelFromSharedUrl(rawCode);
-    activeLevel.value = cloneLevel(decoded);
+    const decoded = decodeMultiLevelFromSharedUrl(rawCode);
+    if (!decoded.levels.length) {
+      throw new Error('shared puzzle has no levels');
+    }
+    const firstSourceLevel = decoded.levels[0];
+    if (!firstSourceLevel) {
+      throw new Error('shared puzzle first level missing');
+    }
+    const firstLevel = cloneLevel(firstSourceLevel);
+    singleLevel.value = firstLevel;
+    if (rawCode.startsWith('v3-')) {
+      activePuzzle.value = clonePuzzle(decoded);
+      activeEditorMode.value = 'multi';
+    } else {
+      activePuzzle.value = singleLevelToMultiPuzzle(cloneLevel(firstLevel), {
+        id: firstLevel.id || 'single-level',
+        name: firstLevel.name || 'Single Level',
+      });
+      activeEditorMode.value = 'single';
+    }
+    activeStageIndex.value = 0;
     loadedFromUrl.value = true;
     lastLoadedShareCode.value = rawCode;
   } catch {
@@ -146,11 +461,25 @@ async function copyText(text: string): Promise<void> {
   window.prompt('请复制以下内容', text);
 }
 
+function buildCurrentShareEncoding(): { encoded: string; mode: 'v1' | 'v2' | 'v3' } {
+  if (isMultiMode.value) {
+    return {
+      encoded: encodeMultiLevelForUrlV3(activePuzzle.value),
+      mode: 'v3',
+    };
+  }
+
+  const payload = buildSharePayload(activeLevel.value);
+  const autoMode = resolveShareMode(payload, 'auto');
+  const mode: 'v1' | 'v2' = autoMode === 'v2' ? 'v2' : 'v1';
+  const encoded = getShareValue(payload, mode);
+  return { encoded, mode };
+}
+
 async function copyShareUrl(): Promise<void> {
   try {
-    const payload = buildSharePayload(activeLevel.value);
-    const mode = resolveShareMode(payload, 'auto');
-    const encoded = getShareValue(payload, mode);
+    if (activeTab.value === 'editor') flushEditorDraft();
+    const { encoded, mode } = buildCurrentShareEncoding();
     const url = buildShareUrl(encoded);
     await copyText(url);
     $q.notify({ type: 'positive', message: `分享链接已复制（${mode}，${encoded.length} 字符）。` });
@@ -161,9 +490,8 @@ async function copyShareUrl(): Promise<void> {
 
 function writeCurrentLevelToUrl(): void {
   try {
-    const payload = buildSharePayload(activeLevel.value);
-    const mode = resolveShareMode(payload, 'auto');
-    const encoded = getShareValue(payload, mode);
+    if (activeTab.value === 'editor') flushEditorDraft();
+    const { encoded, mode } = buildCurrentShareEncoding();
     void router.replace(toShareRoute(encoded)).catch(() => undefined);
     loadedFromUrl.value = true;
     lastLoadedShareCode.value = encoded;
@@ -174,6 +502,42 @@ function writeCurrentLevelToUrl(): void {
 }
 
 function openAdvancedShare(): void {
+  if (activeTab.value === 'editor') flushEditorDraft();
+  if (isMultiMode.value) {
+    const encoded = encodeMultiLevelForUrlV3(activePuzzle.value);
+    const multiJson = JSON.stringify(multiPuzzleToJson(activePuzzle.value));
+
+    $q.dialog({
+      title: '高级共享',
+      message: '多关卡模式仅支持 v3 链接或多关 JSON',
+      options: {
+        type: 'radio',
+        model: 'v3',
+        isValid: (val: unknown) => ['v3', 'json'].includes(String(val)),
+        items: [
+          { label: `v3 链接（${encoded.length} 字符）`, value: 'v3' },
+          { label: `复制多关 JSON（${multiJson.length} 字符）`, value: 'json' },
+        ],
+      },
+      cancel: true,
+      ok: { label: '复制' },
+    }).onOk((modeValue: unknown) => {
+      void (async () => {
+        const useJson = String(modeValue) === 'json';
+        if (useJson) {
+          await copyText(multiJson);
+          $q.notify({ type: 'positive', message: `多关 JSON 已复制（${multiJson.length} 字符）。` });
+          return;
+        }
+
+        const url = buildShareUrl(encoded);
+        await copyText(url);
+        $q.notify({ type: 'positive', message: `v3 分享链接已复制（${encoded.length} 字符）。` });
+      })();
+    });
+    return;
+  }
+
   const payload = buildSharePayload(activeLevel.value);
   const autoMode = resolveShareMode(payload, 'auto');
   const autoLength = payload.lengths[autoMode];
@@ -216,6 +580,27 @@ function openAdvancedShare(): void {
       });
     })();
   });
+}
+
+function onPlaySolved(): void {
+  if (!isMultiMode.value) return;
+  if (hasNextStage.value) {
+    const finishedStage = activeStageIndex.value + 1;
+    const nextStage = finishedStage + 1;
+    setActiveStage(activeStageIndex.value + 1);
+    $q.notify({
+      type: 'positive',
+      message: `第 ${finishedStage} 关完成，已切换到第 ${nextStage} 关。`,
+    });
+    return;
+  }
+
+  if (stageCount.value > 1) {
+    $q.notify({
+      type: 'positive',
+      message: `已完成全部 ${stageCount.value} 关。`,
+    });
+  }
 }
 
 watch(
@@ -314,9 +699,93 @@ watch(
   min-height: 1px;
 }
 
+.stage-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.stage-nav-label {
+  font-size: 13px;
+  color: var(--cp-btn-text);
+}
+
+.stage-editor-nav {
+  border: 1px solid var(--cp-btn-border);
+  border-radius: 10px;
+  background: var(--cp-btn-bg);
+  padding: 10px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stage-editor-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.stage-editor-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.stage-meta-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--cp-btn-text);
+}
+
+.stage-meta-field input,
+.stage-meta-field select {
+  border: 1px solid var(--cp-btn-border);
+  border-radius: 6px;
+  background: var(--cp-page-bg);
+  color: var(--cp-btn-text);
+  font-size: 13px;
+  padding: 6px 8px;
+}
+
+.stage-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.stage-chip-btn {
+  border: 1px solid var(--cp-btn-border);
+  border-radius: 999px;
+  background: var(--cp-page-bg);
+  color: var(--cp-btn-text);
+  font-size: 12px;
+  line-height: 1;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.stage-chip-btn--active {
+  border-color: var(--cp-btn-hover-border);
+  color: var(--cp-btn-accent);
+  box-shadow: inset 0 0 0 1px rgba(198, 255, 73, 0.35);
+}
+
 .toolbar-tip {
   margin: 0;
   color: var(--cp-tip-color);
   font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .stage-editor-meta {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

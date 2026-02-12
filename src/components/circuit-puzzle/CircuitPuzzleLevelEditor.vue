@@ -30,6 +30,14 @@
         <button
           type="button"
           class="editor-btn"
+          :class="{ 'editor-btn--active': boardTool === 'fixed' }"
+          @click="boardTool = 'fixed'"
+        >
+          固定块
+        </button>
+        <button
+          type="button"
+          class="editor-btn"
           :class="{ 'editor-btn--active': boardTool === 'blocked' }"
           @click="boardTool = 'blocked'"
         >
@@ -103,6 +111,7 @@
         :rows="rows"
         :cols="cols"
         :blocked-keys="blockedKeys"
+        :locked-keys="fixedOccupiedKeys"
         :hint-keys="finalHintKeys"
         :hint-cells="hintOverlayCells"
         :show-hints="true"
@@ -132,6 +141,7 @@
       <div class="summary-row">
         <span>提示格数: {{ finalHintKeys.length }}</span>
         <span>禁用格数: {{ blockedKeys.length }}</span>
+        <span>固定块格数: {{ fixedOccupiedKeys.length }}</span>
         <span>目标总分: {{ formatScore(totalTargetScore) }}</span>
         <label class="toggle-field"
           ><input v-model="keepUnusedPieces" type="checkbox" /><span>导出保留未用方块</span></label
@@ -180,7 +190,7 @@
             <summary class="json-panel-summary">关卡 JSON</summary>
             <div class="json-panel-body">
               <p class="editor-tip">
-                支持字段：<code>board.hintCells</code>、<code>board.hintColors</code>、<code>board.blocked</code>、<code>pieces[].count</code>、<code>scoring.colorWeights</code>。
+                支持字段：<code>board.hintCells</code>、<code>board.hintColors</code>、<code>board.blocked</code>、<code>board.fixedPlacements</code>、<code>pieces[].count</code>、<code>scoring.colorWeights</code>。
               </p>
               <label class="editor-field"
                 ><span>JSON Preview</span><textarea :value="jsonPreview" rows="14" readonly />
@@ -285,7 +295,7 @@
               :label="piece.name"
               :counter-text="`剩余 ${remainingCountByUid.get(piece.uid) ?? 0}/${Math.max(0, piece.count)}`"
               :footer-text="`已放置 ${usedCountByUid.get(piece.uid) ?? 0}`"
-              :rotation="pieceRotationByUid[piece.uid] ?? 0"
+              :rotation="pieceListRotationByUid[piece.uid] ?? 0"
               :placed-anchor="null"
               :selected="selectedPieceUid === piece.uid"
               :can-rotate="true"
@@ -374,7 +384,7 @@
               :label="piece.name"
               :counter-text="`剩余 ${remainingCountByUid.get(piece.uid) ?? 0}/${Math.max(0, piece.count)}`"
               :footer-text="`已放置 ${usedCountByUid.get(piece.uid) ?? 0}`"
-              :rotation="pieceRotationByUid[piece.uid] ?? 0"
+              :rotation="pieceListRotationByUid[piece.uid] ?? 0"
               :placed-anchor="null"
               :selected="selectedPieceUid === piece.uid"
               :can-rotate="true"
@@ -455,8 +465,15 @@ import CircuitPuzzleShapeCanvas from './CircuitPuzzleShapeCanvas.vue';
 import { useSettingsStore } from 'src/stores/settings';
 import { solveLevel, verifySolution } from './auto-solver';
 import { cloneLevel } from './defaultLevel';
-import { levelToJson, parseLevelJson } from './levelFormat';
+import { levelToJson } from './levelFormat';
+import {
+  multiPuzzleToJson,
+  multiPuzzleToSingleLevel,
+  parsePuzzleJsonDocument,
+  type PuzzleMultiLevelDefinition,
+} from './multi-level-format';
 import { buildSharePayload, getShareValue, resolveShareMode } from './url-share-options';
+import { encodeMultiLevelForUrlV3 } from './url-format-v3';
 import type {
   GridCell,
   PuzzleLevelDefinition,
@@ -464,7 +481,7 @@ import type {
   PuzzleScorePart,
 } from './types';
 
-type BoardTool = 'place' | 'blocked' | 'hint' | 'paint' | 'erase';
+type BoardTool = 'place' | 'fixed' | 'blocked' | 'hint' | 'paint' | 'erase';
 type PieceForm = {
   uid: string;
   id: string;
@@ -478,6 +495,7 @@ type Placement = {
   pieceUid: string;
   anchor: GridCell;
   rotation: number;
+  shape: GridCell[];
   color?: string;
 };
 type OverlayCell = { key: string; color: string; groupId: string };
@@ -513,8 +531,18 @@ const PIECE_PANEL_DEFAULT: PiecePanelState = {
 };
 const PIECE_PANEL_EDGE_GAP = 8;
 
-const props = defineProps<{ level: PuzzleLevelDefinition }>();
-const emit = defineEmits<{ (e: 'update:level', level: PuzzleLevelDefinition): void }>();
+const props = defineProps<{
+  level: PuzzleLevelDefinition;
+  multiPuzzle?: PuzzleMultiLevelDefinition | null;
+  activeStageIndex?: number;
+}>();
+const emit = defineEmits<{
+  (e: 'update:level', level: PuzzleLevelDefinition): void;
+  (
+    e: 'import:multi-puzzle',
+    payload: { puzzle: PuzzleMultiLevelDefinition; stageIndex: number },
+  ): void;
+}>();
 const $q = useQuasar();
 const isDark = computed(() => $q.dark.isActive);
 const route = useRoute();
@@ -537,10 +565,12 @@ const keepUnusedPieces = ref(true);
 const pieces = ref<PieceForm[]>([]);
 const selectedPieceUid = ref<string | null>(null);
 const shapePieceUid = ref<string | null>(null);
-const pieceRotationByUid = ref<Record<string, number>>({});
+const selectedPlacementRotation = ref(0);
+const pieceListRotationByUid = ref<Record<string, number>>({});
 const colorWeights = ref<Record<string, number>>({});
 
 const placements = ref<Placement[]>([]);
+const fixedColorByKey = ref<Record<string, string>>({});
 const boardHover = ref<GridCell | null>(null);
 const shapeHover = ref<GridCell | null>(null);
 const buildErrors = ref<string[]>([]);
@@ -551,6 +581,10 @@ const piecePanelState = ref<PiecePanelState>(
   sanitizePiecePanelState(settingsStore.circuitEditorPiecePanel),
 );
 const piecePanelDrag = ref<PiecePanelDragSession | null>(null);
+const DRAFT_SYNC_DELAY_MS = 180;
+let draftSyncTimer: ReturnType<typeof setTimeout> | null = null;
+let suppressDraftSync = false;
+let pendingSelfDraftSignature: string | null = null;
 
 const pieceCanvasSize = 6;
 const presetPalette = [
@@ -583,23 +617,45 @@ const remainingCountByUid = computed(() => {
 const placementCellMap = computed(() => {
   const map = new Map<string, string>();
   for (const place of placements.value) {
-    const keys = cellsForPlacement(place.pieceUid, place.anchor, place.rotation);
+    const keys = cellsForPlacement(place.pieceUid, place.anchor, place.rotation, place.shape);
     for (const key of keys) map.set(key, place.placementId);
   }
   return map;
 });
+const fixedCellMap = computed(() => {
+  const map = new Map<string, string>();
+  for (const key of Object.keys(fixedColorByKey.value)) {
+    if (!inBoard(key)) continue;
+    map.set(key, key);
+  }
+  return map;
+});
 const placementById = computed(() => new Map(placements.value.map((p) => [p.placementId, p])));
-const placedOccupiedCells = computed<OverlayCell[]>(() => {
+const movableOccupiedCells = computed<OverlayCell[]>(() => {
   const out: OverlayCell[] = [];
   for (const place of placements.value) {
     const piece = pieceByUid.value.get(place.pieceUid);
     if (!piece) continue;
     const color = normalizeHexColor(place.color ?? piece.color) ?? '#9ddb22';
-    const keys = cellsForPlacement(place.pieceUid, place.anchor, place.rotation);
+    const keys = cellsForPlacement(place.pieceUid, place.anchor, place.rotation, place.shape);
     for (const key of keys) out.push({ key, color, groupId: place.placementId });
   }
   return out;
 });
+const fixedOccupiedCells = computed<OverlayCell[]>(() => {
+  const out: OverlayCell[] = [];
+  for (const [key, rawColor] of Object.entries(fixedColorByKey.value)) {
+    if (!inBoard(key)) continue;
+    const color = normalizeHexColor(rawColor) ?? '#9ddb22';
+    out.push({ key, color, groupId: `fixed-${key}` });
+  }
+  return out;
+});
+const fixedOccupiedKeys = computed(() => fixedOccupiedCells.value.map((cell) => cell.key));
+const placedOccupiedCells = computed<OverlayCell[]>(() => [
+  ...fixedOccupiedCells.value,
+  ...movableOccupiedCells.value,
+]);
 const placedOccupiedKeys = computed(() => placedOccupiedCells.value.map((cell) => cell.key));
 
 const finalHintMetaMap = computed(() => {
@@ -638,8 +694,17 @@ const hintColors = computed(() =>
     ),
   ),
 );
+const fixedColors = computed(() =>
+  Array.from(
+    new Set(
+      Object.values(fixedColorByKey.value)
+        .map((color) => normalizeHexColor(color) ?? '')
+        .filter((c): c is string => !!c),
+    ),
+  ),
+);
 const scoringColors = computed(() =>
-  Array.from(new Set([...pieceColors.value, ...hintColors.value])),
+  Array.from(new Set([...pieceColors.value, ...hintColors.value, ...fixedColors.value])),
 );
 const colorWeightEntries = computed(() =>
   scoringColors.value.map((color) => ({ color, weight: getScoreForColor(color) })),
@@ -696,6 +761,7 @@ const totalTargetScore = computed(() =>
 );
 
 const selectedPlacePieceName = computed(() => {
+  if (boardTool.value === 'fixed') return `固定块画笔 (${selectedPaintColor.value})`;
   if (!selectedPieceUid.value) return null;
   const piece = pieceByUid.value.get(selectedPieceUid.value);
   if (!piece) return null;
@@ -703,14 +769,25 @@ const selectedPlacePieceName = computed(() => {
 });
 
 const editorPreview = computed(() => {
-  if (boardTool.value !== 'place' || !selectedPieceUid.value || !boardHover.value) return null;
+  if (!boardHover.value) return null;
+  if (boardTool.value === 'fixed') {
+    const key = keyOf(boardHover.value.x, boardHover.value.y);
+    return {
+      keys: [key],
+      valid: inBoard(key) && !blockedKeys.value.includes(key),
+      color: selectedPaintColor.value,
+      groupId: 'fixed-brush',
+    };
+  }
+  if (boardTool.value !== 'place' || !selectedPieceUid.value) return null;
   if ((remainingCountByUid.value.get(selectedPieceUid.value) ?? 0) <= 0) return null;
-  const rotation = pieceRotationByUid.value[selectedPieceUid.value] ?? 0;
+  const rotation = ((selectedPlacementRotation.value % 4) + 4) % 4;
   const anchor = getPlacementAnchorFromPointer(selectedPieceUid.value, boardHover.value, rotation);
   const piece = pieceByUid.value.get(selectedPieceUid.value);
+  const shape = getPieceCells(selectedPieceUid.value);
   return {
-    keys: cellsForPlacement(selectedPieceUid.value, anchor, rotation),
-    valid: canPlace(selectedPieceUid.value, anchor, rotation),
+    keys: cellsForShape(anchor, rotation, shape),
+    valid: canPlace(selectedPieceUid.value, anchor, rotation, undefined, shape),
     color: normalizeHexColor(piece?.color ?? '') ?? '#9ddb22',
     groupId: selectedPieceUid.value,
   };
@@ -901,9 +978,51 @@ function onViewportResize(): void {
   persistPiecePanelState();
 }
 
+function getLevelSignature(level: PuzzleLevelDefinition): string {
+  return JSON.stringify(levelToJson(level));
+}
+
+function emitDraftUpdate(): void {
+  if (suppressDraftSync) return;
+  const draftLevel = buildPreviewLevelFromForm();
+  pendingSelfDraftSignature = getLevelSignature(draftLevel);
+  emit('update:level', cloneLevel(draftLevel));
+}
+
+function scheduleDraftUpdate(): void {
+  if (suppressDraftSync) return;
+  if (draftSyncTimer) clearTimeout(draftSyncTimer);
+  draftSyncTimer = setTimeout(() => {
+    draftSyncTimer = null;
+    emitDraftUpdate();
+  }, DRAFT_SYNC_DELAY_MS);
+}
+
+function flushDraftUpdate(): void {
+  if (draftSyncTimer) {
+    clearTimeout(draftSyncTimer);
+    draftSyncTimer = null;
+  }
+  emitDraftUpdate();
+}
+
+defineExpose({
+  flushDraftUpdate,
+});
+
 watch(
   () => props.level,
-  (level) => loadFormFromLevel(level),
+  (level) => {
+    if (pendingSelfDraftSignature) {
+      const incomingSignature = getLevelSignature(level);
+      if (incomingSignature === pendingSelfDraftSignature) {
+        pendingSelfDraftSignature = null;
+        return;
+      }
+      pendingSelfDraftSignature = null;
+    }
+    loadFormFromLevel(level);
+  },
   { immediate: true, deep: true },
 );
 watch([rows, cols], ([rRaw, cRaw]) => {
@@ -913,13 +1032,26 @@ watch([rows, cols], ([rRaw, cRaw]) => {
   cols.value = c;
   blockedKeys.value = blockedKeys.value.filter((key) => inBoard(key, r, c));
   pruneHintMaps(r, c);
+  pruneFixedMap(r, c);
   prunePlacements();
 });
 watch(
   pieces,
   () => {
-    if (selectedPieceUid.value && !pieceByUid.value.has(selectedPieceUid.value))
+    const nextListRotation: Record<string, number> = {};
+    for (const piece of pieces.value) {
+      const rotation = pieceListRotationByUid.value[piece.uid];
+      nextListRotation[piece.uid] =
+        typeof rotation === 'number' && Number.isFinite(rotation)
+          ? ((rotation % 4) + 4) % 4
+          : 0;
+    }
+    pieceListRotationByUid.value = nextListRotation;
+
+    if (selectedPieceUid.value && !pieceByUid.value.has(selectedPieceUid.value)) {
       selectedPieceUid.value = pieces.value[0]?.uid ?? null;
+      selectedPlacementRotation.value = 0;
+    }
     if (shapePieceUid.value && !pieceByUid.value.has(shapePieceUid.value))
       shapePieceUid.value = pieces.value[0]?.uid ?? null;
     prunePlacements();
@@ -937,6 +1069,25 @@ watch(
     colorWeights.value = next;
   },
   { immediate: true },
+);
+watch(
+  [
+    levelId,
+    levelName,
+    rows,
+    cols,
+    blockedKeys,
+    manualHintColorByKey,
+    manualHintGroupByKey,
+    pieces,
+    colorWeights,
+    placements,
+    fixedColorByKey,
+  ],
+  () => {
+    scheduleDraftUpdate();
+  },
+  { deep: true },
 );
 function keyOf(x: number, y: number): string {
   return `${x},${y}`;
@@ -1041,6 +1192,12 @@ function rotateCells(cells: GridCell[], rotation: number): GridCell[] {
   const minY = Math.min(...rotated.map((cell) => cell.y));
   return rotated.map((cell) => ({ x: cell.x - minX, y: cell.y - minY }));
 }
+function normalizeShapeCells(cells: GridCell[]): GridCell[] {
+  if (!cells.length) return [];
+  const minX = Math.min(...cells.map((cell) => cell.x));
+  const minY = Math.min(...cells.map((cell) => cell.y));
+  return cells.map((cell) => ({ x: cell.x - minX, y: cell.y - minY }));
+}
 function getPieceCells(pieceUid: string): GridCell[] {
   const piece = pieceByUid.value.get(pieceUid);
   if (!piece) return [];
@@ -1054,11 +1211,22 @@ function getPieceCells(pieceUid: string): GridCell[] {
   const minY = Math.min(...coords.map((cell) => cell.y));
   return coords.map((cell) => ({ x: cell.x - minX, y: cell.y - minY }));
 }
-function cellsForPlacement(pieceUid: string, anchor: GridCell, rotation: number): string[] {
-  const base = getPieceCells(pieceUid);
-  if (!base.length) return [];
-  const rel = rotateCells(base, rotation);
+function cloneShapeCells(cells: GridCell[]): GridCell[] {
+  return cells.map((cell) => ({ x: cell.x, y: cell.y }));
+}
+function cellsForShape(anchor: GridCell, rotation: number, shape: GridCell[]): string[] {
+  if (!shape.length) return [];
+  const rel = rotateCells(shape, rotation);
   return rel.map((cell) => keyOf(anchor.x + cell.x, anchor.y + cell.y));
+}
+function cellsForPlacement(
+  pieceUid: string,
+  anchor: GridCell,
+  rotation: number,
+  shapeOverride?: GridCell[],
+): string[] {
+  const base = shapeOverride?.length ? shapeOverride : getPieceCells(pieceUid);
+  return cellsForShape(anchor, rotation, base);
 }
 function getPlacementAnchorFromPointer(
   pieceUid: string,
@@ -1067,23 +1235,41 @@ function getPlacementAnchorFromPointer(
 ): GridCell {
   const rel = rotateCells(getPieceCells(pieceUid), rotation);
   if (!rel.length) return { ...pointer };
-  const maxX = Math.max(...rel.map((cell) => cell.x));
-  const maxY = Math.max(...rel.map((cell) => cell.y));
-  return { x: pointer.x - Math.round(maxX / 2), y: pointer.y - Math.round(maxY / 2) };
+
+  // 对齐试玩逻辑：鼠标对准的是“离几何中心最近的格子”，而不是包围盒中心。
+  const centerX = rel.reduce((sum, cell) => sum + cell.x, 0) / rel.length;
+  const centerY = rel.reduce((sum, cell) => sum + cell.y, 0) / rel.length;
+
+  let closestCell: GridCell | undefined;
+  let minDist = Number.POSITIVE_INFINITY;
+  for (const cell of rel) {
+    const dx = cell.x - centerX;
+    const dy = cell.y - centerY;
+    const dist = dx * dx + dy * dy;
+    if (dist < minDist) {
+      minDist = dist;
+      closestCell = cell;
+    }
+  }
+
+  const pivot = closestCell ?? rel[0];
+  return { x: pointer.x - (pivot?.x ?? 0), y: pointer.y - (pivot?.y ?? 0) };
 }
 function canPlace(
   pieceUid: string,
   anchor: GridCell,
   rotation: number,
   ignorePlacementId?: string,
+  shapeOverride?: GridCell[],
 ): boolean {
-  const keys = cellsForPlacement(pieceUid, anchor, rotation);
+  const keys = cellsForPlacement(pieceUid, anchor, rotation, shapeOverride);
   if (!keys.length) return false;
   const blocked = new Set(blockedKeys.value);
   const occupied = placementCellMap.value;
   for (const key of keys) {
     if (!inBoard(key)) return false;
     if (blocked.has(key)) return false;
+    if (fixedCellMap.value.has(key)) return false;
     const owner = occupied.get(key);
     if (owner && owner !== ignorePlacementId) return false;
   }
@@ -1092,6 +1278,7 @@ function canPlace(
 function prunePlacements(): void {
   const next: Placement[] = [];
   const occupied = new Set<string>();
+  const fixedOccupied = new Set(fixedOccupiedKeys.value);
   const used = new Map<string, number>();
   for (const place of placements.value) {
     const piece = pieceByUid.value.get(place.pieceUid);
@@ -1099,21 +1286,33 @@ function prunePlacements(): void {
     const total = Math.max(0, Math.floor(Number(piece.count) || 0));
     const already = used.get(place.pieceUid) ?? 0;
     if (already >= total) continue;
-    const keys = cellsForPlacement(place.pieceUid, place.anchor, place.rotation);
+    const keys = cellsForPlacement(place.pieceUid, place.anchor, place.rotation, place.shape);
     if (!keys.length) continue;
     let valid = true;
     for (const key of keys) {
-      if (!inBoard(key) || blockedKeys.value.includes(key) || occupied.has(key)) {
+      if (!inBoard(key) || blockedKeys.value.includes(key) || occupied.has(key) || fixedOccupied.has(key)) {
         valid = false;
         break;
       }
     }
     if (!valid) continue;
-    next.push(place);
+    next.push({
+      ...place,
+      shape: cloneShapeCells(place.shape),
+    });
     used.set(place.pieceUid, already + 1);
     for (const key of keys) occupied.add(key);
   }
   placements.value = next;
+}
+function pruneFixedMap(r = rows.value, c = cols.value): void {
+  const next: Record<string, string> = {};
+  for (const [key, color] of Object.entries(fixedColorByKey.value)) {
+    if (!inBoard(key, r, c)) continue;
+    if (blockedKeys.value.includes(key)) continue;
+    next[key] = normalizeHexColor(color) ?? '#9ddb22';
+  }
+  fixedColorByKey.value = next;
 }
 function pruneHintMaps(r = rows.value, c = cols.value): void {
   const nextColors: Record<string, string> = {};
@@ -1130,15 +1329,44 @@ function pruneHintMaps(r = rows.value, c = cols.value): void {
 function removePlacement(placementId: string): void {
   placements.value = placements.value.filter((place) => place.placementId !== placementId);
 }
+function setFixedColor(key: string, color: string): void {
+  const normalized = normalizeHexColor(color) ?? '#9ddb22';
+  fixedColorByKey.value = {
+    ...fixedColorByKey.value,
+    [key]: normalized,
+  };
+}
+function removeFixedCell(key: string): void {
+  const next = { ...fixedColorByKey.value };
+  delete next[key];
+  fixedColorByKey.value = next;
+}
 function pickupPlacement(placementId: string): void {
   const placement = placementById.value.get(placementId);
   if (!placement) return;
   removePlacement(placementId);
   selectedPieceUid.value = placement.pieceUid;
-  pieceRotationByUid.value = {
-    ...pieceRotationByUid.value,
-    [placement.pieceUid]: placement.rotation,
-  };
+  selectedPlacementRotation.value = ((placement.rotation % 4) + 4) % 4;
+}
+function rotatePlacementInPlace(placementId: string): boolean {
+  const placement = placementById.value.get(placementId);
+  if (!placement) return false;
+  const nextRotation = (placement.rotation + 1) % 4;
+  if (
+    !canPlace(
+      placement.pieceUid,
+      placement.anchor,
+      nextRotation,
+      placement.placementId,
+      placement.shape,
+    )
+  ) {
+    return false;
+  }
+  placements.value = placements.value.map((item) =>
+    item.placementId === placementId ? { ...item, rotation: nextRotation } : item,
+  );
+  return true;
 }
 function setHintColor(key: string, color: string, groupId?: string): void {
   const normalized = normalizeHexColor(color) ?? '#9ddb22';
@@ -1156,6 +1384,73 @@ function removeHint(key: string): void {
   manualHintColorByKey.value = nextColors;
   manualHintGroupByKey.value = nextGroups;
 }
+function fixedCellsFromPlacement(
+  fixed: NonNullable<PuzzleLevelDefinition['fixedPlacements']>[number],
+): string[] {
+  const shape = normalizeShapeCells(fixed.cells ?? []);
+  const rotation = ((fixed.rotation ?? 0) % 4 + 4) % 4;
+  const rel = rotateCells(shape, rotation);
+  return rel.map((cell) => keyOf(fixed.anchor.x + cell.x, fixed.anchor.y + cell.y));
+}
+function buildFixedPlacementsFromMap(
+  r: number,
+  c: number,
+): NonNullable<PuzzleLevelDefinition['fixedPlacements']> {
+  const entries = Object.entries(fixedColorByKey.value)
+    .filter(([key]) => inBoard(key, r, c))
+    .map(([key, color]) => ({ key, color: normalizeHexColor(color) ?? '#9ddb22' }));
+  const byColor = new Map<string, Set<string>>();
+  for (const { key, color } of entries) {
+    const set = byColor.get(color) ?? new Set<string>();
+    set.add(key);
+    byColor.set(color, set);
+  }
+
+  const out: NonNullable<PuzzleLevelDefinition['fixedPlacements']> = [];
+  let idx = 0;
+  const directions: GridCell[] = [
+    { x: 1, y: 0 },
+    { x: -1, y: 0 },
+    { x: 0, y: 1 },
+    { x: 0, y: -1 },
+  ];
+
+  for (const [color, cellSet] of byColor.entries()) {
+    const visited = new Set<string>();
+    for (const start of cellSet) {
+      if (visited.has(start)) continue;
+      const queue = [start];
+      visited.add(start);
+      const groupKeys: string[] = [];
+      while (queue.length) {
+        const current = queue.shift();
+        if (!current) continue;
+        groupKeys.push(current);
+        const base = parseKey(current);
+        for (const d of directions) {
+          const nextKey = keyOf(base.x + d.x, base.y + d.y);
+          if (!cellSet.has(nextKey) || visited.has(nextKey)) continue;
+          visited.add(nextKey);
+          queue.push(nextKey);
+        }
+      }
+      const coords = groupKeys.map(parseKey);
+      if (!coords.length) continue;
+      const minX = Math.min(...coords.map((cell) => cell.x));
+      const minY = Math.min(...coords.map((cell) => cell.y));
+      idx += 1;
+      out.push({
+        id: `fixed_${idx}`,
+        color,
+        anchor: { x: minX, y: minY },
+        cells: coords.map((cell) => ({ x: cell.x - minX, y: cell.y - minY })),
+        rotation: 0,
+      });
+    }
+  }
+
+  return out;
+}
 function onBoardCellHover(cell: GridCell): void {
   boardHover.value = cell;
 }
@@ -1166,6 +1461,7 @@ function onBoardCancelSelection(): void {
 function onBoardCellClick(cell: GridCell): void {
   const key = keyOf(cell.x, cell.y);
   const occupantPlacementId = placementCellMap.value.get(key);
+  const hasFixed = key in fixedColorByKey.value;
   const hasHint = key in manualHintColorByKey.value;
 
   if (boardTool.value === 'place') {
@@ -1173,11 +1469,14 @@ function onBoardCellClick(cell: GridCell): void {
       pickupPlacement(occupantPlacementId);
       return;
     }
+    if (hasFixed) return;
     if (!selectedPieceUid.value) return;
     if ((remainingCountByUid.value.get(selectedPieceUid.value) ?? 0) <= 0) return;
-    const rotation = pieceRotationByUid.value[selectedPieceUid.value] ?? 0;
+    const instanceShape = getPieceCells(selectedPieceUid.value);
+    if (!instanceShape.length) return;
+    const rotation = ((selectedPlacementRotation.value % 4) + 4) % 4;
     const anchor = getPlacementAnchorFromPointer(selectedPieceUid.value, cell, rotation);
-    if (!canPlace(selectedPieceUid.value, anchor, rotation)) return;
+    if (!canPlace(selectedPieceUid.value, anchor, rotation, undefined, instanceShape)) return;
     const pieceColor =
       normalizeHexColor(pieceByUid.value.get(selectedPieceUid.value)?.color ?? '') ?? '#9ddb22';
     placements.value = [
@@ -1187,9 +1486,21 @@ function onBoardCellClick(cell: GridCell): void {
         pieceUid: selectedPieceUid.value,
         anchor: { ...anchor },
         rotation,
+        shape: cloneShapeCells(instanceShape),
         color: pieceColor,
       },
     ];
+    return;
+  }
+
+  if (boardTool.value === 'fixed') {
+    if (blockedKeys.value.includes(key)) return;
+    if (hasFixed) {
+      removeFixedCell(key);
+      return;
+    }
+    if (occupantPlacementId) removePlacement(occupantPlacementId);
+    setFixedColor(key, selectedPaintColor.value);
     return;
   }
 
@@ -1200,6 +1511,8 @@ function onBoardCellClick(cell: GridCell): void {
     blockedKeys.value = Array.from(blocked);
     removeHint(key);
     if (occupantPlacementId) removePlacement(occupantPlacementId);
+    if (hasFixed) removeFixedCell(key);
+    pruneFixedMap();
     prunePlacements();
     return;
   }
@@ -1222,7 +1535,12 @@ function onBoardCellClick(cell: GridCell): void {
           : place,
       );
 
-      const keys = cellsForPlacement(placement.pieceUid, placement.anchor, placement.rotation);
+      const keys = cellsForPlacement(
+        placement.pieceUid,
+        placement.anchor,
+        placement.rotation,
+        placement.shape,
+      );
       const nextHintColors = { ...manualHintColorByKey.value };
       const nextHintGroups = { ...manualHintGroupByKey.value };
       let changedHint = false;
@@ -1239,6 +1557,11 @@ function onBoardCellClick(cell: GridCell): void {
 
       return;
     }
+    if (hasFixed) {
+      setFixedColor(key, selectedPaintColor.value);
+      if (hasHint) setHintColor(key, selectedPaintColor.value, manualHintGroupByKey.value[key]);
+      return;
+    }
     if (hasHint) setHintColor(key, selectedPaintColor.value, manualHintGroupByKey.value[key]);
     return;
   }
@@ -1247,28 +1570,32 @@ function onBoardCellClick(cell: GridCell): void {
     blockedKeys.value = blockedKeys.value.filter((item) => item !== key);
     removeHint(key);
     if (occupantPlacementId) removePlacement(occupantPlacementId);
+    if (hasFixed) removeFixedCell(key);
   }
 }
 
 function selectPiece(uid: string): void {
+  if (selectedPieceUid.value !== uid) {
+    selectedPlacementRotation.value = 0;
+  }
   selectedPieceUid.value = uid;
 }
 function selectPieceForShape(uid: string): void {
+  if (selectedPieceUid.value !== uid) {
+    selectedPlacementRotation.value = 0;
+  }
   shapePieceUid.value = uid;
   selectedPieceUid.value = uid;
 }
 function rotateSelectedPlacePiece(): void {
   if (!selectedPieceUid.value) return;
-  pieceRotationByUid.value = {
-    ...pieceRotationByUid.value,
-    [selectedPieceUid.value]: ((pieceRotationByUid.value[selectedPieceUid.value] ?? 0) + 1) % 4,
-  };
+  selectedPlacementRotation.value = (selectedPlacementRotation.value + 1) % 4;
 }
 function rotatePieceInPalette(uid: string): void {
-  selectedPieceUid.value = uid;
-  pieceRotationByUid.value = {
-    ...pieceRotationByUid.value,
-    [uid]: ((pieceRotationByUid.value[uid] ?? 0) + 1) % 4,
+  const current = pieceListRotationByUid.value[uid] ?? 0;
+  pieceListRotationByUid.value = {
+    ...pieceListRotationByUid.value,
+    [uid]: (current + 1) % 4,
   };
 }
 function generateHintsFromPlacements(): void {
@@ -1354,6 +1681,11 @@ function newUid(seed: string): string {
   return `${seed}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 function loadFormFromLevel(level: PuzzleLevelDefinition): void {
+  suppressDraftSync = true;
+  if (draftSyncTimer) {
+    clearTimeout(draftSyncTimer);
+    draftSyncTimer = null;
+  }
   const source = cloneLevel(level);
   levelId.value = source.id;
   levelName.value = source.name;
@@ -1381,6 +1713,16 @@ function loadFormFromLevel(level: PuzzleLevelDefinition): void {
 
   colorWeights.value = { ...(source.colorWeights ?? {}) };
   placements.value = [];
+  const fixedMap: Record<string, string> = {};
+  for (const fixed of source.fixedPlacements ?? []) {
+    const keys = fixedCellsFromPlacement(fixed);
+    const color = normalizeHexColor(fixed.color) ?? '#9ddb22';
+    for (const key of keys) {
+      if (!inBoard(key, source.rows, source.cols)) continue;
+      fixedMap[key] = color;
+    }
+  }
+  fixedColorByKey.value = fixedMap;
   pieces.value = source.pieces.map((piece) => ({
     uid: newUid(piece.id),
     id: piece.id,
@@ -1391,7 +1733,8 @@ function loadFormFromLevel(level: PuzzleLevelDefinition): void {
   }));
   selectedPieceUid.value = pieces.value[0]?.uid ?? null;
   shapePieceUid.value = pieces.value[0]?.uid ?? null;
-  pieceRotationByUid.value = Object.fromEntries(pieces.value.map((piece) => [piece.uid, 0]));
+  selectedPlacementRotation.value = 0;
+  pieceListRotationByUid.value = Object.fromEntries(pieces.value.map((piece) => [piece.uid, 0]));
   selectedPaintColor.value = pieceColors.value[0] ?? '#9ddb22';
   paletteColorInput.value = selectedPaintColor.value;
   paletteError.value = '';
@@ -1399,6 +1742,10 @@ function loadFormFromLevel(level: PuzzleLevelDefinition): void {
   buildErrors.value = [];
   importErrors.value = [];
   shareUrlText.value = '';
+
+  setTimeout(() => {
+    suppressDraftSync = false;
+  }, 0);
 }
 
 function buildLevelFromForm(options?: { includeUnusedPieces?: boolean }): {
@@ -1446,10 +1793,13 @@ function buildLevelFromForm(options?: { includeUnusedPieces?: boolean }): {
     pieceDefs.push({ id, name, color, count, cells });
   }
 
+  const fixedDefs = buildFixedPlacementsFromMap(r, c);
+
   if (!pieceDefs.length) errors.push('at least one piece is required');
 
   const exportColors = new Set<string>();
   for (const piece of pieceDefs) exportColors.add(piece.color);
+  for (const fixed of fixedDefs) exportColors.add(fixed.color);
   for (const color of Object.values(hintColors)) exportColors.add(color);
   const normalizedWeights: Record<string, number> = {};
   for (const color of exportColors) normalizedWeights[color] = getScoreForColor(color);
@@ -1469,13 +1819,106 @@ function buildLevelFromForm(options?: { includeUnusedPieces?: boolean }): {
   };
   if (Object.keys(hintColors).length) level.hintColors = hintColors;
   if (Object.keys(normalizedWeights).length) level.colorWeights = normalizedWeights;
+  if (fixedDefs.length) level.fixedPlacements = fixedDefs;
   return { level, errors: [] };
+}
+
+function buildPreviewLevelFromForm(): PuzzleLevelDefinition {
+  const r = Math.max(1, Number(rows.value) || 1);
+  const c = Math.max(1, Number(cols.value) || 1);
+
+  const blocked = uniqueKeys(blockedKeys.value)
+    .filter((key) => inBoard(key, r, c))
+    .map(parseKey);
+  const hintEntries = Array.from(finalHintMetaMap.value.entries()).filter(([key]) =>
+    inBoard(key, r, c),
+  );
+  const hintCells = hintEntries.map(([key]) => parseKey(key));
+  const hintColors = Object.fromEntries(hintEntries.map(([key, meta]) => [key, meta.color]));
+
+  const pieceDefs: PuzzleLevelDefinition['pieces'] = pieces.value.map((piece, idx) => ({
+    id: piece.id.trim() || `piece_${idx + 1}`,
+    name: piece.name.trim() || `Piece ${idx + 1}`,
+    color: normalizeHexColor(piece.color) ?? '#9ddb22',
+    count: Math.max(0, Math.floor(Number(piece.count) || 0)),
+    cells: getPieceCells(piece.uid),
+  }));
+  const fixedDefs = buildFixedPlacementsFromMap(r, c);
+
+  const exportColors = new Set<string>();
+  for (const piece of pieceDefs) exportColors.add(piece.color);
+  for (const fixed of fixedDefs) exportColors.add(fixed.color);
+  for (const color of Object.values(hintColors)) exportColors.add(color);
+  const normalizedWeights: Record<string, number> = {};
+  for (const color of exportColors) normalizedWeights[color] = getScoreForColor(color);
+
+  const level: PuzzleLevelDefinition = {
+    id: levelId.value.trim() || 'custom-level',
+    name: levelName.value.trim() || 'Custom Puzzle',
+    rows: r,
+    cols: c,
+    blocked,
+    hintCells,
+    rowTargets: [...computedRowTargets.value],
+    colTargets: [...computedColTargets.value],
+    pieces: pieceDefs,
+  };
+  if (Object.keys(hintColors).length) level.hintColors = hintColors;
+  if (Object.keys(normalizedWeights).length) level.colorWeights = normalizedWeights;
+  if (fixedDefs.length) level.fixedPlacements = fixedDefs;
+  return level;
+}
+
+const isMultiEditorContext = computed(
+  () => !!props.multiPuzzle && Array.isArray(props.multiPuzzle.levels) && props.multiPuzzle.levels.length > 0,
+);
+const multiEditorStageIndex = computed(() => {
+  const levelCount = props.multiPuzzle?.levels.length ?? 0;
+  if (levelCount <= 0) return 0;
+  const raw = Number(props.activeStageIndex ?? 0);
+  const safe = Number.isFinite(raw) ? Math.floor(raw) : 0;
+  return Math.max(0, Math.min(levelCount - 1, safe));
+});
+
+function cloneMultiPuzzle(puzzle: PuzzleMultiLevelDefinition): PuzzleMultiLevelDefinition {
+  return {
+    id: puzzle.id,
+    name: puzzle.name,
+    mode: puzzle.mode,
+    levels: puzzle.levels.map((level) => cloneLevel(level)),
+  };
+}
+
+function buildMultiPuzzleWithCurrentLevel(level: PuzzleLevelDefinition): PuzzleMultiLevelDefinition | null {
+  if (!isMultiEditorContext.value || !props.multiPuzzle) return null;
+  const puzzle = cloneMultiPuzzle(props.multiPuzzle);
+  const levels = [...puzzle.levels];
+  levels[multiEditorStageIndex.value] = cloneLevel(level);
+  return {
+    ...puzzle,
+    levels,
+  };
 }
 
 const jsonPreview = computed(() => {
   const built = buildLevelFromForm();
-  if (!built.level) return '// 当前表单有错误，无法输出 JSON';
-  return JSON.stringify(levelToJson(built.level), null, 2);
+  if (built.level) {
+    if (isMultiEditorContext.value) {
+      const puzzle = buildMultiPuzzleWithCurrentLevel(built.level);
+      if (puzzle) return JSON.stringify(multiPuzzleToJson(puzzle), null, 2);
+    }
+    return JSON.stringify(levelToJson(built.level), null, 2);
+  }
+
+  const previewLevel = buildPreviewLevelFromForm();
+  const issueLines = built.errors.map((err) => `// - ${err}`).join('\n');
+  if (isMultiEditorContext.value) {
+    const puzzle = buildMultiPuzzleWithCurrentLevel(previewLevel);
+    if (puzzle) {
+      return `// 当前表单存在校验问题，以下为实时草稿 JSON\n${issueLines}\n${JSON.stringify(multiPuzzleToJson(puzzle), null, 2)}`;
+    }
+  }
+  return `// 当前表单存在校验问题，以下为实时草稿 JSON\n${issueLines}\n${JSON.stringify(levelToJson(previewLevel), null, 2)}`;
 });
 function applyToGame(): void {
   const built = buildLevelFromForm();
@@ -1598,6 +2041,11 @@ function autoSolveLevel(): void {
       missingPieceIds.add(solved.pieceId);
       continue;
     }
+    const instanceShape = getPieceCells(pieceUid);
+    if (!instanceShape.length) {
+      missingPieceIds.add(`${solved.pieceId}(empty-shape)`);
+      continue;
+    }
     const fallbackColor =
       normalizeHexColor(pieceByUid.value.get(pieceUid)?.color ?? '') ?? '#9ddb22';
     nextPlacements.push({
@@ -1605,6 +2053,7 @@ function autoSolveLevel(): void {
       pieceUid,
       anchor: { ...solved.anchor },
       rotation: ((solved.rot % 4) + 4) % 4,
+      shape: cloneShapeCells(instanceShape),
       color: normalizeHexColor(solved.pieceColor) ?? fallbackColor,
     });
   }
@@ -1631,6 +2080,22 @@ async function generateShareLink(): Promise<void> {
   }
   buildErrors.value = [];
 
+  if (isMultiEditorContext.value) {
+    const puzzle = buildMultiPuzzleWithCurrentLevel(built.level);
+    if (!puzzle) {
+      $q.notify({ type: 'negative', message: '多关上下文不可用，无法生成 v3 分享链接。' });
+      return;
+    }
+    const encoded = encodeMultiLevelForUrlV3(puzzle);
+    const shareUrl = buildShareUrlForEncoded(encoded);
+    shareUrlText.value = shareUrl;
+    await copyText(shareUrl);
+    $q.notify({
+      type: 'positive',
+      message: `已生成并复制分享链接（v3，${encoded.length} 字符）。`,
+    });
+    return;
+  }
   const payload = buildSharePayload(built.level);
   const mode = resolveShareMode(payload, 'auto');
   const encoded = getShareValue(payload, mode);
@@ -1651,6 +2116,48 @@ function openAdvancedShare(): void {
     return;
   }
   buildErrors.value = [];
+
+  if (isMultiEditorContext.value) {
+    const puzzle = buildMultiPuzzleWithCurrentLevel(built.level);
+    if (!puzzle) {
+      $q.notify({ type: 'negative', message: '多关上下文不可用，无法共享。' });
+      return;
+    }
+    const encoded = encodeMultiLevelForUrlV3(puzzle);
+    const multiJson = JSON.stringify(multiPuzzleToJson(puzzle));
+
+    $q.dialog({
+      title: '高级共享',
+      message: '多关卡模式仅支持 v3 链接或多关 JSON',
+      options: {
+        type: 'radio',
+        model: 'v3',
+        isValid: (val: unknown) => ['v3', 'json'].includes(String(val)),
+        items: [
+          { label: `v3 链接（${encoded.length} 字符）`, value: 'v3' },
+          { label: `复制多关 JSON（${multiJson.length} 字符）`, value: 'json' },
+        ],
+      },
+      cancel: true,
+      ok: { label: '复制' },
+    }).onOk((modeValue: unknown) => {
+      void (async () => {
+        const useJson = String(modeValue) === 'json';
+        if (useJson) {
+          await copyText(multiJson);
+          shareUrlText.value = '';
+          $q.notify({ type: 'positive', message: `多关 JSON 已复制（${multiJson.length} 字符）。` });
+          return;
+        }
+
+        const url = buildShareUrlForEncoded(encoded);
+        shareUrlText.value = url;
+        await copyText(url);
+        $q.notify({ type: 'positive', message: `v3 分享链接已复制（${encoded.length} 字符）。` });
+      })();
+    });
+    return;
+  }
 
   const payload = buildSharePayload(built.level);
   const autoMode = resolveShareMode(payload, 'auto');
@@ -1709,6 +2216,7 @@ function resetAsBlank(): void {
   manualHintColorByKey.value = {};
   manualHintGroupByKey.value = {};
   placements.value = [];
+  fixedColorByKey.value = {};
   pieces.value = [
     {
       uid: newUid('piece'),
@@ -1721,7 +2229,8 @@ function resetAsBlank(): void {
   ];
   selectedPieceUid.value = pieces.value[0]?.uid ?? null;
   shapePieceUid.value = pieces.value[0]?.uid ?? null;
-  pieceRotationByUid.value = Object.fromEntries(pieces.value.map((piece) => [piece.uid, 0]));
+  selectedPlacementRotation.value = 0;
+  pieceListRotationByUid.value = Object.fromEntries(pieces.value.map((piece) => [piece.uid, 0]));
   colorWeights.value = { '#9ddb22': 1 };
   selectedPaintColor.value = '#9ddb22';
   paletteColorInput.value = '#9ddb22';
@@ -1748,18 +2257,42 @@ function applyImportJson(): void {
     importErrors.value = ['JSON parse failed'];
     return;
   }
-  const { level, errors } = parseLevelJson(parsed);
-  if (!level) {
-    importErrors.value = errors;
+  const parsedDoc = parsePuzzleJsonDocument(parsed);
+  if (!parsedDoc.document) {
+    importErrors.value = parsedDoc.errors;
     return;
   }
-  loadFormFromLevel(level);
+  if (parsedDoc.document.kind === 'multi') {
+    const preferred = isMultiEditorContext.value ? multiEditorStageIndex.value : 0;
+    const maxIdx = Math.max(0, parsedDoc.document.puzzle.levels.length - 1);
+    const safeIdx = Math.max(0, Math.min(maxIdx, preferred));
+    const level = multiPuzzleToSingleLevel(parsedDoc.document.puzzle, safeIdx);
+    emit('import:multi-puzzle', {
+      puzzle: cloneMultiPuzzle(parsedDoc.document.puzzle),
+      stageIndex: safeIdx,
+    });
+    loadFormFromLevel(level);
+    $q.notify({
+      type: 'positive',
+      message: `已导入多关卡 JSON（共 ${parsedDoc.document.puzzle.levels.length} 关）。`,
+    });
+    return;
+  }
+  loadFormFromLevel(parsedDoc.document.level);
 }
 function onEditorKeyDown(event: KeyboardEvent): void {
   if (isTypingTarget(event.target)) return;
   if (event.key === 'r' || event.key === 'R') {
     event.preventDefault();
-    if (boardTool.value === 'place') rotateSelectedPlacePiece();
+    if (boardTool.value === 'place') {
+      const boardKey = boardHover.value ? keyOf(boardHover.value.x, boardHover.value.y) : null;
+      const placementId = boardKey ? placementCellMap.value.get(boardKey) : null;
+      if (placementId) {
+        rotatePlacementInPlace(placementId);
+        return;
+      }
+      rotateSelectedPlacePiece();
+    }
     else if (shapePieceUid.value) rotatePieceShape(shapePieceUid.value);
     return;
   }
@@ -1769,10 +2302,11 @@ function onEditorKeyDown(event: KeyboardEvent): void {
     return;
   }
   if (event.key === '1') boardTool.value = 'place';
-  if (event.key === '2') boardTool.value = 'blocked';
-  if (event.key === '3') boardTool.value = 'hint';
-  if (event.key === '4') boardTool.value = 'paint';
-  if (event.key === '5') boardTool.value = 'erase';
+  if (event.key === '2') boardTool.value = 'fixed';
+  if (event.key === '3') boardTool.value = 'blocked';
+  if (event.key === '4') boardTool.value = 'hint';
+  if (event.key === '5') boardTool.value = 'paint';
+  if (event.key === '6') boardTool.value = 'erase';
   if (event.key === 'Escape') selectedPieceUid.value = null;
   if (event.key === 'Delete' || event.key === 'Backspace') {
     const boardKey = boardHover.value ? keyOf(boardHover.value.x, boardHover.value.y) : null;
@@ -1781,6 +2315,12 @@ function onEditorKeyDown(event: KeyboardEvent): void {
       if (placementId) {
         event.preventDefault();
         removePlacement(placementId);
+        return;
+      }
+      const fixedId = fixedCellMap.value.get(boardKey);
+      if (fixedId) {
+        event.preventDefault();
+        removeFixedCell(fixedId);
         return;
       }
       if (boardKey in manualHintColorByKey.value) {
@@ -1812,6 +2352,10 @@ onMounted(() => {
   window.addEventListener('resize', onViewportResize);
 });
 onUnmounted(() => {
+  if (draftSyncTimer) {
+    clearTimeout(draftSyncTimer);
+    draftSyncTimer = null;
+  }
   stopPiecePanelInteraction(false);
   window.removeEventListener('keydown', onEditorKeyDown);
   window.removeEventListener('resize', onViewportResize);

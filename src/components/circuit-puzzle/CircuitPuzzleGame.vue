@@ -23,6 +23,7 @@
           :rows="level.rows"
           :cols="level.cols"
           :blocked-keys="blockedKeys"
+          :locked-keys="fixedOccupiedKeys"
           :hint-keys="hintKeys"
           :hint-cells="hintCells"
           :show-hints="showHints"
@@ -154,6 +155,7 @@ import CircuitPuzzlePieceCard from './CircuitPuzzlePieceCard.vue';
 import type {
   ClueDisplayMode,
   GridCell,
+  PuzzleFixedPlacementDefinition,
   PuzzleLevelDefinition,
   PuzzlePieceDefinition,
   PuzzleScorePart,
@@ -162,6 +164,7 @@ import type {
 type PieceRuntimeState = {
   rotation: number;
   anchor: GridCell | null;
+  shape: GridCell[];
 };
 
 type PieceInstance = {
@@ -183,6 +186,12 @@ type OccupiedCellEntry = OverlayCell & {
   pieceId: string;
 };
 
+type FixedOccupiedCellEntry = OverlayCell & {
+  x: number;
+  y: number;
+  fixedId: string;
+};
+
 type ScorePartCell = {
   x: number;
   y: number;
@@ -191,6 +200,10 @@ type ScorePartCell = {
 
 const props = defineProps<{
   level: PuzzleLevelDefinition;
+}>();
+const emit = defineEmits<{
+  (e: 'solved'): void;
+  (e: 'solved-change', solved: boolean): void;
 }>();
 
 const $q = useQuasar();
@@ -201,6 +214,7 @@ const pieceInstances = ref<PieceInstance[]>([]);
 const pieceStates = ref<Record<string, PieceRuntimeState>>({});
 const selectedPieceId = ref<string | null>(null);
 const selectedPieceInstanceId = ref<string | null>(null);
+const selectedPlacementRotation = ref(0);
 const hoverCell = ref<GridCell | null>(null);
 const displayMode = ref<ClueDisplayMode>('graphic');
 const showHints = ref(false);
@@ -214,6 +228,11 @@ const pieceById = computed(() => new Map(level.value.pieces.map((piece) => [piec
 watch(
   level,
   (nextLevel) => {
+    const shapeByPieceId = new Map<string, GridCell[]>();
+    for (const piece of nextLevel.pieces) {
+      shapeByPieceId.set(piece.id, normalizeShapeCells(piece.cells));
+    }
+
     const instances: PieceInstance[] = [];
     for (const piece of nextLevel.pieces) {
       const count = Math.max(0, piece.count ?? 1);
@@ -227,12 +246,23 @@ watch(
     }
     pieceInstances.value = instances;
     pieceStates.value = Object.fromEntries(
-      instances.map((inst) => [inst.instanceId, { rotation: 0, anchor: null } as PieceRuntimeState]),
+      instances.map((inst) => {
+        const baseShape = shapeByPieceId.get(inst.pieceId) ?? [];
+        return [
+          inst.instanceId,
+          {
+            rotation: 0,
+            anchor: null,
+            shape: cloneShapeCells(baseShape),
+          } as PieceRuntimeState,
+        ];
+      }),
     );
     selectedPieceId.value = nextLevel.pieces[0]?.id ?? null;
     selectedPieceInstanceId.value = selectedPieceId.value
       ? findFirstAvailableInstanceId(selectedPieceId.value)
       : null;
+    selectedPlacementRotation.value = 0;
     hoverCell.value = null;
   },
   { immediate: true, deep: true },
@@ -285,6 +315,10 @@ const colorWeightByColor = computed(() => {
     const color = piece.color.trim();
     if (color && !map.has(color)) map.set(color, 1);
   }
+  for (const fixed of level.value.fixedPlacements ?? []) {
+    const color = fixed.color.trim();
+    if (color && !map.has(color)) map.set(color, 1);
+  }
 
   for (const [color, rawWeight] of Object.entries(level.value.colorWeights ?? {})) {
     const safeColor = color.trim();
@@ -310,7 +344,31 @@ const selectedPieceName = computed(() => {
   return `${piece.name} (${remaining}/${total})`;
 });
 
-const occupiedCellEntries = computed<OccupiedCellEntry[]>(() => {
+const fixedPlacements = computed<PuzzleFixedPlacementDefinition[]>(() => level.value.fixedPlacements ?? []);
+
+const fixedOccupiedCellEntries = computed<FixedOccupiedCellEntry[]>(() => {
+  const entries: FixedOccupiedCellEntry[] = [];
+  for (const fixed of fixedPlacements.value) {
+    const relCells = getFixedPlacementCells(fixed);
+    if (!relCells.length) continue;
+    const color = fixed.color?.trim() || '#9ddb22';
+    for (const rel of relCells) {
+      const x = fixed.anchor.x + rel.x;
+      const y = fixed.anchor.y + rel.y;
+      entries.push({
+        key: toKey(x, y),
+        x,
+        y,
+        color,
+        groupId: `fixed-${fixed.id}`,
+        fixedId: fixed.id,
+      });
+    }
+  }
+  return entries;
+});
+
+const movableOccupiedCellEntries = computed<OccupiedCellEntry[]>(() => {
   const entries: OccupiedCellEntry[] = [];
 
   for (const inst of pieceInstances.value) {
@@ -338,10 +396,20 @@ const occupiedCellEntries = computed<OccupiedCellEntry[]>(() => {
   return entries;
 });
 
-const occupiedMap = computed(() => new Map(occupiedCellEntries.value.map((cell) => [cell.key, cell.instanceId])));
-const occupiedKeys = computed(() => occupiedCellEntries.value.map((cell) => cell.key));
+const movableOccupiedMap = computed(
+  () => new Map(movableOccupiedCellEntries.value.map((cell) => [cell.key, cell.instanceId])),
+);
+const fixedOccupiedMap = computed(
+  () => new Map(fixedOccupiedCellEntries.value.map((cell) => [cell.key, cell.fixedId])),
+);
+const boardOccupiedCellEntries = computed<Array<OccupiedCellEntry | FixedOccupiedCellEntry>>(() => [
+  ...fixedOccupiedCellEntries.value,
+  ...movableOccupiedCellEntries.value,
+]);
+const fixedOccupiedKeys = computed(() => fixedOccupiedCellEntries.value.map((cell) => cell.key));
+const occupiedKeys = computed(() => boardOccupiedCellEntries.value.map((cell) => cell.key));
 const occupiedCells = computed<OverlayCell[]>(() =>
-  occupiedCellEntries.value.map((cell) => ({
+  boardOccupiedCellEntries.value.map((cell) => ({
     key: cell.key,
     color: cell.color,
     groupId: cell.groupId,
@@ -350,7 +418,7 @@ const occupiedCells = computed<OverlayCell[]>(() =>
 
 const rowFilled = computed(() => {
   const counts = Array.from({ length: level.value.rows }, () => 0);
-  for (const cell of occupiedCellEntries.value) {
+  for (const cell of boardOccupiedCellEntries.value) {
     if (cell.y >= 0 && cell.y < level.value.rows) {
       counts[cell.y] = (counts[cell.y] ?? 0) + getColorScore(cell.color);
     }
@@ -362,12 +430,12 @@ const rowTargetParts = computed<PuzzleScorePart[][]>(() =>
   buildAxisScoreParts(level.value.rows, hintScoreCells.value, 'row'),
 );
 const rowFilledParts = computed<PuzzleScorePart[][]>(() =>
-  buildAxisScoreParts(level.value.rows, occupiedCellEntries.value, 'row'),
+  buildAxisScoreParts(level.value.rows, boardOccupiedCellEntries.value, 'row'),
 );
 
 const colFilled = computed(() => {
   const counts = Array.from({ length: level.value.cols }, () => 0);
-  for (const cell of occupiedCellEntries.value) {
+  for (const cell of boardOccupiedCellEntries.value) {
     if (cell.x >= 0 && cell.x < level.value.cols) {
       counts[cell.x] = (counts[cell.x] ?? 0) + getColorScore(cell.color);
     }
@@ -379,7 +447,7 @@ const colTargetParts = computed<PuzzleScorePart[][]>(() =>
   buildAxisScoreParts(level.value.cols, hintScoreCells.value, 'col'),
 );
 const colFilledParts = computed<PuzzleScorePart[][]>(() =>
-  buildAxisScoreParts(level.value.cols, occupiedCellEntries.value, 'col'),
+  buildAxisScoreParts(level.value.cols, boardOccupiedCellEntries.value, 'col'),
 );
 
 const satisfiedRowCount = computed(() =>
@@ -426,14 +494,13 @@ const pieceTypeEntries = computed(() =>
     const total = totalCountByPieceId.value.get(piece.id) ?? 0;
     const used = Math.max(0, total - remaining);
     const activeInstanceId = getBestAvailableInstanceId(piece.id);
-    const activeState = activeInstanceId ? pieceStates.value[activeInstanceId] : null;
     return {
       piece,
       remaining,
       total,
       used,
-      rotation: activeState?.rotation ?? 0,
-      canRotate: !!activeInstanceId && !activeState?.anchor,
+      rotation: 0,
+      canRotate: !!activeInstanceId,
       selected: selectedPieceId.value === piece.id,
     };
   }),
@@ -444,10 +511,11 @@ const previewPlacement = computed(() => {
   if (!instanceId || !hoverCell.value) return null;
   const state = pieceStates.value[instanceId];
   if (!state || state.anchor) return null;
+  const rotation = ((selectedPlacementRotation.value % 4) + 4) % 4;
   return {
     instanceId,
-    anchor: getAnchorForHover(instanceId, hoverCell.value, state.rotation),
-    rotation: state.rotation,
+    anchor: getAnchorForHover(instanceId, hoverCell.value, rotation),
+    rotation,
   };
 });
 
@@ -631,6 +699,12 @@ function getCurrentPlaceableInstanceId(): string | null {
   const best = getBestAvailableInstanceId(selectedPieceId.value);
   if (selectedPieceInstanceId.value !== best) {
     selectedPieceInstanceId.value = best;
+    if (best) {
+      const state = pieceStates.value[best];
+      selectedPlacementRotation.value = state ? (((state.rotation % 4) + 4) % 4) : 0;
+    } else {
+      selectedPlacementRotation.value = 0;
+    }
   }
   return best;
 }
@@ -648,10 +722,34 @@ function rotateCells(cells: GridCell[], rotation: number): GridCell[] {
   return rotated.map((cell) => ({ x: cell.x - minX, y: cell.y - minY }));
 }
 
-function getTransformedCells(instanceId: string, rotation: number): GridCell[] {
-  const piece = getPieceForInstance(instanceId);
+function cloneShapeCells(cells: GridCell[]): GridCell[] {
+  return cells.map((cell) => ({ x: cell.x, y: cell.y }));
+}
+
+function normalizeShapeCells(cells: GridCell[]): GridCell[] {
+  if (!cells.length) return [];
+  const minX = Math.min(...cells.map((cell) => cell.x));
+  const minY = Math.min(...cells.map((cell) => cell.y));
+  return cells.map((cell) => ({ x: cell.x - minX, y: cell.y - minY }));
+}
+
+function getDefaultShapeForPiece(pieceId: string): GridCell[] {
+  const piece = pieceById.value.get(pieceId);
   if (!piece) return [];
-  return rotateCells(piece.cells, rotation);
+  return normalizeShapeCells(piece.cells);
+}
+
+function getTransformedCells(instanceId: string, rotation: number): GridCell[] {
+  const state = pieceStates.value[instanceId];
+  if (!state?.shape?.length) return [];
+  return rotateCells(state.shape, rotation);
+}
+
+function getFixedPlacementCells(fixed: PuzzleFixedPlacementDefinition): GridCell[] {
+  if (!fixed.cells?.length) return [];
+  const base = normalizeShapeCells(fixed.cells);
+  const rotation = ((fixed.rotation ?? 0) % 4 + 4) % 4;
+  return rotateCells(base, rotation);
 }
 
 function getAnchorForHover(instanceId: string, hover: GridCell, rotation: number): GridCell {
@@ -687,6 +785,9 @@ function getAnchorForHover(instanceId: string, hover: GridCell, rotation: number
 
 function buildOccupiedMap(excludeInstanceId?: string): Map<string, string> {
   const map = new Map<string, string>();
+  for (const fixedCell of fixedOccupiedCellEntries.value) {
+    map.set(fixedCell.key, `fixed:${fixedCell.fixedId}`);
+  }
   for (const inst of pieceInstances.value) {
     if (excludeInstanceId && inst.instanceId === excludeInstanceId) continue;
     const state = pieceStates.value[inst.instanceId];
@@ -714,14 +815,16 @@ function canPlace(instanceId: string, anchor: GridCell, rotation: number): boole
   return true;
 }
 
-function placePiece(instanceId: string, anchor: GridCell): boolean {
+function placePiece(instanceId: string, anchor: GridCell, rotation: number): boolean {
   const state = pieceStates.value[instanceId];
   if (!state || state.anchor) return false;
-  if (!canPlace(instanceId, anchor, state.rotation)) return false;
+  const safeRotation = ((rotation % 4) + 4) % 4;
+  if (!canPlace(instanceId, anchor, safeRotation)) return false;
   pieceStates.value = {
     ...pieceStates.value,
     [instanceId]: {
       ...state,
+      rotation: safeRotation,
       anchor: { ...anchor },
     },
   };
@@ -732,6 +835,7 @@ function pickupPiece(instanceId: string): void {
   const state = pieceStates.value[instanceId];
   const inst = getInstance(instanceId);
   if (!state || !inst || !state.anchor) return;
+  const currentRotation = ((state.rotation % 4) + 4) % 4;
   pieceStates.value = {
     ...pieceStates.value,
     [instanceId]: {
@@ -741,28 +845,36 @@ function pickupPiece(instanceId: string): void {
   };
   selectedPieceId.value = inst.pieceId;
   selectedPieceInstanceId.value = instanceId;
+  selectedPlacementRotation.value = currentRotation;
 }
 
 function selectPieceType(pieceId: string): void {
   selectedPieceId.value = pieceId;
-  selectedPieceInstanceId.value = findFirstAvailableInstanceId(pieceId);
+  const nextInstanceId = findFirstAvailableInstanceId(pieceId);
+  selectedPieceInstanceId.value = nextInstanceId;
+  if (nextInstanceId) {
+    const state = pieceStates.value[nextInstanceId];
+    selectedPlacementRotation.value = state ? (((state.rotation % 4) + 4) % 4) : 0;
+  } else {
+    selectedPlacementRotation.value = 0;
+  }
 }
 
 function rotatePieceType(pieceId: string): void {
   if (selectedPieceId.value !== pieceId) {
     selectedPieceId.value = pieceId;
+    const nextInstanceId = findFirstAvailableInstanceId(pieceId);
+    selectedPieceInstanceId.value = nextInstanceId;
+    if (nextInstanceId) {
+      const state = pieceStates.value[nextInstanceId];
+      selectedPlacementRotation.value = state ? (((state.rotation % 4) + 4) % 4) : 0;
+    } else {
+      selectedPlacementRotation.value = 0;
+    }
   }
   const instanceId = getCurrentPlaceableInstanceId();
   if (!instanceId) return;
-  const state = pieceStates.value[instanceId];
-  if (!state || state.anchor) return;
-  pieceStates.value = {
-    ...pieceStates.value,
-    [instanceId]: {
-      ...state,
-      rotation: (state.rotation + 1) % 4,
-    },
-  };
+  selectedPlacementRotation.value = (selectedPlacementRotation.value + 1) % 4;
 }
 
 function rotateSelectedPiece(): void {
@@ -780,19 +892,20 @@ function cancelSelection(): void {
 }
 
 function onCellClick(cell: GridCell): void {
-  const occupant = occupiedMap.value.get(toKey(cell.x, cell.y));
-  if (occupant) {
-    pickupPiece(occupant);
+  const cellKey = toKey(cell.x, cell.y);
+  const movableOccupant = movableOccupiedMap.value.get(cellKey);
+  if (movableOccupant) {
+    pickupPiece(movableOccupant);
     return;
   }
+  if (fixedOccupiedMap.value.has(cellKey)) return;
 
   const instanceId = getCurrentPlaceableInstanceId();
   if (!instanceId) return;
-  const state = pieceStates.value[instanceId];
-  if (!state) return;
+  const rotation = ((selectedPlacementRotation.value % 4) + 4) % 4;
 
-  const anchor = getAnchorForHover(instanceId, cell, state.rotation);
-  const placed = placePiece(instanceId, anchor);
+  const anchor = getAnchorForHover(instanceId, cell, rotation);
+  const placed = placePiece(instanceId, anchor, rotation);
   if (placed && selectedPieceId.value) {
     selectedPieceInstanceId.value = findFirstAvailableInstanceId(selectedPieceId.value);
   }
@@ -800,7 +913,21 @@ function onCellClick(cell: GridCell): void {
 
 function resetAll(): void {
   pieceStates.value = Object.fromEntries(
-    pieceInstances.value.map((inst) => [inst.instanceId, { rotation: 0, anchor: null } as PieceRuntimeState]),
+    pieceInstances.value.map((inst) => {
+      const prevState = pieceStates.value[inst.instanceId];
+      const shape =
+        prevState?.shape?.length
+          ? cloneShapeCells(prevState.shape)
+          : cloneShapeCells(getDefaultShapeForPiece(inst.pieceId));
+      return [
+        inst.instanceId,
+        {
+          rotation: 0,
+          anchor: null,
+          shape,
+        } as PieceRuntimeState,
+      ];
+    }),
   );
   if (selectedPieceId.value) {
     selectedPieceInstanceId.value = findFirstAvailableInstanceId(selectedPieceId.value);
@@ -810,6 +937,7 @@ function resetAll(): void {
       ? findFirstAvailableInstanceId(selectedPieceId.value)
       : null;
   }
+  selectedPlacementRotation.value = 0;
   hoverCell.value = null;
 }
 
@@ -858,7 +986,9 @@ onUnmounted(() => {
 });
 
 watch(solved, (isSolved) => {
+  emit('solved-change', isSolved);
   if (isSolved) {
+    emit('solved');
     showVictory.value = true;
   }
 });

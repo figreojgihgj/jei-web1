@@ -70,6 +70,37 @@ function uniqueRotations(piece: PuzzlePieceDefinition): Array<{ rot: number; cel
   return out;
 }
 
+function rotateAndNormalize(cells: GridCell[], rot: number): GridCell[] {
+  return normalizeCells(cells.map((c) => rot90cw(c, rot)));
+}
+
+type FixedOccupiedCell = {
+  key: string;
+  x: number;
+  y: number;
+  color: string;
+};
+
+function enumerateFixedOccupiedCells(level: PuzzleLevelDefinition): FixedOccupiedCell[] {
+  const out: FixedOccupiedCell[] = [];
+  for (const fixed of level.fixedPlacements ?? []) {
+    const anchor = fixed.anchor;
+    const rotation = ((fixed.rotation ?? 0) % 4 + 4) % 4;
+    const relCells = rotateAndNormalize(fixed.cells ?? [], rotation);
+    const color = fixed.color || '#9ddb22';
+    for (const rel of relCells) {
+      const cell = { x: anchor.x + rel.x, y: anchor.y + rel.y };
+      out.push({
+        key: keyOf(cell),
+        x: cell.x,
+        y: cell.y,
+        color,
+      });
+    }
+  }
+  return out;
+}
+
 function colorScore(level: PuzzleLevelDefinition, color: string): number {
   const key = color.trim().toLowerCase();
   const weight = level.colorWeights?.[key] ?? level.colorWeights?.[color] ?? 1;
@@ -86,6 +117,7 @@ function enumeratePlacements(
   opts: Required<Pick<SolverOptions, 'onlyHintCells' | 'enforceHintColors'>>,
 ): SolverPlacement[] {
   const blocked = new Set(level.blocked.map(keyOf));
+  for (const fixedCell of enumerateFixedOccupiedCells(level)) blocked.add(fixedCell.key);
   const hints = new Set(level.hintCells.map(keyOf));
   const hintColorByCell = level.hintColors ?? {};
 
@@ -138,6 +170,8 @@ export function solveLevel(
   const timeoutMs = Math.max(1, opts.timeoutMs ?? 2_500);
 
   const blocked = new Set(level.blocked.map(keyOf));
+  const fixedOccupied = enumerateFixedOccupiedCells(level);
+  for (const cell of fixedOccupied) blocked.add(cell.key);
   const hintSet = new Set(level.hintCells.map(keyOf));
   const startTime = Date.now();
   let nodes = 0;
@@ -166,6 +200,16 @@ export function solveLevel(
   const colScore = Array.from({ length: level.cols }, () => 0);
   const used = new Set<string>();
   const chosen: SolverPlacement[] = [];
+
+  for (const fixedCell of fixedOccupied) {
+    used.add(fixedCell.key);
+    if (fixedCell.y >= 0 && fixedCell.y < level.rows) {
+      rowScore[fixedCell.y] = (rowScore[fixedCell.y] ?? 0) + colorScore(level, fixedCell.color);
+    }
+    if (fixedCell.x >= 0 && fixedCell.x < level.cols) {
+      colScore[fixedCell.x] = (colScore[fixedCell.x] ?? 0) + colorScore(level, fixedCell.color);
+    }
+  }
 
   function checkStop(): boolean {
     nodes++;
@@ -273,18 +317,42 @@ export function verifySolution(
 
   const errors: string[] = [];
   const blocked = new Set(level.blocked.map(keyOf));
+  const fixedOccupied = enumerateFixedOccupiedCells(level);
+  for (const fixedCell of fixedOccupied) blocked.add(fixedCell.key);
   const hints = new Set(level.hintCells.map(keyOf));
   const hintColors = level.hintColors ?? {};
   const used = new Set<string>();
   const rowScore = Array.from({ length: level.rows }, () => 0);
   const colScore = Array.from({ length: level.cols }, () => 0);
 
+  for (const fixedCell of fixedOccupied) {
+    if (fixedCell.x < 0 || fixedCell.x >= level.cols || fixedCell.y < 0 || fixedCell.y >= level.rows) {
+      errors.push(`Fixed out of bounds: ${fixedCell.key}`);
+      continue;
+    }
+    if (used.has(fixedCell.key)) {
+      errors.push(`Fixed overlap: ${fixedCell.key}`);
+      continue;
+    }
+    used.add(fixedCell.key);
+    rowScore[fixedCell.y] = (rowScore[fixedCell.y] ?? 0) + colorScore(level, fixedCell.color);
+    colScore[fixedCell.x] = (colScore[fixedCell.x] ?? 0) + colorScore(level, fixedCell.color);
+    if (enforceHintColors) {
+      const required = hintColors[fixedCell.key];
+      if (required !== undefined && required.toLowerCase() !== fixedCell.color.toLowerCase()) {
+        errors.push(
+          `Fixed hint color mismatch at ${fixedCell.key}: required=${required}, got=${fixedCell.color}`,
+        );
+      }
+    }
+  }
+
   for (const pl of solution) {
     const score = colorScore(level, pl.pieceColor);
     for (const c of pl.cells) {
       const k = keyOf(c);
       if (!inBounds(level, c)) errors.push(`Out of bounds: ${k}`);
-      if (blocked.has(k)) errors.push(`Covers blocked: ${k}`);
+      if (blocked.has(k) && !used.has(k)) errors.push(`Covers blocked: ${k}`);
       if (used.has(k)) errors.push(`Overlap: ${k}`);
       used.add(k);
       rowScore[c.y] = (rowScore[c.y] ?? 0) + score;

@@ -206,6 +206,19 @@ export function encodeLevelForUrlV2(level: PuzzleLevelDefinition): string {
     + pieceBodies
     + extraCounts;
 
+  const fixedPlacements = level.fixedPlacements ?? [];
+  const fixedExtEntries = fixedPlacements
+    .map((fixed) => {
+      const colorIdx = encodeColorIndex(fixed.color, customColors);
+      const rotation = encodeNumber(((fixed.rotation ?? 0) % 4 + 4) % 4);
+      const anchorIndex = encodeFixed2(toIndex(fixed.anchor, level.cols));
+      const cells = fixed.cells ?? [];
+      const cellCount = encodeNumber(cells.length);
+      const cellsStr = cells.map((cell) => encodeFixed2(toIndex(cell, level.cols))).join('');
+      return `${encodeNumber(colorIdx)}${rotation}${anchorIndex}${cellCount}${cellsStr}`;
+    })
+    .filter((entry) => entry.length > 0);
+
   let customColorsStr = encodeNumber(customColors.size);
   const sortedCustomColors = Array.from(customColors.entries()).sort((a, b) => a[1] - b[1]);
   for (const [color] of sortedCustomColors) {
@@ -215,8 +228,12 @@ export function encodeLevelForUrlV2(level: PuzzleLevelDefinition): string {
 
   const rowTargetsStr = (level.rowTargets ?? []).map((value) => encodeNumber(value)).join('');
   const colTargetsStr = (level.colTargets ?? []).map((value) => encodeNumber(value)).join('');
+  const extensionStr =
+    fixedExtEntries.length > 0
+      ? `xf${encodeFixed2(fixedExtEntries.length)}${fixedExtEntries.join('')}`
+      : '';
 
-  return `v2-${rowsChar}${colsChar}${blockedStr}${hintStr}${piecesStr}${customColorsStr}${rowTargetsStr}${colTargetsStr}`;
+  return `v2-${rowsChar}${colsChar}${blockedStr}${hintStr}${piecesStr}${customColorsStr}${rowTargetsStr}${colTargetsStr}${extensionStr}`;
 }
 
 export function decodeLevelFromUrlV2(encoded: string): PuzzleLevelDefinition {
@@ -327,6 +344,44 @@ export function decodeLevelFromUrlV2(encoded: string): PuzzleLevelDefinition {
     pos++;
   }
 
+  const fixedPlacements: NonNullable<PuzzleLevelDefinition['fixedPlacements']> = [];
+  if (encoded[pos] === 'x') {
+    pos++;
+    while (pos < encoded.length) {
+      const section = encoded[pos] ?? '';
+      pos++;
+      if (section !== 'f') break;
+      const fixedCountParsed = decodeFixed2(encoded, pos);
+      const fixedCount = fixedCountParsed.value;
+      pos = fixedCountParsed.nextPos;
+
+      for (let i = 0; i < fixedCount; i++) {
+        const colorIdx = decodeNumber(encoded[pos]);
+        pos++;
+        const rotation = decodeNumber(encoded[pos]) % 4;
+        pos++;
+        const anchorParsed = decodeFixed2(encoded, pos);
+        pos = anchorParsed.nextPos;
+        const anchor = fromIndex(anchorParsed.value, cols);
+        const cellCount = decodeNumber(encoded[pos]);
+        pos++;
+        const cells: GridCell[] = [];
+        for (let j = 0; j < cellCount; j++) {
+          const cellParsed = decodeFixed2(encoded, pos);
+          pos = cellParsed.nextPos;
+          cells.push(fromIndex(cellParsed.value, cols));
+        }
+        fixedPlacements.push({
+          id: `fx-${i + 1}`,
+          color: decodeColorFromIndex(colorIdx, customColors),
+          anchor,
+          rotation,
+          cells,
+        });
+      }
+    }
+  }
+
   const hintColors: Record<string, string> = {};
   for (let i = 0; i < hintCells.length; i++) {
     const cell = hintCells[i];
@@ -358,6 +413,9 @@ export function decodeLevelFromUrlV2(encoded: string): PuzzleLevelDefinition {
 
   if (Object.keys(hintColors).length > 0) {
     level.hintColors = hintColors;
+  }
+  if (fixedPlacements.length > 0) {
+    level.fixedPlacements = fixedPlacements;
   }
 
   return level;
