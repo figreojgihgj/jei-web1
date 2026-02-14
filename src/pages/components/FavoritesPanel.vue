@@ -55,6 +55,7 @@
                   variant="slot"
                   :show-name="false"
                   :show-subtitle="false"
+                  :show-amount="false"
                   :lazy-visual="true"
                 />
               </q-item-section>
@@ -118,6 +119,7 @@
                   ...(it.def.key.nbt !== undefined ? { nbt: it.def.key.nbt } : {}),
                 }"
                 :item-defs-by-key-hash="itemDefsByKeyHash"
+                :show-amount="false"
                 :lazy-visual="true"
               />
             </div>

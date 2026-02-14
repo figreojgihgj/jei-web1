@@ -3,6 +3,10 @@ import { Dark } from 'quasar';
 
 export type DarkMode = 'auto' | 'light' | 'dark';
 export type Language = 'zh-CN' | 'en-US' | 'ja-JP';
+const PROXY_ACCESS_TOKEN_KEY = 'access_token';
+const PROXY_ANONYMOUS_TOKEN_KEY = 'anonymous_token';
+const PROXY_FRAMEWORK_TOKEN_KEY = 'framework_token';
+
 type CircuitEditorPiecePanelState = {
   x: number;
   y: number;
@@ -15,6 +19,33 @@ type CircuitEditorPiecePanelState = {
 function darkModeToQuasar(mode: DarkMode): boolean | 'auto' {
   if (mode === 'auto') return 'auto';
   return mode === 'dark';
+}
+
+function safeStorageGet(key: string): string {
+  try {
+    return String(localStorage.getItem(key) ?? '');
+  } catch {
+    return '';
+  }
+}
+
+function safeStorageSetOrRemove(key: string, value: string): void {
+  try {
+    if (value) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+function syncProxyTokensToStorage(state: {
+  packImageProxyAccessToken: string;
+  packImageProxyAnonymousToken: string;
+  packImageProxyFrameworkToken: string;
+}): void {
+  safeStorageSetOrRemove(PROXY_ACCESS_TOKEN_KEY, state.packImageProxyAccessToken);
+  safeStorageSetOrRemove(PROXY_ANONYMOUS_TOKEN_KEY, state.packImageProxyAnonymousToken);
+  safeStorageSetOrRemove(PROXY_FRAMEWORK_TOKEN_KEY, state.packImageProxyFrameworkToken);
 }
 
 // 探测浏览器语言
@@ -46,6 +77,14 @@ export const useSettingsStore = defineStore('settings', {
       wikiImageUseProxy: false,
       wikiImageProxyUrl: 'https://r.jina.ai/http://',
       wikiCatalogFileName: '',
+      packImageProxyUsePackProvided: true,
+      packImageProxyUseManual: false,
+      packImageProxyUseDev: false,
+      packImageProxyManualUrl: '',
+      packImageProxyDevUrl: '',
+      packImageProxyAccessToken: safeStorageGet(PROXY_ACCESS_TOKEN_KEY),
+      packImageProxyAnonymousToken: safeStorageGet(PROXY_ANONYMOUS_TOKEN_KEY),
+      packImageProxyFrameworkToken: safeStorageGet(PROXY_FRAMEWORK_TOKEN_KEY),
       circuitCollectionPreviewShowPieces: false,
       circuitEditorPiecePanel: { x: 16, y: 120, width: 420, height: 620, minimized: false, docked: false } as CircuitEditorPiecePanelState,
     };
@@ -87,7 +126,7 @@ export const useSettingsStore = defineStore('settings', {
               docked: typeof panelParsed.docked === 'boolean' ? panelParsed.docked : defaults.circuitEditorPiecePanel.docked,
             }
           : defaults.circuitEditorPiecePanel;
-      return {
+      const restored = {
         historyLimit: typeof parsed.historyLimit === 'number' ? parsed.historyLimit : defaults.historyLimit,
         debugLayout: typeof parsed.debugLayout === 'boolean' ? parsed.debugLayout : defaults.debugLayout,
         debugNavPanel: typeof parsed.debugNavPanel === 'boolean' ? parsed.debugNavPanel : defaults.debugNavPanel,
@@ -132,12 +171,46 @@ export const useSettingsStore = defineStore('settings', {
           typeof parsed.wikiCatalogFileName === 'string'
             ? parsed.wikiCatalogFileName
             : defaults.wikiCatalogFileName,
+        packImageProxyUsePackProvided:
+          typeof parsed.packImageProxyUsePackProvided === 'boolean'
+            ? parsed.packImageProxyUsePackProvided
+            : defaults.packImageProxyUsePackProvided,
+        packImageProxyUseManual:
+          typeof parsed.packImageProxyUseManual === 'boolean'
+            ? parsed.packImageProxyUseManual
+            : defaults.packImageProxyUseManual,
+        packImageProxyUseDev:
+          typeof parsed.packImageProxyUseDev === 'boolean'
+            ? parsed.packImageProxyUseDev
+            : defaults.packImageProxyUseDev,
+        packImageProxyManualUrl:
+          typeof parsed.packImageProxyManualUrl === 'string'
+            ? parsed.packImageProxyManualUrl
+            : defaults.packImageProxyManualUrl,
+        packImageProxyDevUrl:
+          typeof parsed.packImageProxyDevUrl === 'string'
+            ? parsed.packImageProxyDevUrl
+            : defaults.packImageProxyDevUrl,
+        packImageProxyAccessToken:
+          typeof parsed.packImageProxyAccessToken === 'string'
+            ? parsed.packImageProxyAccessToken
+            : defaults.packImageProxyAccessToken,
+        packImageProxyAnonymousToken:
+          typeof parsed.packImageProxyAnonymousToken === 'string'
+            ? parsed.packImageProxyAnonymousToken
+            : defaults.packImageProxyAnonymousToken,
+        packImageProxyFrameworkToken:
+          typeof parsed.packImageProxyFrameworkToken === 'string'
+            ? parsed.packImageProxyFrameworkToken
+            : defaults.packImageProxyFrameworkToken,
         circuitCollectionPreviewShowPieces:
           typeof parsed.circuitCollectionPreviewShowPieces === 'boolean'
             ? parsed.circuitCollectionPreviewShowPieces
             : defaults.circuitCollectionPreviewShowPieces,
         circuitEditorPiecePanel,
       };
+      syncProxyTokensToStorage(restored);
+      return restored;
     } catch {
       Dark.set('auto');
       return defaults;
@@ -211,6 +284,41 @@ export const useSettingsStore = defineStore('settings', {
       this.wikiCatalogFileName = value;
       this.save();
     },
+    setPackImageProxyUsePackProvided(value: boolean) {
+      this.packImageProxyUsePackProvided = value;
+      this.save();
+    },
+    setPackImageProxyUseManual(value: boolean) {
+      this.packImageProxyUseManual = value;
+      this.save();
+    },
+    setPackImageProxyUseDev(value: boolean) {
+      this.packImageProxyUseDev = value;
+      this.save();
+    },
+    setPackImageProxyManualUrl(value: string) {
+      this.packImageProxyManualUrl = value;
+      this.save();
+    },
+    setPackImageProxyDevUrl(value: string) {
+      this.packImageProxyDevUrl = value;
+      this.save();
+    },
+    setPackImageProxyAccessToken(value: string) {
+      this.packImageProxyAccessToken = value;
+      syncProxyTokensToStorage(this);
+      this.save();
+    },
+    setPackImageProxyAnonymousToken(value: string) {
+      this.packImageProxyAnonymousToken = value;
+      syncProxyTokensToStorage(this);
+      this.save();
+    },
+    setPackImageProxyFrameworkToken(value: string) {
+      this.packImageProxyFrameworkToken = value;
+      syncProxyTokensToStorage(this);
+      this.save();
+    },
     setCompletedTutorial(value: boolean) {
       this.completedTutorial = value;
       this.save();
@@ -251,6 +359,14 @@ export const useSettingsStore = defineStore('settings', {
           wikiImageUseProxy: this.wikiImageUseProxy,
           wikiImageProxyUrl: this.wikiImageProxyUrl,
           wikiCatalogFileName: this.wikiCatalogFileName,
+          packImageProxyUsePackProvided: this.packImageProxyUsePackProvided,
+          packImageProxyUseManual: this.packImageProxyUseManual,
+          packImageProxyUseDev: this.packImageProxyUseDev,
+          packImageProxyManualUrl: this.packImageProxyManualUrl,
+          packImageProxyDevUrl: this.packImageProxyDevUrl,
+          packImageProxyAccessToken: this.packImageProxyAccessToken,
+          packImageProxyAnonymousToken: this.packImageProxyAnonymousToken,
+          packImageProxyFrameworkToken: this.packImageProxyFrameworkToken,
           circuitCollectionPreviewShowPieces: this.circuitCollectionPreviewShowPieces,
           circuitEditorPiecePanel: this.circuitEditorPiecePanel,
         }),

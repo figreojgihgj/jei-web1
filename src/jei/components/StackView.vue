@@ -30,11 +30,25 @@
       >
         <div class="stack-view__icon-sprite-image" :style="spriteImageStyle"></div>
       </div>
-      <div v-else-if="showIconPlaceholder" class="stack-view__icon stack-view__icon-placeholder"></div>
+      <div
+        v-else-if="showIconPlaceholder"
+        class="stack-view__icon stack-view__icon-placeholder"
+      ></div>
       <q-icon v-else :name="fallbackIcon" size="22px" class="stack-view__icon-fallback" />
       <div class="stack-view__text">
         <div v-if="props.showName" class="stack-view__name">{{ displayName }}</div>
-        <div v-if="props.showSubtitle" class="stack-view__sub">{{ subtitle }}</div>
+        <div v-if="props.showSubtitle" class="stack-view__subline">
+          <span v-if="rarityLabel" class="stack-view__rarity" :style="rarityStyle">
+            {{ rarityLabel }}
+          </span>
+          <span v-if="subtitle" class="stack-view__sub">{{ subtitle }}</span>
+          <span
+            v-if="!rarityLabel && !subtitle"
+            class="stack-view__sub stack-view__sub-placeholder"
+          >
+            -
+          </span>
+        </div>
       </div>
     </div>
     <q-badge v-if="badgeText" color="primary" class="stack-view__badge">{{ badgeText }}</q-badge>
@@ -45,6 +59,7 @@
         <div v-if="tooltipMetaLine" class="stack-tooltip__line">{{ tooltipMetaLine }}</div>
         <div v-if="tooltipNbtLine" class="stack-tooltip__line">{{ tooltipNbtLine }}</div>
         <div v-if="tooltipTagsLine" class="stack-tooltip__line">{{ tooltipTagsLine }}</div>
+        <div v-if="tooltipRarityLine" class="stack-tooltip__line">{{ tooltipRarityLine }}</div>
         <div v-if="tooltipSourceLine" class="stack-tooltip__line">{{ tooltipSourceLine }}</div>
         <div v-if="tooltipDescription" class="stack-tooltip__desc">{{ tooltipDescription }}</div>
         <div class="stack-tooltip__ns">{{ tooltipNamespace }}</div>
@@ -57,6 +72,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { ItemDef, ItemKey, SlotContent, Stack } from 'src/jei/types';
 import { itemKeyHash } from 'src/jei/indexing/key';
+import { isProxyImageUrl, useRuntimeImageUrl } from 'src/jei/pack/runtimeImage';
 
 const props = withDefaults(
   defineProps<{
@@ -65,12 +81,14 @@ const props = withDefaults(
     variant?: 'list' | 'slot';
     showName?: boolean;
     showSubtitle?: boolean;
+    showAmount?: boolean;
     lazyVisual?: boolean;
   }>(),
   {
     variant: 'list',
     showName: true,
     showSubtitle: true,
+    showAmount: true,
     lazyVisual: false,
   },
 );
@@ -97,12 +115,13 @@ const badgeText = computed(() => {
   return '';
 });
 
-const iconSrc = computed(() => {
+const iconSrcRaw = computed(() => {
   const s = stack.value;
   if (!s || s.kind !== 'item') return '';
   const def = props.itemDefsByKeyHash[stackItemKeyHash(s)];
   return def?.icon ?? '';
 });
+const iconSrc = useRuntimeImageUrl(iconSrcRaw);
 
 const iconSprite = computed(() => {
   const s = stack.value;
@@ -110,15 +129,47 @@ const iconSprite = computed(() => {
   const def = props.itemDefsByKeyHash[stackItemKeyHash(s)];
   return def?.iconSprite;
 });
+const iconSpriteUrlRaw = computed(() => iconSprite.value?.url ?? '');
+const iconSpriteUrl = useRuntimeImageUrl(iconSpriteUrlRaw);
+
+const itemDef = computed<ItemDef | undefined>(() => {
+  const s = stack.value;
+  if (!s || s.kind !== 'item') return undefined;
+  return props.itemDefsByKeyHash[stackItemKeyHash(s)];
+});
+
+const rarity = computed(() => itemDef.value?.rarity);
+const rarityColor = computed(() => rarity.value?.color || '');
+const rarityLabel = computed(() => {
+  const stars = rarity.value?.stars;
+  if (!stars) return '';
+  return `${stars}★`;
+});
+
+const rarityStyle = computed(() => {
+  const color = rarityColor.value;
+  if (!color) return {};
+  return { color };
+});
 
 const stackViewEl = ref<HTMLElement | null>(null);
 const shouldRenderVisual = ref(!props.lazyVisual);
 
 const hasImageVisual = computed(() => !!iconSrc.value || !!iconSprite.value);
 const showIconSrc = computed(() => shouldRenderVisual.value && !!iconSrc.value);
-const showIconSprite = computed(() => shouldRenderVisual.value && !iconSrc.value && !!iconSprite.value);
+const showIconSprite = computed(
+  () =>
+    shouldRenderVisual.value &&
+    !iconSrc.value &&
+    !!iconSprite.value &&
+    (!!iconSpriteUrl.value || !isProxyImageUrl(iconSprite.value.url)),
+);
 const showIconPlaceholder = computed(
-  () => props.lazyVisual && hasImageVisual.value && !shouldRenderVisual.value,
+  () =>
+    (props.lazyVisual && hasImageVisual.value && !shouldRenderVisual.value) ||
+    (shouldRenderVisual.value &&
+      ((!!iconSrcRaw.value && !iconSrc.value) ||
+        (!!iconSprite.value && !iconSpriteUrl.value && isProxyImageUrl(iconSprite.value.url)))),
 );
 
 let visibilityObserver: IntersectionObserver | null = null;
@@ -199,10 +250,11 @@ const spriteImageStyle = computed(() => {
   if (!sprite) return {};
   const size = sprite.size ?? 64;
   const scale = 28 / size;
+  const spriteImageUrl = iconSpriteUrl.value || (isProxyImageUrl(sprite.url) ? '' : sprite.url);
   return {
     width: `${size}px`,
     height: `${size}px`,
-    backgroundImage: `url(${sprite.url})`,
+    backgroundImage: spriteImageUrl ? `url(${spriteImageUrl})` : 'none',
     backgroundRepeat: 'no-repeat',
     backgroundPosition: sprite.position,
     transform: `scale(${scale})`,
@@ -222,6 +274,7 @@ const displayName = computed(() => {
 });
 
 const subtitle = computed(() => {
+  if (!props.showAmount) return '';
   const s = stack.value;
   if (!s) return '';
   const unit = s.unit ?? (s.kind === 'fluid' ? 'mB' : '');
@@ -285,6 +338,13 @@ const tooltipTagsLine = computed(() => {
   const shown = tags.slice(0, 8);
   const more = tags.length > shown.length ? ` …(+${tags.length - shown.length})` : '';
   return `tags: ${shown.join(', ')}${more}`;
+});
+
+const tooltipRarityLine = computed(() => {
+  const r = rarity.value;
+  if (!r?.stars) return '';
+  const colorText = r.color ? ` (${r.color})` : '';
+  return `rarity: ${r.stars}★${colorText}`;
 });
 
 const tooltipSourceLine = computed(() => {
@@ -426,6 +486,23 @@ function onTouchHold(evt: unknown) {
   line-height: 13px;
 }
 
+.stack-view__subline {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-height: 13px;
+}
+
+.stack-view__rarity {
+  font-size: 10px;
+  line-height: 12px;
+  font-weight: 600;
+}
+
+.stack-view__sub-placeholder {
+  visibility: hidden;
+}
+
 .stack-view__badge {
   flex: 0 0 auto;
 }
@@ -461,6 +538,16 @@ function onTouchHold(evt: unknown) {
   font-size: 10px;
   line-height: 12px;
   opacity: 0.7;
+}
+
+.stack-view--slot .stack-view__subline {
+  justify-content: center;
+  min-height: 12px;
+}
+
+.stack-view--slot .stack-view__rarity {
+  font-size: 10px;
+  line-height: 12px;
 }
 
 .stack-view--slot .stack-view__badge {

@@ -46,6 +46,80 @@
           :model-value="favoritesOpensNewStack"
           @update:model-value="$emit('update:favorites-open-stack', !!$event)"
         />
+        <q-separator class="q-my-sm" />
+        <div class="text-subtitle2 q-mb-sm">{{ t('packImageProxyTitle') }}</div>
+        <q-toggle
+          :label="t('packImageProxyUsePackProvided')"
+          :model-value="packImageProxyUsePackProvided"
+          @update:model-value="$emit('update:pack-image-proxy-use-pack-provided', !!$event)"
+        />
+        <q-input
+          dense
+          outlined
+          readonly
+          :label="t('packImageProxyPackUrl')"
+          :model-value="packProxyTemplate || t('packImageProxyUnavailable')"
+        />
+        <q-toggle
+          :label="t('packImageProxyUseDev')"
+          :model-value="packImageProxyUseDev"
+          @update:model-value="$emit('update:pack-image-proxy-use-dev', !!$event)"
+        />
+        <q-input
+          dense
+          outlined
+          readonly
+          :label="t('packImageProxyPackDevUrl')"
+          :model-value="packDevProxyTemplate || t('packImageProxyUnavailable')"
+        />
+        <q-input
+          dense
+          outlined
+          debounce="250"
+          :label="t('packImageProxyDevUrl')"
+          :model-value="packImageProxyDevUrl"
+          @update:model-value="$emit('update:pack-image-proxy-dev-url', String($event ?? ''))"
+        />
+        <q-toggle
+          :label="t('packImageProxyUseManual')"
+          :model-value="packImageProxyUseManual"
+          @update:model-value="$emit('update:pack-image-proxy-use-manual', !!$event)"
+        />
+        <q-input
+          dense
+          outlined
+          debounce="250"
+          :label="t('packImageProxyManualUrl')"
+          :model-value="packImageProxyManualUrl"
+          @update:model-value="$emit('update:pack-image-proxy-manual-url', String($event ?? ''))"
+        />
+        <q-input
+          dense
+          outlined
+          debounce="250"
+          :label="t('packImageProxyAccessToken')"
+          type="password"
+          :model-value="packImageProxyAccessToken"
+          @update:model-value="$emit('update:pack-image-proxy-access-token', String($event ?? ''))"
+        />
+        <q-input
+          dense
+          outlined
+          debounce="250"
+          :label="t('packImageProxyAnonymousToken')"
+          type="password"
+          :model-value="packImageProxyAnonymousToken"
+          @update:model-value="$emit('update:pack-image-proxy-anonymous-token', String($event ?? ''))"
+        />
+        <q-input
+          dense
+          outlined
+          debounce="250"
+          :label="t('packImageProxyFrameworkToken')"
+          type="password"
+          :model-value="packImageProxyFrameworkToken"
+          @update:model-value="$emit('update:pack-image-proxy-framework-token', String($event ?? ''))"
+        />
       </q-card-section>
       <q-card-actions align="right">
         <q-btn flat :label="t('close')" color="primary" v-close-popup />
@@ -67,6 +141,16 @@ defineProps<{
   recipeViewMode: 'dialog' | 'panel';
   recipeSlotShowName: boolean;
   favoritesOpensNewStack: boolean;
+  packProxyTemplate: string;
+  packDevProxyTemplate: string;
+  packImageProxyUsePackProvided: boolean;
+  packImageProxyUseManual: boolean;
+  packImageProxyUseDev: boolean;
+  packImageProxyManualUrl: string;
+  packImageProxyDevUrl: string;
+  packImageProxyAccessToken: string;
+  packImageProxyAnonymousToken: string;
+  packImageProxyFrameworkToken: string;
 }>();
 
 defineEmits<{
@@ -77,5 +161,13 @@ defineEmits<{
   'update:recipe-view-mode': [value: 'dialog' | 'panel'];
   'update:recipe-slot-show-name': [value: boolean];
   'update:favorites-open-stack': [value: boolean];
+  'update:pack-image-proxy-use-pack-provided': [value: boolean];
+  'update:pack-image-proxy-use-manual': [value: boolean];
+  'update:pack-image-proxy-use-dev': [value: boolean];
+  'update:pack-image-proxy-manual-url': [value: string];
+  'update:pack-image-proxy-dev-url': [value: string];
+  'update:pack-image-proxy-access-token': [value: string];
+  'update:pack-image-proxy-anonymous-token': [value: string];
+  'update:pack-image-proxy-framework-token': [value: string];
 }>();
 </script>

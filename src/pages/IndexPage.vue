@@ -168,6 +168,24 @@
       @update:recipe-slot-show-name="settingsStore.setRecipeSlotShowName($event)"
       :favorites-opens-new-stack="settingsStore.favoritesOpensNewStack"
       @update:favorites-open-stack="settingsStore.setFavoritesOpensNewStack($event)"
+      :pack-proxy-template="packProxyTemplate"
+      :pack-dev-proxy-template="packDevProxyTemplate"
+      :pack-image-proxy-use-pack-provided="settingsStore.packImageProxyUsePackProvided"
+      @update:pack-image-proxy-use-pack-provided="settingsStore.setPackImageProxyUsePackProvided($event)"
+      :pack-image-proxy-use-manual="settingsStore.packImageProxyUseManual"
+      @update:pack-image-proxy-use-manual="settingsStore.setPackImageProxyUseManual($event)"
+      :pack-image-proxy-use-dev="settingsStore.packImageProxyUseDev"
+      @update:pack-image-proxy-use-dev="settingsStore.setPackImageProxyUseDev($event)"
+      :pack-image-proxy-manual-url="settingsStore.packImageProxyManualUrl"
+      @update:pack-image-proxy-manual-url="settingsStore.setPackImageProxyManualUrl($event)"
+      :pack-image-proxy-dev-url="settingsStore.packImageProxyDevUrl"
+      @update:pack-image-proxy-dev-url="settingsStore.setPackImageProxyDevUrl($event)"
+      :pack-image-proxy-access-token="settingsStore.packImageProxyAccessToken"
+      @update:pack-image-proxy-access-token="settingsStore.setPackImageProxyAccessToken($event)"
+      :pack-image-proxy-anonymous-token="settingsStore.packImageProxyAnonymousToken"
+      @update:pack-image-proxy-anonymous-token="settingsStore.setPackImageProxyAnonymousToken($event)"
+      :pack-image-proxy-framework-token="settingsStore.packImageProxyFrameworkToken"
+      @update:pack-image-proxy-framework-token="settingsStore.setPackImageProxyFrameworkToken($event)"
     />
 
     <pre v-if="settingsStore.debugLayout" class="jei-debug-overlay">{{ debugText }}</pre>
@@ -229,6 +247,7 @@ import { useI18n } from 'vue-i18n';
 import type { ItemDef, ItemKey, PackData, Recipe } from 'src/jei/types';
 import { useDialogManager } from 'src/stores/dialogManager';
 import { loadPackItemDetail, loadRuntimePack } from 'src/jei/pack/loader';
+import { applyImageProxyToPack, ensurePackImageProxyTokens } from 'src/jei/pack/imageProxy';
 import {
   buildJeiIndex,
   recipesConsumingItem,
@@ -274,6 +293,8 @@ const error = ref('');
 const pack = ref<PackData | null>(null);
 const index = ref<JeiIndex | null>(null);
 const runtimePackDispose = ref<null | (() => void)>(null);
+const packProxyTemplate = computed(() => pack.value?.manifest.imageProxy?.urlTemplate ?? '');
+const packDevProxyTemplate = computed(() => pack.value?.manifest.imageProxy?.devUrlTemplate ?? '');
 
 type PackOption = { label: string; value: string };
 
@@ -1147,6 +1168,23 @@ watch(activePackId, async (next) => {
   await reloadPack(next);
   void recomputePageSize(); // 切 pack 后重新计算一次
 });
+watch(
+  () => [
+    settingsStore.packImageProxyUsePackProvided,
+    settingsStore.packImageProxyUseManual,
+    settingsStore.packImageProxyUseDev,
+    settingsStore.packImageProxyManualUrl,
+    settingsStore.packImageProxyDevUrl,
+    settingsStore.packImageProxyAccessToken,
+    settingsStore.packImageProxyAnonymousToken,
+    settingsStore.packImageProxyFrameworkToken,
+  ] as const,
+  async () => {
+    if (!pack.value) return;
+    await ensurePackImageProxyTokens(pack.value.manifest);
+    applyImageProxyToPack(pack.value);
+  },
+);
 
 async function reloadPack(packId: string) {
   error.value = '';

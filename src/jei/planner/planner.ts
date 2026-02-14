@@ -74,6 +74,47 @@ function finiteNumberOr(v: unknown, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function recipeTypeHasMachine(recipeType: RecipeTypeDef | undefined): boolean {
+  if (!recipeType?.machine) return false;
+  return Array.isArray(recipeType.machine) ? recipeType.machine.length > 0 : true;
+}
+
+export function getRecipeTypePlannerPriority(recipeType: RecipeTypeDef | undefined): number {
+  const explicit = recipeType?.plannerPriority;
+  if (typeof explicit === 'number' && Number.isFinite(explicit)) return explicit;
+  if (recipeType?.renderer === 'wiki_doc_panel') return -200;
+  if (recipeTypeHasMachine(recipeType)) return 100;
+  return 0;
+}
+
+function getRecipeSortTuple(index: JeiIndex, itemKey: ItemKey, recipeId: string): [number, number, string] {
+  const recipe = index.recipesById.get(recipeId);
+  if (!recipe) return [-9999, 9999, recipeId];
+  const recipeType = index.recipeTypesByKey.get(recipe.type);
+  const priority = getRecipeTypePlannerPriority(recipeType);
+  const { inputs } = extractRecipeStacks(recipe, recipeType);
+  const outputForItem = perCraftOutputAmountFor(recipe, recipeType, itemKey);
+  // Prefer higher planner priority and meaningful output before minimizing complexity.
+  const inputsLen = outputForItem > 0 ? inputs.length : 9998;
+  return [priority, inputsLen, recipeId];
+}
+
+export function sortRecipeOptionsForItem(
+  index: JeiIndex,
+  itemKey: ItemKey,
+  recipeIds: string[],
+): string[] {
+  return recipeIds
+    .slice()
+    .sort((a, b) => {
+      const [pa, ia, ra] = getRecipeSortTuple(index, itemKey, a);
+      const [pb, ib, rb] = getRecipeSortTuple(index, itemKey, b);
+      if (pa !== pb) return pb - pa;
+      if (ia !== ib) return ia - ib;
+      return ra.localeCompare(rb);
+    });
+}
+
 export function extractRecipeStacks(recipe: Recipe, recipeType: RecipeTypeDef | undefined): {
   inputs: Stack[];
   outputs: Stack[];
@@ -161,7 +202,7 @@ export function computePlannerDecisions(args: {
     if (visiting.has(h)) return;
     visiting.add(h);
 
-    const options = recipesProducingItem(index, key);
+    const options = sortRecipeOptionsForItem(index, key, recipesProducingItem(index, key));
     if (options.length > 1 && !selectedRecipeIdByItemKeyHash.has(h)) {
       decisions.push({ kind: 'item_recipe', itemKey: key, itemKeyHash: h, recipeOptions: options.slice() });
       visiting.delete(h);
@@ -299,7 +340,7 @@ export function autoPlanSelections(args: {
     stackHashes.push(h);
     stackKeys.push(key);
 
-    const options = recipesProducingItem(index, key);
+    const options = sortRecipeOptionsForItem(index, key, recipesProducingItem(index, key));
     if (!options.length) {
       stackHashes.pop();
       stackKeys.pop();
@@ -347,18 +388,8 @@ export function autoPlanSelections(args: {
       return ok;
     }
 
-    const sorted = options
-      .map((rid) => {
-        const r = index.recipesById.get(rid);
-        const rt = r ? index.recipeTypesByKey.get(r.type) : undefined;
-        const inputsLen = r ? extractRecipeStacks(r, rt).inputs.length : 9999;
-        return { rid, inputsLen };
-      })
-      .sort((a, b) => a.inputsLen - b.inputsLen || a.rid.localeCompare(b.rid))
-      .map((v) => v.rid);
-
     let ok = false;
-    for (const rid of sorted) {
+    for (const rid of options) {
       const checkpoint = ops.length;
       if (useRecipe(rid)) {
         ok = true;

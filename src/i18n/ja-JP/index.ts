@@ -61,6 +61,18 @@ export default {
   recipeViewPanel: '中央パネル',
   recipeSlotShowName: 'レシピスロットにアイテム名を表示',
   favoritesOpenStack: 'お気に入りでナビ履歴を作成',
+  packImageProxyTitle: 'パック画像プロキシ',
+  packImageProxyUsePackProvided: 'パック提供のプロキシURLを使う',
+  packImageProxyPackUrl: 'パックのプロキシURL',
+  packImageProxyUnavailable: '現在のパックでは未提供',
+  packImageProxyUseDev: 'Dev プロキシモードを有効化',
+  packImageProxyPackDevUrl: 'パックの Dev プロキシURL',
+  packImageProxyDevUrl: 'Dev プロキシURL',
+  packImageProxyUseManual: '手動プロキシURLを使う',
+  packImageProxyManualUrl: '手動プロキシURL',
+  packImageProxyAccessToken: 'Access Token',
+  packImageProxyAnonymousToken: 'Anonymous Token',
+  packImageProxyFrameworkToken: 'Framework Token',
   close: '閉じる',
 
   // Context Menu

@@ -4,7 +4,7 @@
     :class="[variantClass, { 'is-loading': isLoading, 'has-error': hasError }]"
   >
     <img
-      v-if="!hasError"
+      v-if="!hasError && effectiveUrl"
       :src="effectiveUrl"
       :alt="alt"
       :style="imageStyle"
@@ -35,6 +35,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
+import { useRuntimeImageUrl } from 'src/jei/pack/runtimeImage';
 
 const props = defineProps<{
   url: string;
@@ -59,7 +60,7 @@ const proxyUrl = computed(() => {
   return proxy.endsWith('/') ? proxy : `${proxy}/`;
 });
 
-const effectiveUrl = computed(() => {
+const effectiveUrlRaw = computed(() => {
   if (!currentUseProxy.value || !proxyUrl.value || !originalUrl.value) {
     return originalUrl.value;
   }
@@ -67,6 +68,7 @@ const effectiveUrl = computed(() => {
   const encodedUrl = encodeURIComponent(originalUrl.value);
   return `${proxyUrl.value}${encodedUrl}`;
 });
+const effectiveUrl = useRuntimeImageUrl(effectiveUrlRaw);
 
 const imageStyle = computed(() => {
   const style: Record<string, string> = {};

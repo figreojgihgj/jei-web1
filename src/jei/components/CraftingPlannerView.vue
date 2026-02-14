@@ -1253,8 +1253,7 @@ function recipeOptionsForDecision(d: Extract<PlannerDecision, { kind: 'item_reci
       const label = r ? `${recipeType?.displayName ?? r.type}` : recipeId;
       const inputs: Stack[] = r ? extractRecipeStacks(r, recipeType).inputs : [];
       return { label, value: recipeId, inputs, recipe: r, recipeType };
-    })
-    .sort((a, b) => a.label.localeCompare(b.label));
+    });
 }
 
 function tagItemOptions(d: Extract<PlannerDecision, { kind: 'tag_item' }>) {

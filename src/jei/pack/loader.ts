@@ -2,6 +2,7 @@ import type { ItemDef, PackData, PackManifest, PackTags, Recipe, RecipeTypeDef }
 import { stableJsonStringify } from 'src/jei/utils/stableJson';
 import { idbGetPackZip } from 'src/jei/utils/idb';
 import { assertItemDef, assertPackManifest, assertPackTags, assertRecipe, assertRecipeTypeDef } from './validate';
+import { applyImageProxyToItem, applyImageProxyToPack, ensurePackImageProxyTokens } from './imageProxy';
 import JSZip from 'jszip';
 
 async function fetchJson(url: string): Promise<unknown> {
@@ -14,6 +15,7 @@ async function fetchJson(url: string): Promise<unknown> {
 }
 
 const jsonArrayCache = new Map<string, Promise<unknown>>();
+const manifestCache = new Map<string, Promise<PackManifest>>();
 
 function packBaseUrl(packId: string): string {
   const safe = encodeURIComponent(packId);
@@ -65,6 +67,9 @@ function extractWikiData(items: ItemDef[]): Record<string, Record<string, unknow
 }
 
 async function loadManifest(packId: string): Promise<PackManifest> {
+  const cached = manifestCache.get(packId);
+  if (cached) return cached;
+  const task = (async () => {
   const base = packBaseUrl(packId);
   const raw = await fetchJson(`${base}/manifest.json`);
   const manifest = assertPackManifest(raw, '$.manifest');
@@ -72,6 +77,12 @@ async function loadManifest(packId: string): Promise<PackManifest> {
     throw new Error(`packId mismatch: requested "${packId}", manifest has "${manifest.packId}"`);
   }
   return manifest;
+  })().catch((err) => {
+    manifestCache.delete(packId);
+    throw err;
+  });
+  manifestCache.set(packId, task);
+  return task;
 }
 
 async function loadItems(base: string, manifest: PackManifest): Promise<ItemDef[]> {
@@ -302,7 +313,10 @@ export async function loadRuntimePack(packIdOrLocal: string): Promise<RuntimePac
     const zipBlob = await idbGetPackZip(localId);
     if (!zipBlob) throw new Error('Local pack zip not found');
     const { pack, assets } = await zipToPackData(zipBlob);
-    return resolveLocalPackAssetUrls(pack, assets);
+    const result = resolveLocalPackAssetUrls(pack, assets);
+    await ensurePackImageProxyTokens(result.pack.manifest);
+    applyImageProxyToPack(result.pack);
+    return result;
   }
 
   const pack = await loadPack(packIdOrLocal);
@@ -339,6 +353,8 @@ export async function loadPack(packId: string): Promise<PackData> {
   };
   if (tags !== undefined) out.tags = tags;
   if (Object.keys(wikiData).length > 0) out.wiki = wikiData;
+  await ensurePackImageProxyTokens(manifest);
+  applyImageProxyToPack(out);
   return out;
 }
 
@@ -371,6 +387,9 @@ export async function loadPackItemDetail(packId: string, detailPath: string): Pr
   }
 
   const item = assertItemDef(raw, '$.itemDetail');
+  const manifest = await loadManifest(packId);
+  await ensurePackImageProxyTokens(manifest);
+  applyImageProxyToItem(item as unknown as Record<string, unknown>, manifest);
   item.detailPath = normalizedPath;
   item.detailLoaded = true;
   return item;

@@ -15,6 +15,7 @@
     "test:run": "vitest run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
+    "typecheck:scripts": "tsc -p tsconfig.scripts.json",
     "sync:temp": "node scripts/sync-temp-files.mjs",
     "convert:wiki": "node scripts/convert-wiki-local.mjs",
     "extract:wiki:methods": "node scripts/extract-skland-methods.mjs",

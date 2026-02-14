@@ -61,6 +61,18 @@ export default {
   recipeViewPanel: '中间区域',
   recipeSlotShowName: '合成表物品显示名字',
   favoritesOpenStack: '收藏夹点击/快捷键创建导航栈',
+  packImageProxyTitle: '资源包图片代理',
+  packImageProxyUsePackProvided: '使用资源包提供的代理URL',
+  packImageProxyPackUrl: '资源包代理URL',
+  packImageProxyUnavailable: '当前资源包未提供',
+  packImageProxyUseDev: '启用 Dev 代理模式',
+  packImageProxyPackDevUrl: '资源包 Dev 代理URL',
+  packImageProxyDevUrl: 'Dev 代理URL',
+  packImageProxyUseManual: '使用普通(手动)代理',
+  packImageProxyManualUrl: '手动代理URL',
+  packImageProxyAccessToken: 'Access Token',
+  packImageProxyAnonymousToken: 'Anonymous Token',
+  packImageProxyFrameworkToken: 'Framework Token',
   close: '关闭',
 
   // Context Menu

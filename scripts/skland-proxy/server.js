@@ -37,13 +37,87 @@ function getClient(token = '') {
   return clients.get(key)
 }
 
+function getUrlFromRequest(req) {
+  const q = typeof req.query?.url === 'string' ? req.query.url.trim() : ''
+  const h = typeof req.headers['x-url'] === 'string' ? req.headers['x-url'].trim() : ''
+  return q || h
+}
+
+function isHttpUrl(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+async function proxyRawResponse(url, req, res) {
+  const upstream = await fetch(url, {
+    method: req.method,
+    headers: {
+      'user-agent': req.headers['user-agent'] || 'jei-web-skland-proxy/1.0',
+      'accept': req.headers.accept || '*/*'
+    },
+    redirect: 'follow'
+  })
+
+  if (!upstream.ok) {
+    return res.status(upstream.status).json({
+      success: false,
+      error: `上游请求失败: HTTP ${upstream.status}`,
+      url
+    })
+  }
+
+  const contentType = upstream.headers.get('content-type')
+  const contentLength = upstream.headers.get('content-length')
+  const cacheControl = upstream.headers.get('cache-control')
+
+  if (contentType) res.setHeader('Content-Type', contentType)
+  if (contentLength) res.setHeader('Content-Length', contentLength)
+  if (cacheControl) res.setHeader('Cache-Control', cacheControl)
+  else res.setHeader('Cache-Control', 'public, max-age=3600')
+
+  const data = Buffer.from(await upstream.arrayBuffer())
+  return res.status(200).send(data)
+}
+
+async function handleProxyImageRequest(req, res) {
+  try {
+    const url = getUrlFromRequest(req)
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        error: 'url query 或 X-Url header 是必需的'
+      })
+    }
+    if (!isHttpUrl(url)) {
+      return res.status(400).json({
+        success: false,
+        error: 'url 必须是 http/https'
+      })
+    }
+    return await proxyRawResponse(url, req, res)
+  } catch (error) {
+    console.error('图片代理失败:', error)
+    return res.status(500).json({
+      success: false,
+      error: error.message || '图片代理失败'
+    })
+  }
+}
+
+app.get('/api/proxy/image', handleProxyImageRequest)
+
 // 代理请求到 Skland API
 app.get('/proxy-request', async (req, res) => {
   try {
     const method = req.headers['x-method'] || 'GET'
-    const url = req.headers['x-url']
+    const url = getUrlFromRequest(req)
     const token = req.headers['x-token'] || ''
     const dataHeader = req.headers['x-data']
+    const fromQuery = typeof req.query?.url === 'string' && req.query.url.trim() !== ''
 
     let data = null
     if (dataHeader) {
@@ -60,8 +134,20 @@ app.get('/proxy-request', async (req, res) => {
     if (!url) {
       return res.status(400).json({
         success: false,
-        error: 'X-Url header 是必需的'
+        error: 'url query 或 X-Url header 是必需的'
       })
+    }
+
+    if (!isHttpUrl(url)) {
+      return res.status(400).json({
+        success: false,
+        error: 'url 必须是 http/https'
+      })
+    }
+
+    // 浏览器 <img> 无法设置 X-Url header，支持 ?url= 直接透传响应。
+    if (fromQuery) {
+      return await proxyRawResponse(url, req, res)
     }
 
     const client = getClient(token)

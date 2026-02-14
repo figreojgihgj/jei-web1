@@ -10,6 +10,14 @@ export interface ItemKey {
   nbt?: unknown;
 }
 
+export interface ItemRarity {
+  stars: number;
+  label?: string;
+  color?: string;
+  token?: string;
+  tagId?: string;
+}
+
 export interface ItemDef {
   key: ItemKey;
   name: string;
@@ -23,6 +31,7 @@ export interface ItemDef {
   tags?: string[];
   source?: string;
   description?: string;
+  rarity?: ItemRarity;
   belt?: {
     speed: number;
   };
@@ -82,6 +91,7 @@ export interface RecipeTypeDef {
   key: string;
   displayName: string;
   renderer: string;
+  plannerPriority?: number;
   machine?: RecipeTypeMachine | RecipeTypeMachine[];
   slots?: SlotDef[];
   paramSchema?: Record<string, ParamSchemaEntry>;
@@ -117,6 +127,7 @@ export interface ItemDef {
   tags?: string[];
   source?: string;
   description?: string;
+  rarity?: ItemRarity;
   belt?: {
     speed: number;
   };
@@ -160,6 +171,26 @@ export interface PackManifest {
     message: string;
     confirmText?: string;
     title?: string;
+  };
+  imageProxy?: {
+    enabled?: boolean;
+    urlTemplate: string;
+    devUrlTemplate?: string;
+    domains?: string[];
+    tokenQuery?: {
+      enabled?: boolean;
+      accessTokenStorageKey?: string;
+      anonymousTokenStorageKey?: string;
+      frameworkTokenStorageKey?: string;
+      accessTokenParam?: string;
+      anonymousTokenParam?: string;
+      frameworkTokenParam?: string;
+      anonymousTokenEndpoint?: string;
+      anonymousTokenMethod?: 'GET' | 'POST';
+      anonymousTokenHeaders?: Record<string, string>;
+      anonymousTokenRequestBody?: Record<string, unknown>;
+      anonymousTokenResponsePath?: string;
+    };
   };
 }
 

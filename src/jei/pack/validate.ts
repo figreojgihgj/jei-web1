@@ -111,6 +111,22 @@ export function assertItemDef(value: unknown, jsonPath: string): ItemDef {
   }
   const source = assertOptionalString(obj.source, `${jsonPath}.source`);
   const description = assertOptionalString(obj.description, `${jsonPath}.description`);
+  const rarityRaw = assertOptionalRecord(obj.rarity, `${jsonPath}.rarity`);
+  let rarity: ItemDef['rarity'];
+  if (rarityRaw !== undefined) {
+    const stars = assertNumber(rarityRaw.stars, `${jsonPath}.rarity.stars`);
+    const label = assertOptionalString(rarityRaw.label, `${jsonPath}.rarity.label`);
+    const color = assertOptionalString(rarityRaw.color, `${jsonPath}.rarity.color`);
+    const token = assertOptionalString(rarityRaw.token, `${jsonPath}.rarity.token`);
+    const tagId = assertOptionalString(rarityRaw.tagId, `${jsonPath}.rarity.tagId`);
+    rarity = {
+      stars,
+      ...(label !== undefined ? { label } : {}),
+      ...(color !== undefined ? { color } : {}),
+      ...(token !== undefined ? { token } : {}),
+      ...(tagId !== undefined ? { tagId } : {}),
+    };
+  }
   const detailPath = assertOptionalString(obj.detailPath, `${jsonPath}.detailPath`);
   const wikiRaw = assertOptionalRecord(obj.wiki, `${jsonPath}.wiki`);
   const recipesRaw = assertOptionalArray(obj.recipes, `${jsonPath}.recipes`);
@@ -125,6 +141,7 @@ export function assertItemDef(value: unknown, jsonPath: string): ItemDef {
   if (tags !== undefined) def.tags = tags;
   if (source !== undefined) def.source = source;
   if (description !== undefined) def.description = description;
+  if (rarity !== undefined) def.rarity = rarity;
   if (detailPath !== undefined) def.detailPath = detailPath;
   if (belt !== undefined) def.belt = belt;
   if (wikiRaw !== undefined) def.wiki = wikiRaw;
@@ -240,12 +257,18 @@ export function assertRecipeTypeDef(value: unknown, jsonPath: string): RecipeTyp
   if (defaultsRaw !== undefined) {
     defaults = assertRecord(defaultsRaw, `${jsonPath}.defaults`);
   }
+  const plannerPriorityRaw = obj.plannerPriority;
+  let plannerPriority: number | undefined;
+  if (plannerPriorityRaw !== undefined) {
+    plannerPriority = assertNumber(plannerPriorityRaw, `${jsonPath}.plannerPriority`);
+  }
 
   const out: RecipeTypeDef = {
     key: assertString(obj.key, `${jsonPath}.key`),
     displayName: assertString(obj.displayName, `${jsonPath}.displayName`),
     renderer: assertString(obj.renderer, `${jsonPath}.renderer`),
   };
+  if (plannerPriority !== undefined) out.plannerPriority = plannerPriority;
   if (machine !== undefined) out.machine = machine;
   if (slots !== undefined) out.slots = slots;
   if (paramSchema !== undefined) out.paramSchema = paramSchema;
@@ -258,11 +281,16 @@ export function assertRecipe(value: unknown, jsonPath: string): Recipe {
   const slotContentsRaw = assertRecord(obj.slotContents, `${jsonPath}.slotContents`);
   const slotContents: Record<string, SlotContent> = {};
   Object.keys(slotContentsRaw).forEach((slotId) => {
-    slotContents[slotId] = assertSlotContent(slotContentsRaw[slotId], `${jsonPath}.slotContents.${slotId}`);
+    slotContents[slotId] = assertSlotContent(
+      slotContentsRaw[slotId],
+      `${jsonPath}.slotContents.${slotId}`,
+    );
   });
 
   const inlineItemsRaw = assertOptionalArray(obj.inlineItems, `${jsonPath}.inlineItems`);
-  const inlineItems = inlineItemsRaw?.map((it, i) => assertItemDef(it, `${jsonPath}.inlineItems[${i}]`));
+  const inlineItems = inlineItemsRaw?.map((it, i) =>
+    assertItemDef(it, `${jsonPath}.inlineItems[${i}]`),
+  );
 
   const paramsRaw = obj.params;
   let params: Record<string, unknown> | undefined;
@@ -307,7 +335,10 @@ export function assertPackManifest(value: unknown, jsonPath: string): PackManife
 
   if (isRecord(obj.startupDialog)) {
     const d = obj.startupDialog;
-    const confirmText = assertOptionalString(d.confirmText, `${jsonPath}.startupDialog.confirmText`);
+    const confirmText = assertOptionalString(
+      d.confirmText,
+      `${jsonPath}.startupDialog.confirmText`,
+    );
     const title = assertOptionalString(d.title, `${jsonPath}.startupDialog.title`);
 
     const startupDialog: PackManifest['startupDialog'] = {
@@ -320,10 +351,120 @@ export function assertPackManifest(value: unknown, jsonPath: string): PackManife
     out.startupDialog = startupDialog;
   }
 
+  if (isRecord(obj.imageProxy)) {
+    const ip = obj.imageProxy;
+    const enabledRaw = ip.enabled;
+    if (enabledRaw !== undefined && typeof enabledRaw !== 'boolean') {
+      throw new PackValidationError(`${jsonPath}.imageProxy.enabled`, 'expected boolean');
+    }
+    const urlTemplate = assertString(ip.urlTemplate, `${jsonPath}.imageProxy.urlTemplate`);
+    const devUrlTemplate = assertOptionalString(
+      ip.devUrlTemplate,
+      `${jsonPath}.imageProxy.devUrlTemplate`,
+    );
+    const domainsRaw = assertOptionalArray(ip.domains, `${jsonPath}.imageProxy.domains`);
+    const domains = domainsRaw?.map((v, i) =>
+      assertString(v, `${jsonPath}.imageProxy.domains[${i}]`),
+    );
+
+    let tokenQuery: NonNullable<PackManifest['imageProxy']>['tokenQuery'];
+    if (isRecord(ip.tokenQuery)) {
+      const tq = ip.tokenQuery;
+      const tqEnabledRaw = tq.enabled;
+      if (tqEnabledRaw !== undefined && typeof tqEnabledRaw !== 'boolean') {
+        throw new PackValidationError(`${jsonPath}.imageProxy.tokenQuery.enabled`, 'expected boolean');
+      }
+      const accessTokenStorageKey = assertOptionalString(
+        tq.accessTokenStorageKey,
+        `${jsonPath}.imageProxy.tokenQuery.accessTokenStorageKey`,
+      );
+      const anonymousTokenStorageKey = assertOptionalString(
+        tq.anonymousTokenStorageKey,
+        `${jsonPath}.imageProxy.tokenQuery.anonymousTokenStorageKey`,
+      );
+      const frameworkTokenStorageKey = assertOptionalString(
+        tq.frameworkTokenStorageKey,
+        `${jsonPath}.imageProxy.tokenQuery.frameworkTokenStorageKey`,
+      );
+      const accessTokenParam = assertOptionalString(
+        tq.accessTokenParam,
+        `${jsonPath}.imageProxy.tokenQuery.accessTokenParam`,
+      );
+      const anonymousTokenParam = assertOptionalString(
+        tq.anonymousTokenParam,
+        `${jsonPath}.imageProxy.tokenQuery.anonymousTokenParam`,
+      );
+      const frameworkTokenParam = assertOptionalString(
+        tq.frameworkTokenParam,
+        `${jsonPath}.imageProxy.tokenQuery.frameworkTokenParam`,
+      );
+      const anonymousTokenEndpoint = assertOptionalString(
+        tq.anonymousTokenEndpoint,
+        `${jsonPath}.imageProxy.tokenQuery.anonymousTokenEndpoint`,
+      );
+      const anonymousTokenMethodRaw = assertOptionalString(
+        tq.anonymousTokenMethod,
+        `${jsonPath}.imageProxy.tokenQuery.anonymousTokenMethod`,
+      );
+      const anonymousTokenMethod =
+        anonymousTokenMethodRaw?.toUpperCase() === 'POST' ? 'POST' : 'GET';
+
+      const headersRaw = assertOptionalRecord(
+        tq.anonymousTokenHeaders,
+        `${jsonPath}.imageProxy.tokenQuery.anonymousTokenHeaders`,
+      );
+      let anonymousTokenHeaders: Record<string, string> | undefined;
+      if (headersRaw !== undefined) {
+        anonymousTokenHeaders = {};
+        Object.keys(headersRaw).forEach((k) => {
+          anonymousTokenHeaders![k] = assertString(
+            headersRaw[k],
+            `${jsonPath}.imageProxy.tokenQuery.anonymousTokenHeaders.${k}`,
+          );
+        });
+      }
+
+      const anonymousTokenRequestBody = assertOptionalRecord(
+        tq.anonymousTokenRequestBody,
+        `${jsonPath}.imageProxy.tokenQuery.anonymousTokenRequestBody`,
+      );
+      const anonymousTokenResponsePath = assertOptionalString(
+        tq.anonymousTokenResponsePath,
+        `${jsonPath}.imageProxy.tokenQuery.anonymousTokenResponsePath`,
+      );
+
+      tokenQuery = {
+        ...(tqEnabledRaw !== undefined ? { enabled: tqEnabledRaw } : {}),
+        ...(accessTokenStorageKey !== undefined ? { accessTokenStorageKey } : {}),
+        ...(anonymousTokenStorageKey !== undefined ? { anonymousTokenStorageKey } : {}),
+        ...(frameworkTokenStorageKey !== undefined ? { frameworkTokenStorageKey } : {}),
+        ...(accessTokenParam !== undefined ? { accessTokenParam } : {}),
+        ...(anonymousTokenParam !== undefined ? { anonymousTokenParam } : {}),
+        ...(frameworkTokenParam !== undefined ? { frameworkTokenParam } : {}),
+        ...(anonymousTokenEndpoint !== undefined ? { anonymousTokenEndpoint } : {}),
+        ...(anonymousTokenMethodRaw !== undefined ? { anonymousTokenMethod } : {}),
+        ...(anonymousTokenHeaders !== undefined ? { anonymousTokenHeaders } : {}),
+        ...(anonymousTokenRequestBody !== undefined ? { anonymousTokenRequestBody } : {}),
+        ...(anonymousTokenResponsePath !== undefined ? { anonymousTokenResponsePath } : {}),
+      };
+    }
+
+    out.imageProxy = {
+      ...(enabledRaw !== undefined ? { enabled: enabledRaw } : {}),
+      urlTemplate,
+      ...(devUrlTemplate !== undefined ? { devUrlTemplate } : {}),
+      ...(domains !== undefined ? { domains } : {}),
+      ...(tokenQuery !== undefined ? { tokenQuery } : {}),
+    };
+  }
+
   return out;
 }
 
-function assertTagValue(value: unknown, jsonPath: string): string | { id: string; required?: boolean } {
+function assertTagValue(
+  value: unknown,
+  jsonPath: string,
+): string | { id: string; required?: boolean } {
   if (typeof value === 'string') return value;
   const obj = assertRecord(value, jsonPath);
   const id = assertString(obj.id, `${jsonPath}.id`);
