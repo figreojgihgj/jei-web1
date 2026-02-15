@@ -246,6 +246,7 @@ import { computed, provide } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { PackData, ItemDef, ItemKey } from 'src/jei/types';
 import type { JeiIndex } from 'src/jei/indexing/buildIndex';
+import { itemKeyHash } from 'src/jei/indexing/key';
 import type { PlannerInitialState, PlannerLiveState } from 'src/jei/planner/plannerUi';
 import { useSettingsStore } from 'src/stores/settings';
 import StackView from 'src/jei/components/StackView.vue';
@@ -366,12 +367,9 @@ const wikiCatalogMap = computed<CatalogItemMap>(() => {
 const imageUseProxy = computed(() => settingsStore.wikiImageUseProxy);
 const imageProxyUrl = computed(() => settingsStore.wikiImageProxyUrl);
 
-provide('wikiCatalogMap', wikiCatalogMap);
-provide('wikiImageUseProxy', imageUseProxy);
-provide('wikiImageProxyUrl', imageProxyUrl);
-
-defineEmits<{
+const emit = defineEmits<{
   'item-click': [keyHash: ItemKey];
+  'wiki-item-click': [keyHash: ItemKey];
   'machine-item-click': [itemId: string];
   'save-plan': [payload: any]; // eslint-disable-line @typescript-eslint/no-explicit-any
   'state-change': [state: PlannerLiveState];
@@ -381,6 +379,28 @@ defineEmits<{
   'item-touch-hold': [evt: unknown, keyHash: string];
   'update:active-type-key': [typeKey: string];
 }>();
+
+function handleWikiEntryNavigate(itemId: string) {
+  const id = String(itemId || '').trim();
+  if (!id) return;
+
+  const directDef = props.itemDefsByKeyHash[itemKeyHash({ id })];
+  if (directDef) {
+    emit('wiki-item-click', directDef.key);
+    return;
+  }
+
+  const firstKeyHash = props.index?.itemKeyHashesByItemId.get(id)?.[0];
+  if (!firstKeyHash) return;
+  const def = props.index?.itemsByKeyHash.get(firstKeyHash);
+  if (!def) return;
+  emit('wiki-item-click', def.key);
+}
+
+provide('wikiCatalogMap', wikiCatalogMap);
+provide('wikiImageUseProxy', imageUseProxy);
+provide('wikiImageProxyUrl', imageProxyUrl);
+provide('wikiEntryNavigate', handleWikiEntryNavigate);
 </script>
 
 <style scoped>

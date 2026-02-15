@@ -38,6 +38,7 @@ const props = defineProps<{
 const catalogMap = inject<Ref<CatalogItemMap>>('wikiCatalogMap', ref({} as CatalogItemMap));
 const useProxyRef = inject<Ref<boolean>>('wikiImageUseProxy', ref(false));
 const proxyUrlRef = inject<Ref<string>>('wikiImageProxyUrl', ref(''));
+const wikiEntryNavigate = inject<(itemId: string) => void>('wikiEntryNavigate', () => undefined);
 
 const entryId = computed(() => String(props.element.entry.id ?? '').trim());
 
@@ -95,8 +96,9 @@ const useProxy = computed(() => useProxyRef.value);
 const proxyUrl = computed(() => proxyUrlRef.value);
 
 function handleClick() {
-  console.log('Navigate to entry:', props.element.entry.id);
-  // TODO: 实现导航逻辑
+  const id = stackItemId.value;
+  if (!id) return;
+  wikiEntryNavigate(id);
 }
 
 function resolveIconUrl(url: string): string {

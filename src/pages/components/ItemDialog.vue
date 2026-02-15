@@ -50,6 +50,7 @@
           :planner-initial-state="plannerInitialState"
           :planner-tab="plannerTab"
           @item-click="$emit('item-click', $event)"
+          @wiki-item-click="$emit('wiki-item-click', $event)"
           @machine-item-click="$emit('machine-item-click', $event)"
           @save-plan="$emit('save-plan', $event)"
           @state-change="$emit('state-change', $event)"
@@ -112,6 +113,7 @@ defineEmits<{
   'update:active-type-key': [typeKey: string];
   close: [];
   'item-click': [keyHash: ItemKey];
+  'wiki-item-click': [keyHash: ItemKey];
   'machine-item-click': [itemId: string];
   'save-plan': [payload: any]; // eslint-disable-line @typescript-eslint/no-explicit-any
   'state-change': [state: PlannerLiveState];

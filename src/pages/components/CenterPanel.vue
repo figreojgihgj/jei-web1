@@ -104,6 +104,7 @@
                 :planner-tab="plannerTab ?? 'tree'"
                 panel-class="jei-panel__panels"
                 @item-click="$emit('item-click', $event)"
+                @wiki-item-click="$emit('wiki-item-click', $event)"
                 @machine-item-click="$emit('machine-item-click', $event)"
                 @save-plan="$emit('save-plan', $event)"
                 @state-change="$emit('state-change', $event)"
@@ -199,6 +200,7 @@ defineEmits<{
   'go-back': [];
   close: [];
   'item-click': [keyHash: ItemKey];
+  'wiki-item-click': [keyHash: ItemKey];
   'machine-item-click': [itemId: string];
   'save-plan': [payload: any]; // eslint-disable-line @typescript-eslint/no-explicit-any
   'state-change': [state: PlannerLiveState];

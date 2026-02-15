@@ -1,16 +1,22 @@
 # About
 
 ## Build
-- Version: 49c4900-dirty
-- Commit: 49c4900 (49c4900be284001bde8bd5851bebd7d55f96b17b)
-- Commit count: 72
-- Subject: 支持了aef skland wiki 数据包
+- Version: b422a48-dirty
+- Commit: b422a48 (b422a48d1e3a95a33385d8d9570d744786b421ae)
+- Commit count: 73
+- Subject: feat: 添加终末地-协议终端链接到主布局和编辑布局 docs: 更新关于文件以反映最新版本和提交信息 docs: 添加aef-skland数据源信息到第三方许可证文件
 - Author: AndreaFrederica
-- Date: 2026-02-15T07:57:06+08:00
-- Generated at: 2026-02-15T00:21:55.927Z
+- Date: 2026-02-15T08:25:54+08:00
+- Generated at: 2026-02-15T12:37:52.323Z
 - Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History
+
+### r73 (2026-02-15T08:25:54+08:00)
+- b422a48
+  feat: 添加终末地-协议终端链接到主布局和编辑布局
+  docs: 更新关于文件以反映最新版本和提交信息
+  docs: 添加aef-skland数据源信息到第三方许可证文件
 
 ### r72 (2026-02-15T07:57:06+08:00)
 - 49c4900
