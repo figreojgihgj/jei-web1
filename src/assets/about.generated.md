@@ -1,44 +1,88 @@
 # About
 
 ## Build
-- Version: d855121-dirty
-- Commit: d855121 (d8551214ce5601ed9f93b36f5ccbb8663d32005d)
-- Commit count: 83
-- Subject: Update main.yml
-- Author: figreojgihgj
-- Date: 2026-02-16T23:26:49+08:00
-- Generated at: 2026-02-16T07:28:49.027Z
-- Remote: https://github.com/figreojgihgj/jei-web1.git
+- Version: 0f4e6e4-dirty
+- Commit: 0f4e6e4 (0f4e6e4960ea10dd7348feca9506c002d0aa902a)
+- Commit count: 91
+- Subject: fix(circuit-puzzle): 修复页面高度和滚动区域布局问题
+- Author: AndreaFrederica
+- Date: 2026-02-17T01:34:27+08:00
+- Generated at: 2026-02-16T19:33:50.683Z
+- Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History
 
-### r83 (2026-02-16T23:26:49+08:00)
+### r91 (2026-02-17T01:34:27+08:00)
+- 0f4e6e4
+  fix(circuit-puzzle): 修复页面高度和滚动区域布局问题
+  
+  - 动态计算页面可用高度，减去顶部导航栏高度
+  - 为列表和详情区域添加独立的滚动容器，避免整体页面滚动
+  - 优化CSS布局，使用flex布局确保内容区域正确伸缩
+
+### r90 (2026-02-17T01:01:36+08:00)
+- 8de1157
+  Merge branch 'master' of https://github.com/AndreaFrederica/jei-web
+
+### r89 (2026-02-17T01:01:30+08:00)
+- f383104
+  chore: 更新图标文件 icon.af
+
+### r88 (2026-02-17T01:00:47+08:00)
+- c9ca316
+  feat(circuit-puzzle): 重构方块面板并添加收藏功能
+  
+  - 将方块面板 UI 逻辑提取为独立组件 CircuitPuzzlePiecePanel
+  - 新增收藏功能，支持保存、导入和移除常用方块
+  - 添加面板垂直分栏布局，支持拖拽调整比例
+  - 提取编辑器工具函数至独立模块 editor-utils
+  - 在设置存储中增加面板分栏比例持久化支持
+
+### r87 (2026-02-17T00:56:37+08:00)
+- fbbb3ee
+  Merge pull request #3 from figreojgihgj/master
+  
+  添加镜像
+
+### r86 (2026-02-16T23:40:06+08:00)
+- 626040c
+  Delete .github directory
+
+### r85 (2026-02-16T23:39:56+08:00)
+- ac8f513
+  Delete sync-fork.yml
+
+### r84 (2026-02-16T22:54:32+08:00)
+- 3cd04c6
+  fix: 移除predev脚本中的sync:temp命令以简化开发流程
+
+### r83 (2026-02-16T15:34:17+08:00)
+- fc721c5
+  修改镜像信息
+
+### r82 (2026-02-16T23:26:49+08:00)
 - d855121
   Update main.yml
 
-### r82 (2026-02-16T23:25:50+08:00)
+### r81 (2026-02-16T23:25:50+08:00)
 - f17738a
   Delete .github/workflows/sync.yml
 
-### r81 (2026-02-16T23:23:35+08:00)
+### r80 (2026-02-16T23:23:35+08:00)
 - d4f3cab
   Create sync.yml
 
-### r80 (2026-02-16T23:20:30+08:00)
+### r79 (2026-02-16T23:20:30+08:00)
 - e65178b
   Create main.yml
 
-### r79 (2026-02-16T15:19:20+08:00)
+### r78 (2026-02-16T15:19:20+08:00)
 - 57e43bb
   action
 
-### r78 (2026-02-16T23:13:02+08:00)
+### r77 (2026-02-16T23:13:02+08:00)
 - 106d8e8
   Merge branch 'AndreaFrederica:master' into master
-
-### r77 (2026-02-16T22:54:32+08:00)
-- 3cd04c6
-  fix: 移除predev脚本中的sync:temp命令以简化开发流程
 
 ### r76 (2026-02-16T12:02:40+08:00)
 - f3187ed

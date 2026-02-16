@@ -1,5 +1,9 @@
 <template>
-  <div class="wiki-image-block">
+  <div
+    class="wiki-image-block"
+    :class="{ 'wiki-image-block--clickable': canOpen }"
+    @click="handleOpen"
+  >
     <ImageLoader v-bind="imageLoaderProps" />
     <div v-if="block.image.description" class="image-description">
       {{ block.image.description }}
@@ -19,6 +23,10 @@ const { block } = defineProps<{
 // 从父组件注入代理配置
 const useProxyRef = inject<Ref<boolean>>('wikiImageUseProxy', ref(false));
 const proxyUrlRef = inject<Ref<string>>('wikiImageProxyUrl', ref(''));
+const openImageViewer = inject<(src: string, name?: string) => void>(
+  'wikiImageOpen',
+  () => undefined,
+);
 
 const imageLoaderProps = computed(() => {
   const base = {
@@ -38,12 +46,23 @@ const imageLoaderProps = computed(() => {
 
   return base;
 });
+
+const canOpen = computed(() => Boolean(block.image.url));
+
+function handleOpen() {
+  if (!block.image.url) return;
+  openImageViewer(block.image.url, block.image.description || '');
+}
 </script>
 
 <style scoped lang="scss">
 .wiki-image-block {
   margin: 1.5em 0;
   text-align: center;
+}
+
+.wiki-image-block--clickable {
+  cursor: pointer;
 }
 
 .wiki-image {

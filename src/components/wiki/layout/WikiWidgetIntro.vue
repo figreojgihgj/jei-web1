@@ -1,6 +1,6 @@
 <template>
   <div v-if="intro" class="widget-intro">
-    <div v-if="intro.imgUrl" class="intro-media">
+    <div v-if="intro.imgUrl" class="intro-media" @click="handleIntroImageClick">
       <ImageLoader
         :url="intro.imgUrl"
         :alt="intro.name"
@@ -36,6 +36,10 @@ const props = defineProps<{
 
 const useProxyRef = inject<Ref<boolean>>('wikiImageUseProxy', ref(false));
 const proxyUrlRef = inject<Ref<string>>('wikiImageProxyUrl', ref(''));
+const openImageViewer = inject<(src: string, name?: string) => void>(
+  'wikiImageOpen',
+  () => undefined,
+);
 
 const useProxy = computed(() => useProxyRef.value);
 const proxyUrl = computed(() => proxyUrlRef.value);
@@ -44,6 +48,11 @@ const introDescriptionDocument = computed(() => {
   if (!props.intro?.description) return null;
   return props.documentMap[props.intro.description] || null;
 });
+
+function handleIntroImageClick() {
+  if (!props.intro?.imgUrl) return;
+  openImageViewer(props.intro.imgUrl, props.intro.name || '');
+}
 </script>
 
 <style scoped lang="scss">
@@ -61,6 +70,7 @@ const introDescriptionDocument = computed(() => {
   flex-shrink: 0;
   border-radius: 8px;
   overflow: hidden;
+  cursor: pointer;
   // background: #f5f5f5;
 
   img {

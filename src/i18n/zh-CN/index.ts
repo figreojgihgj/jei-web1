@@ -30,7 +30,7 @@ export default {
   tabsAdvanced: '高级计划器',
 
   // Center Panel
-  recipeViewer: '合成查看器',
+  recipeViewer: '资料查看器',
   advancedPlanner: '高级计划器',
   middleArea: '中间区域',
   middleAreaDesc: '右侧是物品列表，左侧是收藏夹；点击物品打开悬浮窗。',

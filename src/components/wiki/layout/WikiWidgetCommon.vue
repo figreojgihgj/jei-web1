@@ -11,16 +11,21 @@
         :dark="$q.dark.isActive"
       >
         <q-tab v-for="tab in tabs" :key="tab.key" :name="tab.key" :label="tab.title">
-          <ImageLoader
+          <span
             v-if="tab.icon"
-            :url="tab.icon"
-            :alt="tab.title"
-            :max-width="24"
-            :use-proxy="useProxy"
-            :proxy-url="proxyUrl"
-            variant="inline"
-            class="tab-icon"
-          />
+            class="tab-icon-wrapper"
+            @click.stop="handleIconClick(tab.icon, tab.title)"
+          >
+            <ImageLoader
+              :url="tab.icon"
+              :alt="tab.title"
+              :max-width="24"
+              :use-proxy="useProxy"
+              :proxy-url="proxyUrl"
+              variant="inline"
+              class="tab-icon"
+            />
+          </span>
         </q-tab>
       </q-tabs>
 
@@ -37,16 +42,21 @@
       <template v-for="panel in panels" :key="panel.key">
         <div class="stack-panel">
           <div v-if="panel.title || panel.icon" class="stack-title">
-            <ImageLoader
+            <span
               v-if="panel.icon"
-              :url="panel.icon"
-              :alt="panel.title"
-              :max-width="24"
-              :use-proxy="useProxy"
-              :proxy-url="proxyUrl"
-              variant="inline"
-              class="tab-icon"
-            />
+              class="tab-icon-wrapper"
+              @click.stop="handleIconClick(panel.icon, panel.title)"
+            >
+              <ImageLoader
+                :url="panel.icon"
+                :alt="panel.title"
+                :max-width="24"
+                :use-proxy="useProxy"
+                :proxy-url="proxyUrl"
+                variant="inline"
+                class="tab-icon"
+              />
+            </span>
             <span>{{ panel.title }}</span>
           </div>
 
@@ -74,6 +84,10 @@ const props = defineProps<{
 
 const useProxyRef = inject<Ref<boolean>>('wikiImageUseProxy', ref(false));
 const proxyUrlRef = inject<Ref<string>>('wikiImageProxyUrl', ref(''));
+const openImageViewer = inject<(src: string, name?: string) => void>(
+  'wikiImageOpen',
+  () => undefined,
+);
 const $q = useQuasar();
 
 const useProxy = computed(() => useProxyRef.value);
@@ -103,6 +117,11 @@ function buildTitle(tabId: string, title: string, index: number): string {
   if (tabData?.intro?.name) return tabData.intro.name;
   if (tabData?.intro?.type) return tabData.intro.type;
   return `Tab ${index + 1}`;
+}
+
+function handleIconClick(url: string, title?: string) {
+  if (!url) return;
+  openImageViewer(url, title);
 }
 
 const panels = computed<Panel[]>(() => {
@@ -198,6 +217,12 @@ watch(
   height: 24px;
   object-fit: contain;
   margin-right: 0.5rem;
+}
+
+.tab-icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
 }
 
 .stack-panels {

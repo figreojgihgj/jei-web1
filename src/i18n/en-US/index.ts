@@ -30,7 +30,7 @@ export default {
   tabsAdvanced: 'Advanced Planner',
 
   // Center Panel
-  recipeViewer: 'Recipe Viewer',
+  recipeViewer: 'Info Viewer',
   advancedPlanner: 'Advanced Planner',
   middleArea: 'Center Panel',
   middleAreaDesc: 'Right side is item list, left side is favorites; click item to open popup.',

@@ -237,7 +237,7 @@ const stageNames: Record<string, string> = {
   welcome: '欢迎',
   sidebar: '侧边栏',
   itemList: '物品列表',
-  recipeViewer: '配方查看',
+  recipeViewer: '资料查看器',
   planner: '计划器',
   advancedPlanner: '高级计划',
   complete: '完成',

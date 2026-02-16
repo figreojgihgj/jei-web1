@@ -64,7 +64,7 @@
       <!-- 内容区域 - 使用 keep-alive 保持组件状态 -->
       <div class="col jei-panel__body">
         <q-tab-panels :model-value="centerTab" animated keep-alive class="jei-panel__tab-panels">
-          <!-- 合成查看器面板 -->
+          <!-- 资料查看器面板 -->
           <q-tab-panel name="recipe" class="q-pa-none jei-panel__tab-panel">
             <div v-if="navStackLength" class="jei-panel__tabs col-auto">
               <q-tabs

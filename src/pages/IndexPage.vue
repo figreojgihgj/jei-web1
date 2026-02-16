@@ -1552,7 +1552,7 @@ function openDialogByKeyHash(
   const def = index.value?.itemsByKeyHash.get(keyHash);
   if (!def) return;
 
-  // 如果当前在高级计划器，切换到合成查看器
+  // 如果当前在高级计划器，切换到资料查看器
   if (centerTab.value === 'advanced') {
     centerTab.value = 'recipe';
   }
@@ -1571,7 +1571,7 @@ function openDialogByItemKey(
   key: ItemKey,
   tab: 'recipes' | 'uses' | 'wiki' | 'planner' = 'recipes',
 ) {
-  // 如果当前在高级计划器，切换到合成查看器
+  // 如果当前在高级计划器，切换到资料查看器
   if (centerTab.value === 'advanced') {
     centerTab.value = 'recipe';
   }
@@ -1923,7 +1923,7 @@ function openSavedPlan(p: SavedPlan) {
     return;
   }
 
-  // 普通计划切换到合成查看器
+  // 普通计划切换到资料查看器
   centerTab.value = 'recipe';
   selectedKeyHash.value = p.rootKeyHash;
   navStack.value = [p.rootItemKey];

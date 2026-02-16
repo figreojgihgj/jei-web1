@@ -88,7 +88,11 @@
         <template v-else>
           <div v-if="currentItemDef.description">
             <div class="text-subtitle2 q-mb-sm">{{ t('description') }}</div>
-            <div class="wiki-description" v-html="renderedDescription"></div>
+            <div
+              class="wiki-description"
+              v-html="renderedDescription"
+              @click="handleWikiDescriptionClick"
+            ></div>
           </div>
           <q-separator v-if="currentItemDef.description" />
         </template>
@@ -104,6 +108,20 @@
         </div>
       </div>
     </div>
+
+    <q-dialog v-model="viewerOpen" maximized>
+      <q-card class="column" style="height: 100%">
+        <q-card-section class="row items-center">
+          <div class="text-subtitle1 ellipsis">{{ viewerName }}</div>
+          <q-space />
+          <q-btn flat round icon="close" v-close-popup />
+        </q-card-section>
+        <q-separator />
+        <q-card-section class="col q-pa-none">
+          <InlineImageViewer v-if="viewerSrc" :src="viewerSrc" :name="viewerName" />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
 
     <!-- Recipes/Uses 标签页 -->
     <div v-show="activeTab === 'recipes' || activeTab === 'uses'" :class="containerClass">
@@ -242,7 +260,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, provide } from 'vue';
+import { computed, provide, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { PackData, ItemDef, ItemKey } from 'src/jei/types';
 import type { JeiIndex } from 'src/jei/indexing/buildIndex';
@@ -254,6 +272,7 @@ import RecipeViewer from 'src/jei/components/RecipeViewer.vue';
 import CraftingPlannerView from 'src/jei/components/CraftingPlannerView.vue';
 import WikiDocument from 'src/components/wiki/WikiDocument.vue';
 import WikiChapterGroup from 'src/components/wiki/layout/WikiChapterGroup.vue';
+import InlineImageViewer from 'src/components/InlineImageViewer.vue';
 import type {
   ChapterGroup,
   Document,
@@ -366,6 +385,9 @@ const wikiCatalogMap = computed<CatalogItemMap>(() => {
 
 const imageUseProxy = computed(() => settingsStore.wikiImageUseProxy);
 const imageProxyUrl = computed(() => settingsStore.wikiImageProxyUrl);
+const viewerOpen = ref(false);
+const viewerSrc = ref('');
+const viewerName = ref('');
 
 const emit = defineEmits<{
   'item-click': [keyHash: ItemKey];
@@ -397,10 +419,27 @@ function handleWikiEntryNavigate(itemId: string) {
   emit('wiki-item-click', def.key);
 }
 
+function openViewer(src: string, name?: string) {
+  if (!src) return;
+  viewerSrc.value = src;
+  viewerName.value = name || '';
+  viewerOpen.value = true;
+}
+
+function handleWikiDescriptionClick(event: MouseEvent) {
+  const target = event.target;
+  if (!(target instanceof HTMLImageElement)) return;
+  if (target.closest('.stack-view') || target.closest('.entry-stack')) return;
+  const src = target.currentSrc || target.src;
+  if (!src) return;
+  openViewer(src, target.alt || target.title || '');
+}
+
 provide('wikiCatalogMap', wikiCatalogMap);
 provide('wikiImageUseProxy', imageUseProxy);
 provide('wikiImageProxyUrl', imageProxyUrl);
 provide('wikiEntryNavigate', handleWikiEntryNavigate);
+provide('wikiImageOpen', openViewer);
 </script>
 
 <style scoped>
