@@ -72,7 +72,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { ItemDef, ItemKey, SlotContent, Stack } from 'src/jei/types';
 import { itemKeyHash } from 'src/jei/indexing/key';
-import { isProxyImageUrl, useRuntimeImageUrl } from 'src/jei/pack/runtimeImage';
+import { isProxyImageUrl, useCachedImageUrl, useRuntimeImageUrl } from 'src/jei/pack/runtimeImage';
 
 const props = withDefaults(
   defineProps<{
@@ -121,7 +121,7 @@ const iconSrcRaw = computed(() => {
   const def = props.itemDefsByKeyHash[stackItemKeyHash(s)];
   return def?.icon ?? '';
 });
-const iconSrc = useRuntimeImageUrl(iconSrcRaw);
+const iconSrc = useCachedImageUrl(useRuntimeImageUrl(iconSrcRaw));
 
 const iconSprite = computed(() => {
   const s = stack.value;
@@ -130,7 +130,7 @@ const iconSprite = computed(() => {
   return def?.iconSprite;
 });
 const iconSpriteUrlRaw = computed(() => iconSprite.value?.url ?? '');
-const iconSpriteUrl = useRuntimeImageUrl(iconSpriteUrlRaw);
+const iconSpriteUrl = useCachedImageUrl(useRuntimeImageUrl(iconSpriteUrlRaw));
 
 const itemDef = computed<ItemDef | undefined>(() => {
   const s = stack.value;
