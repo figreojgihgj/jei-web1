@@ -203,6 +203,8 @@ export async function buildSklandPack(args: BuildArgs, repoRoot: string): Promis
 
   const itemIdToPackId = new Map<string, string>();
   const itemNameById = new Map<string, string>();
+  const itemIconById = new Map<string, string>();
+  const itemTagsById = new Map<string, string[]>();
   for (const rec of itemRecords) {
     const wikiItem = asRecord(asRecord(rec.payload.data).item);
     const name = asString(wikiItem.name || asRecord(wikiItem.brief).name);
@@ -252,6 +254,8 @@ export async function buildSklandPack(args: BuildArgs, repoRoot: string): Promis
     if (rec.mainName) tags.push(`main:${rec.mainName}`);
     if (rec.subName) tags.push(`sub:${rec.subName}`);
     if (rarity) tags.push(`rarity:${rarity.stars}`);
+    if (cover) itemIconById.set(itemId, cover);
+    if (tags.length) itemTagsById.set(itemId, tags);
 
     const itemDef: Record<string, unknown> = {
       key: { id: keyId },
@@ -283,6 +287,8 @@ export async function buildSklandPack(args: BuildArgs, repoRoot: string): Promis
     args,
     itemIdToPackId,
     itemNameById,
+    itemIconById,
+    itemTagsById,
     extraItemsById,
   });
 

@@ -1,25 +1,25 @@
 {
-  "generatedAt": "2026-02-14T23:44:37.469Z",
+  "generatedAt": "2026-02-16T22:09:03.034Z",
   "input": {
-    "infoRoot": "D:\\\\data\\\\skland\\\\info",
-    "methodsRoot": "D:\\\\data\\\\skland\\\\converted-methods"
+    "infoRoot": "D:\\data\\skland\\info",
+    "methodsRoot": "D:\\data\\skland\\converted-methods"
   },
   "output": "D:\\Projcets\\jei-web\\public\\packs\\aef-skland",
   "pack": {
     "packId": "aef-skland",
     "gameId": "aef-skland",
-    "displayName": "Skland Wiki",
-    "version": "2026-02-14"
+    "displayName": "Skland Wiki Pack",
+    "version": "2026-02-16"
   },
   "stats": {
-    "items": 1062,
+    "items": 1079,
     "baseItems": 1062,
-    "extraItems": 0,
+    "extraItems": 17,
     "recipeTypes": 36,
-    "recipes": 1997,
+    "recipes": 2015,
     "docRecipes": 1767,
     "downloadedImages": 0,
-    "dedupedRecipes": 295,
+    "dedupedRecipes": 305,
     "machineTypesPatched": 20,
     "machineTemplatesMatched": 16
   },
@@ -36,8 +36,8 @@
     },
     {
       "name": "device_recipe",
-      "recipeTypes": 15,
-      "recipes": 100
+      "recipeTypes": 17,
+      "recipes": 128
     },
     {
       "name": "source_doc",
@@ -51,7 +51,7 @@
     }
   ],
   "postprocess": {
-    "dedupedRecipes": 295,
+    "dedupedRecipes": 305,
     "machineTypesPatched": 20,
     "machineTemplatesMatched": 16
   }

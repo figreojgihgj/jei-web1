@@ -1,16 +1,36 @@
 # About
 
 ## Build
-- Version: 0f4e6e4-dirty
-- Commit: 0f4e6e4 (0f4e6e4960ea10dd7348feca9506c002d0aa902a)
-- Commit count: 91
-- Subject: fix(circuit-puzzle): 修复页面高度和滚动区域布局问题
+- Version: d070126-dirty
+- Commit: d070126 (d07012611a1e132a08db92dffaab448c7f9cd5ce)
+- Commit count: 93
+- Subject: feat(ui): 添加物品图标缓存及存储管理界面
 - Author: AndreaFrederica
-- Date: 2026-02-17T01:34:27+08:00
-- Generated at: 2026-02-16T19:33:50.683Z
+- Date: 2026-02-17T04:36:21+08:00
+- Generated at: 2026-02-16T21:33:24.744Z
 - Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History
+
+### r93 (2026-02-17T04:36:21+08:00)
+- d070126
+  feat(ui): 添加物品图标缓存及存储管理界面
+  
+  - 新增 `useCachedImageUrl` 组合函数，通过 IndexedDB 缓存远程图标并生成 Blob URL
+  - 扩展 IndexedDB 工具函数，支持图标缓存的增删改查及存储空间管理
+  - 在存储编辑器页面新增“物品图标缓存”和“IndexedDB”标签页
+    - 图标缓存页支持预览、搜索、清理及单个删除
+    - IndexedDB 页以树形结构展示所有存储空间及条目，支持按键名搜索和清理操作
+  - 优化 StackView 组件，对图标 URL 应用缓存机制以提升加载性能并减少网络请求
+
+### r92 (2026-02-17T03:44:03+08:00)
+- 3c6276c
+  feat(wiki): 为图片添加点击查看功能并更新界面文本
+  
+  - 在资料查看器中支持点击图片打开全屏查看器
+  - 将"合成查看器"重命名为"资料查看器"以更准确反映功能
+  - 更新相关界面文本和注释，保持中英文一致性
+  - 图片查看功能覆盖wiki组件中的图片、图标和描述中的图片
 
 ### r91 (2026-02-17T01:34:27+08:00)
 - 0f4e6e4

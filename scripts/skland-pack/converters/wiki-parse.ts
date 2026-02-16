@@ -1,5 +1,6 @@
 import type { ItemRecord } from '../types.ts';
 import type { EntryRef, CellData, TableData, WikiDocRef } from './types.ts';
+import { HEADER_RULES } from '../rules/skland-rules.ts';
 
 function asRecord(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
@@ -277,6 +278,33 @@ function parseCell(cell: Record<string, unknown>, blockMap: Record<string, unkno
   };
 }
 
+const HEADER_KEYWORDS = [
+  ...HEADER_RULES.machineHeaders,
+  ...HEADER_RULES.simpleTypeHeaders,
+  ...HEADER_RULES.inputHeaders,
+  ...HEADER_RULES.outputHeaders,
+  ...HEADER_RULES.timeHeaders,
+].map((kw) => normalizeHeaderLabel(kw));
+
+function detectHeaderRowIndex(rows: CellData[][]): number {
+  let bestIdx = 0;
+  let bestMatches = 0;
+  rows.forEach((row, idx) => {
+    let matches = 0;
+    row.forEach((cell) => {
+      const text = normalizeHeaderLabel(cell.text);
+      if (!text) return;
+      if (HEADER_KEYWORDS.some((kw) => text.includes(kw))) matches += 1;
+    });
+    if (matches > bestMatches) {
+      bestMatches = matches;
+      bestIdx = idx;
+    }
+  });
+  if (bestMatches >= 2) return bestIdx;
+  return 0;
+}
+
 export function extractTablesFromDoc(doc: Record<string, unknown>): TableData[] {
   const blockMap = asRecord(doc.blockMap);
   const blockIds = Array.isArray(doc.blockIds) ? doc.blockIds : [];
@@ -303,11 +331,15 @@ export function extractTablesFromDoc(doc: Record<string, unknown>): TableData[] 
       rows.push(row);
     }
 
-    const headers = rows[0]?.map((cell) => cell.text || '') || [];
+    const headerRowIndex = detectHeaderRowIndex(rows);
+    const headerRow = rows[headerRowIndex] ?? [];
+    const headers = headerRow.map((cell) => cell.text || '');
+    const orderedRows =
+      headerRowIndex === 0 ? rows : [headerRow, ...rows.filter((_, idx) => idx !== headerRowIndex)];
     out.push({
       headers,
-      rows,
-      rowCount: rows.length,
+      rows: orderedRows,
+      rowCount: orderedRows.length,
       columnCount: columnIds.length,
     });
   }

@@ -1,8 +1,8 @@
 {
   "packId": "aef-skland",
   "gameId": "aef-skland",
-  "displayName": "Skland Wiki",
-  "version": "2026-02-14",
+  "displayName": "Skland Wiki Pack",
+  "version": "2026-02-16",
   "files": {
     "items": "items/",
     "itemsIndex": "itemsIndex.json",
@@ -13,7 +13,6 @@
   "imageProxy": {
     "enabled": true,
     "urlTemplate": "https://end-api.shallow.ink/api/proxy/image?url={url}",
-    "devUrlTemplate": "http://127.0.0.1:12345/api/proxy/image?url={url}",
     "domains": [
       "bbs.hycdn.cn",
       "ak.hycdn.cn",

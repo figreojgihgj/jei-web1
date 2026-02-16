@@ -71,5 +71,7 @@ export interface ConverterContextInit {
   args: BuildArgs;
   itemIdToPackId: Map<string, string>;
   itemNameById: Map<string, string>;
+  itemIconById: Map<string, string>;
+  itemTagsById: Map<string, string[]>;
   extraItemsById: Map<string, Record<string, unknown>>;
 }

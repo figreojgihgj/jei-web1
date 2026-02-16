@@ -1,7 +1,11 @@
-import { parseDurationSeconds } from '../helpers.ts';
+import { hashShort, parseDurationSeconds, sanitizePathSegment } from '../helpers.ts';
 import type { RecipeStack, EntryRef, CellData } from './types.ts';
 import { normalizeHeaderLabel } from './wiki-parse.ts';
 import type { ConverterContext } from './context.ts';
+import {
+  DERIVED_CONTAINER_BLACKLIST,
+  DERIVED_CONTAINER_WHITELIST,
+} from '../rules/skland-rules.ts';
 
 export function findColumnIndexes(
   headers: string[],
@@ -55,6 +59,124 @@ export function collectStacksFromColumns(
     if (!cell) continue;
     for (const entry of cell.entries) {
       const stack = stackFromEntry(ctx, entry, options);
+      if (stack) stacks.push(stack);
+    }
+  }
+  return compactStacks(stacks);
+}
+
+function normalizeCellText(text: string): string {
+  return text.replace(/\s+/g, '');
+}
+
+function normalizeMatchText(text: string): string {
+  return text.replace(/\s+/g, '').toLowerCase();
+}
+
+function matchesKeywordList(value: string, keywords: readonly string[]): boolean {
+  if (!keywords.length) return false;
+  const normalized = normalizeMatchText(value);
+  return keywords.some((kw) => normalized.includes(normalizeMatchText(kw)));
+}
+
+function allowDerivedContainer(containerName: string): boolean {
+  const name = String(containerName ?? '').trim();
+  if (!name) return false;
+  if (matchesKeywordList(name, DERIVED_CONTAINER_BLACKLIST)) return false;
+  if (!DERIVED_CONTAINER_WHITELIST.length) return true;
+  return matchesKeywordList(name, DERIVED_CONTAINER_WHITELIST);
+}
+
+function toSafeIdSegment(value: string, fallback: string): string {
+  let s = value
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  if (!s) s = fallback;
+  return s;
+}
+
+function buildLiquidContainerStacks(
+  ctx: ConverterContext,
+  cell: CellData,
+  keywords: readonly string[] | undefined,
+): RecipeStack[] | null {
+  const liquidEntries = cell.entries.filter((entry) => entry.count <= 0);
+  if (!liquidEntries.length) return null;
+  const containerEntries = cell.entries.filter((entry) => entry.count > 0);
+  const allowByKeywords =
+    !!keywords?.length &&
+    keywords.some((kw) => normalizeCellText(cell.text).includes(normalizeCellText(kw)));
+  const allowByWhitelist =
+    !!containerEntries.length &&
+    containerEntries.some((container) => {
+      const containerName = ctx.getItemNameByWikiId(container.id) || `容器${container.id}`;
+      return allowDerivedContainer(containerName);
+    });
+  if (!allowByKeywords && !allowByWhitelist) return null;
+  const stacks: RecipeStack[] = [];
+  for (const liquid of liquidEntries) {
+    const liquidName = ctx.getItemNameByWikiId(liquid.id) || `液体${liquid.id}`;
+    const liquidTags = ctx.getItemTagsByWikiId(liquid.id);
+    if (containerEntries.length) {
+      for (const container of containerEntries) {
+        const containerName = ctx.getItemNameByWikiId(container.id) || `容器${container.id}`;
+        if (!allowDerivedContainer(containerName)) {
+          const stack = stackFromEntry(ctx, container, { allowZeroCount: true });
+          if (stack) stacks.push(stack);
+          continue;
+        }
+        const containerIcon = ctx.getItemIconByWikiId(container.id);
+        const containerTags = ctx.getItemTagsByWikiId(container.id);
+        const name = `${containerName}(${liquidName})`;
+        const safe = toSafeIdSegment(name, `container_${container.id}__liquid_${liquid.id}`);
+        const derivedId = `derived_liquid_container__${safe}__${hashShort(name)}`;
+        const mergedTags = Array.from(new Set([...containerTags, ...liquidTags]));
+        const extra: { icon?: string; tags?: string[] } = {};
+        if (containerIcon) extra.icon = containerIcon;
+        if (mergedTags.length) extra.tags = mergedTags;
+        stacks.push(
+          ctx.createDerivedStack(derivedId, name, Math.max(1, container.count || 1), 'derived', extra),
+        );
+      }
+    } else {
+      const name = `容器(${liquidName})`;
+      const safe = toSafeIdSegment(name, `container__liquid_${liquid.id}`);
+      const derivedId = `derived_liquid_container__${safe}__${hashShort(name)}`;
+      const extra: { icon?: string; tags?: string[] } = {};
+      if (liquidTags.length) extra.tags = liquidTags;
+      stacks.push(
+        ctx.createDerivedStack(derivedId, name, 1, 'derived', extra),
+      );
+    }
+  }
+  return stacks.length ? stacks : null;
+}
+
+export function collectStacksFromColumnsWithKeywords(
+  ctx: ConverterContext,
+  row: CellData[],
+  indexes: number[],
+  options: { allowZeroCount: boolean; zeroCountAsOneKeywords?: readonly string[] },
+): RecipeStack[] {
+  const stacks: RecipeStack[] = [];
+  for (const idx of indexes) {
+    const cell = row[idx];
+    if (!cell) continue;
+    const derivedStacks = buildLiquidContainerStacks(ctx, cell, options.zeroCountAsOneKeywords);
+    if (derivedStacks?.length) {
+      stacks.push(...derivedStacks);
+      continue;
+    }
+    for (const entry of cell.entries) {
+      if (entry.count > 0) {
+        const stack = stackFromEntry(ctx, entry, { allowZeroCount: true });
+        if (stack) stacks.push(stack);
+        continue;
+      }
+      if (!options.allowZeroCount) continue;
+      const stack = stackFromEntry(ctx, entry, { allowZeroCount: true });
       if (stack) stacks.push(stack);
     }
   }

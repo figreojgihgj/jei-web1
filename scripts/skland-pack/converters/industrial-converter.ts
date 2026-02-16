@@ -1,10 +1,22 @@
 import type { ItemRecord } from '../types.ts';
 import { makeTypeSlug } from '../helpers.ts';
-import { buildSlotContents, ConverterContext } from './context.ts';
+import type { ConverterContext } from './context.ts';
+import { buildSlotContents } from './context.ts';
 import { extractTablesFromDoc, extractWikiDocRefs, normalizeTextLabel } from './wiki-parse.ts';
-import { collectStacksFromColumns, findColumnIndexes, firstColumnIndex } from './table-helpers.ts';
+import {
+  collectStacksFromColumnsWithKeywords,
+  findColumnIndexes,
+  firstColumnIndex,
+} from './table-helpers.ts';
 import type { ConverterResult, CellData, WikiDocRef } from './types.ts';
-import { HEADER_RULES, PLANNER_PRIORITY, TYPE_PREFIX, headerIncludesAny } from '../rules/skland-rules.ts';
+import {
+  HEADER_RULES,
+  LIQUID_CONTAINER_KEYWORDS,
+  PLANNER_PRIORITY,
+  TYPE_PREFIX,
+  headerIncludesAny,
+  resolveMachinePlannerPriority,
+} from '../rules/skland-rules.ts';
 
 interface MachineBinding {
   typeKey: string;
@@ -71,8 +83,14 @@ function convertFragment(
       activeMachine = resolveMachineBinding(ctx, row, machineIdx, activeMachine);
       if (!activeMachine) return;
 
-      const inputs = collectStacksFromColumns(ctx, row, inputIdxs, { allowZeroCount: false });
-      const outputs = collectStacksFromColumns(ctx, row, outputIdxs, { allowZeroCount: false });
+      const inputs = collectStacksFromColumnsWithKeywords(ctx, row, inputIdxs, {
+        allowZeroCount: false,
+        zeroCountAsOneKeywords: LIQUID_CONTAINER_KEYWORDS,
+      });
+      const outputs = collectStacksFromColumnsWithKeywords(ctx, row, outputIdxs, {
+        allowZeroCount: false,
+        zeroCountAsOneKeywords: LIQUID_CONTAINER_KEYWORDS,
+      });
       if (!outputs.length) return;
 
       ctx.registerType(
@@ -82,11 +100,11 @@ function convertFragment(
           renderer: 'slot_layout',
           ...(activeMachine.machinePackId
             ? {
-                machine: {
-                  id: activeMachine.machinePackId,
-                  name: activeMachine.displayName,
-                },
-              }
+              machine: {
+                id: activeMachine.machinePackId,
+                name: activeMachine.displayName,
+              },
+            }
             : {}),
           paramSchema: {
             time: { displayName: 'Time', unit: 's', format: 'duration' },
@@ -98,7 +116,10 @@ function convertFragment(
             moduleSlots: 0,
             beaconSlots: 0,
           },
-          plannerPriority: PLANNER_PRIORITY.machine,
+          plannerPriority: resolveMachinePlannerPriority(
+            activeMachine.displayName,
+            PLANNER_PRIORITY.machine,
+          ),
         },
         inputs.length,
         outputs.length,

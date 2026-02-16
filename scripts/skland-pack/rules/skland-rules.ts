@@ -12,6 +12,12 @@ export const PLANNER_PRIORITY = {
   usageFallback: -550,
 } as const;
 
+export const MACHINE_PRIORITY_OVERRIDES: Record<string, number> = {
+  反应池: 900,
+  水泵: 500,
+  拆解机: 100,
+};
+
 export const HEADER_RULES = {
   machineHeaders: ['合成设备', '制作设备', '制造设备'],
   simpleTypeHeaders: ['制作类型'],
@@ -19,6 +25,19 @@ export const HEADER_RULES = {
   outputHeaders: ['合成产物', '制作产物'],
   timeHeaders: ['消耗时长', '耗时', '时长', '时间'],
 } as const;
+
+export const LIQUID_CONTAINER_KEYWORDS = [
+  '已盛装',
+  '盛装',
+  '灌装',
+  '装有',
+  '装入',
+  '容器',
+  '拆解',
+] as const;
+
+export const DERIVED_CONTAINER_WHITELIST = ['瓶'] as const;
+export const DERIVED_CONTAINER_BLACKLIST: readonly string[] = [];
 
 export const SOURCE_KEYWORDS = [
   '来源',
@@ -47,10 +66,10 @@ export const SOURCE_PATTERN_DISPLAY_NAMES = {
 export const SOURCE_PATTERN_PLANNER_PRIORITY = {
   table_entry: -120,
   list_entry: -140,
-  text_entry: -160,
-  table_text: -220,
-  list_text: -260,
-  text_only: -320,
+  text_entry: -700,
+  table_text: -800,
+  list_text: -840,
+  text_only: -900,
 } as const;
 
 export const USAGE_KEYWORDS = [
@@ -96,3 +115,9 @@ export function headerIncludesAny(header: string, keywords: readonly string[]): 
 
 export type SourcePattern = keyof typeof SOURCE_PATTERN_DISPLAY_NAMES;
 export type UsagePattern = keyof typeof USAGE_PATTERN_DISPLAY_NAMES;
+
+export function resolveMachinePlannerPriority(name: string, fallback: number): number {
+  const key = String(name ?? '').trim();
+  if (!key) return fallback;
+  return MACHINE_PRIORITY_OVERRIDES[key] ?? fallback;
+}

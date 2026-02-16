@@ -14,7 +14,11 @@
     },
     {
       "packId": "aef-skland",
-      "label": "Arknights:Endfield Skland Wiki"
+      "label": "Skland Wiki Pack"
+    },
+    {
+      "packId": "skland",
+      "label": "Skland Wiki Pack"
     }
   ]
 }

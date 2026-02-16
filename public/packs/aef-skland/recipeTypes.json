@@ -162,7 +162,7 @@
       "beaconSlots": 0,
       "power": 20
     },
-    "plannerPriority": 600
+    "plannerPriority": 100
   },
   {
     "key": "aef-skland:industrial/电驱矿机",
@@ -307,7 +307,7 @@
       "beaconSlots": 0,
       "power": 50
     },
-    "plannerPriority": 600
+    "plannerPriority": 900
   },
   {
     "key": "aef-skland:industrial/粉碎机",
@@ -725,7 +725,7 @@
         "label": "Out"
       }
     ],
-    "plannerPriority": -220
+    "plannerPriority": -800
   },
   {
     "key": "aef-skland:wiki/source/list_entry",
@@ -838,7 +838,7 @@
         "label": "Out"
       }
     ],
-    "plannerPriority": -260
+    "plannerPriority": -840
   },
   {
     "key": "aef-skland:wiki/source/text_only",
@@ -867,7 +867,7 @@
         "label": "Out"
       }
     ],
-    "plannerPriority": -320
+    "plannerPriority": -500
   },
   {
     "key": "aef-skland:wiki/source/text_entry",
@@ -940,7 +940,7 @@
         "label": "Out"
       }
     ],
-    "plannerPriority": -160
+    "plannerPriority": -700
   },
   {
     "key": "aef-skland:industrial/配件机",
@@ -1157,7 +1157,7 @@
       "beaconSlots": 0,
       "power": 10
     },
-    "plannerPriority": 600
+    "plannerPriority": 500
   },
   {
     "key": "aef-skland:industrial/塑形机",

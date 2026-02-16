@@ -1,14 +1,22 @@
 import type { ItemRecord } from '../types.ts';
 import { makeTypeSlug } from '../helpers.ts';
-import { buildSlotContents, ConverterContext } from './context.ts';
+import type { ConverterContext } from './context.ts';
+import { buildSlotContents } from './context.ts';
 import { extractTablesFromDoc, extractWikiDocRefs } from './wiki-parse.ts';
 import {
-  collectStacksFromColumns,
+  collectStacksFromColumnsWithKeywords,
   findColumnIndexes,
   parseDurationFromColumns,
 } from './table-helpers.ts';
 import type { ConverterResult } from './types.ts';
-import { HEADER_RULES, PLANNER_PRIORITY, TYPE_PREFIX, headerIncludesAny } from '../rules/skland-rules.ts';
+import {
+  HEADER_RULES,
+  LIQUID_CONTAINER_KEYWORDS,
+  PLANNER_PRIORITY,
+  TYPE_PREFIX,
+  headerIncludesAny,
+  resolveMachinePlannerPriority,
+} from '../rules/skland-rules.ts';
 
 export function runDeviceRecipeConverter(
   ctx: ConverterContext,
@@ -45,8 +53,14 @@ export function runDeviceRecipeConverter(
         if (!inputIdxs.length || !outputIdxs.length) continue;
 
         table.rows.slice(1).forEach((row) => {
-          const inputs = collectStacksFromColumns(ctx, row, inputIdxs, { allowZeroCount: false });
-          const outputs = collectStacksFromColumns(ctx, row, outputIdxs, { allowZeroCount: false });
+          const inputs = collectStacksFromColumnsWithKeywords(ctx, row, inputIdxs, {
+            allowZeroCount: false,
+            zeroCountAsOneKeywords: LIQUID_CONTAINER_KEYWORDS,
+          });
+          const outputs = collectStacksFromColumnsWithKeywords(ctx, row, outputIdxs, {
+            allowZeroCount: false,
+            zeroCountAsOneKeywords: LIQUID_CONTAINER_KEYWORDS,
+          });
           if (!outputs.length) return;
 
           const duration = parseDurationFromColumns(row, timeIdxs);
@@ -70,7 +84,7 @@ export function runDeviceRecipeConverter(
                 moduleSlots: 0,
                 beaconSlots: 0,
               },
-              plannerPriority: PLANNER_PRIORITY.machine,
+              plannerPriority: resolveMachinePlannerPriority(machineName, PLANNER_PRIORITY.machine),
             },
             inputs.length,
             outputs.length,

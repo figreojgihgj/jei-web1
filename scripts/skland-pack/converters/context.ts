@@ -5,6 +5,8 @@ export class ConverterContext {
   readonly args;
   private readonly itemIdToPackId;
   private readonly itemNameById;
+  private readonly itemIconById;
+  private readonly itemTagsById;
   private readonly extraItemsById;
   private readonly recipeTypes = new Map<string, DynamicRecipeType>();
   private readonly recipes: RecipeDef[] = [];
@@ -14,6 +16,8 @@ export class ConverterContext {
     this.args = init.args;
     this.itemIdToPackId = init.itemIdToPackId;
     this.itemNameById = init.itemNameById;
+    this.itemIconById = init.itemIconById;
+    this.itemTagsById = init.itemTagsById;
     this.extraItemsById = init.extraItemsById;
   }
 
@@ -23,6 +27,15 @@ export class ConverterContext {
 
   getItemNameByWikiId(wikiItemId: string): string {
     return this.itemNameById.get(String(wikiItemId).trim()) || '';
+  }
+
+  getItemIconByWikiId(wikiItemId: string): string {
+    return this.itemIconById.get(String(wikiItemId).trim()) || '';
+  }
+
+  getItemTagsByWikiId(wikiItemId: string): string[] {
+    const tags = this.itemTagsById.get(String(wikiItemId).trim()) || [];
+    return tags.length ? [...tags] : [];
   }
 
   ensureItemPackId(wikiItemId: string, nameHint = ''): string {
@@ -41,6 +54,58 @@ export class ConverterContext {
       source: 'wiki/entry',
     });
     return packItemId;
+  }
+
+  ensureDerivedItemPackId(
+    derivedId: string,
+    name: string,
+    source: string,
+    extra?: { icon?: string; tags?: string[] },
+  ): string {
+    const rawId = String(derivedId || '').trim();
+    if (!rawId) return '';
+    const existing = this.itemIdToPackId.get(rawId);
+    if (existing) {
+      const existingDef = this.extraItemsById.get(rawId);
+      if (existingDef && extra) {
+        if (!existingDef.icon && extra.icon) existingDef.icon = extra.icon;
+        if (Array.isArray(extra.tags) && extra.tags.length) {
+          const currentTags = Array.isArray(existingDef.tags) ? existingDef.tags : [];
+          const merged = Array.from(new Set([...currentTags, ...extra.tags]));
+          if (merged.length) existingDef.tags = merged;
+        }
+      }
+      return existing;
+    }
+
+    const packItemId = toPackItemId(this.args.gameId, rawId);
+    this.itemIdToPackId.set(rawId, packItemId);
+    if (name) this.itemNameById.set(rawId, name);
+
+    const resolvedName = name || this.itemNameById.get(rawId) || `派生${rawId}`;
+    this.extraItemsById.set(rawId, {
+      key: { id: packItemId },
+      name: resolvedName,
+      ...(extra?.icon ? { icon: extra.icon } : {}),
+      ...(extra?.tags?.length ? { tags: extra.tags } : {}),
+      source,
+    });
+    return packItemId;
+  }
+
+  createDerivedStack(
+    derivedId: string,
+    name: string,
+    amount: number,
+    source: string,
+    extra?: { icon?: string; tags?: string[] },
+  ): RecipeStack {
+    const packId = this.ensureDerivedItemPackId(derivedId, name, source, extra);
+    return {
+      kind: 'item',
+      id: packId,
+      amount: Math.max(1, amount || 1),
+    };
   }
 
   createStackFromEntry(

@@ -95,16 +95,41 @@ export function getRecipeTypePlannerPriority(recipeType: RecipeTypeDef | undefin
   return 0;
 }
 
-function getRecipeSortTuple(index: JeiIndex, itemKey: ItemKey, recipeId: string): [number, number, string] {
+function hasRecipeTimeInfo(recipe: Recipe, recipeType: RecipeTypeDef | undefined): boolean {
+  if (recipe.params) {
+    const timeParams = ['time', 'duration', 'processTime', 'processingTime'];
+    for (const param of timeParams) {
+      if (param in recipe.params) {
+        const value = finiteNumberOr(recipe.params[param], 0);
+        if (value > 0) return true;
+      }
+    }
+  }
+
+  if (recipeType?.defaults) {
+    const defaultTime = finiteNumberOr(recipeType.defaults.time, 0);
+    if (defaultTime > 0) return true;
+  }
+
+  return false;
+}
+
+function getRecipeSortTuple(
+  index: JeiIndex,
+  itemKey: ItemKey,
+  recipeId: string,
+): [number, number, number, number, string] {
   const recipe = index.recipesById.get(recipeId);
-  if (!recipe) return [-9999, 9999, recipeId];
+  if (!recipe) return [-9999, 0, Number.POSITIVE_INFINITY, 9999, recipeId];
   const recipeType = index.recipeTypesByKey.get(recipe.type);
   const priority = getRecipeTypePlannerPriority(recipeType);
+  const hasTime = hasRecipeTimeInfo(recipe, recipeType) ? 1 : 0;
+  const time = hasTime ? getRecipeTime(recipe, recipeType) : Number.POSITIVE_INFINITY;
   const { inputs } = extractRecipeStacks(recipe, recipeType);
   const outputForItem = perCraftOutputAmountFor(recipe, recipeType, itemKey);
   // Prefer higher planner priority and meaningful output before minimizing complexity.
   const inputsLen = outputForItem > 0 ? inputs.length : 9998;
-  return [priority, inputsLen, recipeId];
+  return [priority, hasTime, time, inputsLen, recipeId];
 }
 
 export function sortRecipeOptionsForItem(
@@ -115,9 +140,11 @@ export function sortRecipeOptionsForItem(
   return recipeIds
     .slice()
     .sort((a, b) => {
-      const [pa, ia, ra] = getRecipeSortTuple(index, itemKey, a);
-      const [pb, ib, rb] = getRecipeSortTuple(index, itemKey, b);
+      const [pa, ta, taTime, ia, ra] = getRecipeSortTuple(index, itemKey, a);
+      const [pb, tb, tbTime, ib, rb] = getRecipeSortTuple(index, itemKey, b);
       if (pa !== pb) return pb - pa;
+      if (ta !== tb) return tb - ta;
+      if (taTime !== tbTime) return taTime - tbTime;
       if (ia !== ib) return ia - ib;
       return ra.localeCompare(rb);
     });
