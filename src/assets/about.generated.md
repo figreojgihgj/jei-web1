@@ -1,16 +1,57 @@
 # About
 
 ## Build
-- Version: b422a48-dirty
-- Commit: b422a48 (b422a48d1e3a95a33385d8d9570d744786b421ae)
-- Commit count: 73
-- Subject: feat: 添加终末地-协议终端链接到主布局和编辑布局 docs: 更新关于文件以反映最新版本和提交信息 docs: 添加aef-skland数据源信息到第三方许可证文件
-- Author: AndreaFrederica
-- Date: 2026-02-15T08:25:54+08:00
-- Generated at: 2026-02-15T12:37:52.323Z
-- Remote: https://github.com/AndreaFrederica/jei-web.git
+- Version: d855121-dirty
+- Commit: d855121 (d8551214ce5601ed9f93b36f5ccbb8663d32005d)
+- Commit count: 83
+- Subject: Update main.yml
+- Author: figreojgihgj
+- Date: 2026-02-16T23:26:49+08:00
+- Generated at: 2026-02-16T07:28:49.027Z
+- Remote: https://github.com/figreojgihgj/jei-web1.git
 
 ## Version History
+
+### r83 (2026-02-16T23:26:49+08:00)
+- d855121
+  Update main.yml
+
+### r82 (2026-02-16T23:25:50+08:00)
+- f17738a
+  Delete .github/workflows/sync.yml
+
+### r81 (2026-02-16T23:23:35+08:00)
+- d4f3cab
+  Create sync.yml
+
+### r80 (2026-02-16T23:20:30+08:00)
+- e65178b
+  Create main.yml
+
+### r79 (2026-02-16T15:19:20+08:00)
+- 57e43bb
+  action
+
+### r78 (2026-02-16T23:13:02+08:00)
+- 106d8e8
+  Merge branch 'AndreaFrederica:master' into master
+
+### r77 (2026-02-16T22:54:32+08:00)
+- 3cd04c6
+  fix: 移除predev脚本中的sync:temp命令以简化开发流程
+
+### r76 (2026-02-16T12:02:40+08:00)
+- f3187ed
+  添加镜像
+
+### r75 (2026-02-15T22:13:58+08:00)
+- 883e47c
+  feat: 添加视为原料功能，增强物品管理和生产计数显示
+  fix: 修复打开了任意物品后不能切换数据包的bug
+
+### r74 (2026-02-15T20:55:24+08:00)
+- dac9769
+  feat: 添加aef-skland数据包构建说明文档，更新关于文件以反映最新版本和提交信息，增强wiki条目导航功能
 
 ### r73 (2026-02-15T08:25:54+08:00)
 - b422a48
