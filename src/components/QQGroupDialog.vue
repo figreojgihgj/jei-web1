@@ -12,12 +12,14 @@
         </p>
         <p>
           中国大陆访问镜像由 Mic 提供，地址为https://jei.mic.run
-          <br>
+          <br />
           或者您可以通过https://cnjeiweb.sirrus.cc来转跳访问，
-          <br>
+          <br />
           CloudFlare源：https://jeiweb.sirrus.cc
-          <br>
+          <br />
           EdgeOne亚太源: https://fastjeiweb.sirrus.cc
+          <br />
+          Edgeone全球版（由Arcwolf提供）：https://jei.arcwolf.top
         </p>
         <p class="text-grey text-caption q-mt-md">
           免责声明：JEI-Web 和 Minecraft Mod JEI 没有任何隶属和其他关系，仅仅是灵感来源于 JEI Mod。
