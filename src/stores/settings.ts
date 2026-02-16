@@ -87,6 +87,7 @@ export const useSettingsStore = defineStore('settings', {
       packImageProxyFrameworkToken: safeStorageGet(PROXY_FRAMEWORK_TOKEN_KEY),
       circuitCollectionPreviewShowPieces: false,
       circuitEditorPiecePanel: { x: 16, y: 120, width: 420, height: 620, minimized: false, docked: false } as CircuitEditorPiecePanelState,
+      circuitEditorPiecePanelSplitRatio: 0.5,
     };
     try {
       const raw = localStorage.getItem('jei.settings');
@@ -108,23 +109,23 @@ export const useSettingsStore = defineStore('settings', {
       const panelParsed = parsed.circuitEditorPiecePanel;
       const circuitEditorPiecePanel =
         panelParsed
-        && typeof panelParsed.x === 'number'
-        && Number.isFinite(panelParsed.x)
-        && typeof panelParsed.y === 'number'
-        && Number.isFinite(panelParsed.y)
-        && typeof panelParsed.width === 'number'
-        && Number.isFinite(panelParsed.width)
-        && typeof panelParsed.height === 'number'
-        && Number.isFinite(panelParsed.height)
-        && typeof panelParsed.minimized === 'boolean'
+          && typeof panelParsed.x === 'number'
+          && Number.isFinite(panelParsed.x)
+          && typeof panelParsed.y === 'number'
+          && Number.isFinite(panelParsed.y)
+          && typeof panelParsed.width === 'number'
+          && Number.isFinite(panelParsed.width)
+          && typeof panelParsed.height === 'number'
+          && Number.isFinite(panelParsed.height)
+          && typeof panelParsed.minimized === 'boolean'
           ? {
-              x: panelParsed.x,
-              y: panelParsed.y,
-              width: panelParsed.width,
-              height: panelParsed.height,
-              minimized: panelParsed.minimized,
-              docked: typeof panelParsed.docked === 'boolean' ? panelParsed.docked : defaults.circuitEditorPiecePanel.docked,
-            }
+            x: panelParsed.x,
+            y: panelParsed.y,
+            width: panelParsed.width,
+            height: panelParsed.height,
+            minimized: panelParsed.minimized,
+            docked: typeof panelParsed.docked === 'boolean' ? panelParsed.docked : defaults.circuitEditorPiecePanel.docked,
+          }
           : defaults.circuitEditorPiecePanel;
       const restored = {
         historyLimit: typeof parsed.historyLimit === 'number' ? parsed.historyLimit : defaults.historyLimit,
@@ -208,6 +209,11 @@ export const useSettingsStore = defineStore('settings', {
             ? parsed.circuitCollectionPreviewShowPieces
             : defaults.circuitCollectionPreviewShowPieces,
         circuitEditorPiecePanel,
+        circuitEditorPiecePanelSplitRatio:
+          typeof parsed.circuitEditorPiecePanelSplitRatio === 'number'
+            && Number.isFinite(parsed.circuitEditorPiecePanelSplitRatio)
+            ? parsed.circuitEditorPiecePanelSplitRatio
+            : defaults.circuitEditorPiecePanelSplitRatio,
       };
       syncProxyTokensToStorage(restored);
       return restored;
@@ -327,6 +333,10 @@ export const useSettingsStore = defineStore('settings', {
       this.circuitCollectionPreviewShowPieces = value;
       this.save();
     },
+    setCircuitEditorPiecePanelSplitRatio(value: number) {
+      this.circuitEditorPiecePanelSplitRatio = value;
+      this.save();
+    },
     setCircuitEditorPiecePanel(value: CircuitEditorPiecePanelState) {
       this.circuitEditorPiecePanel = {
         x: value.x,
@@ -369,6 +379,7 @@ export const useSettingsStore = defineStore('settings', {
           packImageProxyFrameworkToken: this.packImageProxyFrameworkToken,
           circuitCollectionPreviewShowPieces: this.circuitCollectionPreviewShowPieces,
           circuitEditorPiecePanel: this.circuitEditorPiecePanel,
+          circuitEditorPiecePanelSplitRatio: this.circuitEditorPiecePanelSplitRatio,
         }),
       );
     },
