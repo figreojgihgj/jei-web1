@@ -1,5 +1,8 @@
 <template>
-  <q-page :class="['collection-page', isDark ? 'collection-page--dark' : 'collection-page--light']">
+  <q-page
+    :class="['collection-page', isDark ? 'collection-page--dark' : 'collection-page--light']"
+    :style="pageStyle"
+  >
     <div class="collection-shell">
       <section class="collection-head">
         <h1>电路谜题收录</h1>
@@ -25,108 +28,143 @@
       <div v-else class="collection-grid">
         <aside class="entry-list-panel">
           <h2>{{ collectionIndex?.title ?? '题目列表' }}</h2>
-          <div v-if="!entries.length" class="empty-text">索引为空，请先在 public 目录添加题目。</div>
-          <button
-            v-for="entry in entries"
-            :key="entry.id"
-            type="button"
-            class="entry-btn"
-            :class="{ 'entry-btn--active': selectedEntryId === entry.id }"
-            @click="selectEntry(entry.id)"
-          >
-            <div class="entry-title">{{ entry.title }}</div>
-            <div class="entry-meta">
-              <span>{{ entry.id }}</span>
-              <span v-if="entry.difficulty">难度: {{ entry.difficulty }}</span>
-              <span v-if="entry.author">作者: {{ entry.author }}</span>
+          <div class="entry-list-body">
+            <div v-if="!entries.length" class="empty-text">
+              索引为空，请先在 public 目录添加题目。
             </div>
-            <div v-if="entry.tags.length" class="entry-tags">
-              <span v-for="tag in entry.tags" :key="`${entry.id}-${tag}`" class="tag-chip">{{ tag }}</span>
-            </div>
-            <div class="entry-preview-wrap">
-              <div v-if="entry.id in previewErrorById" class="entry-preview-tip entry-preview-tip--error">预览加载失败</div>
-              <div v-else-if="previewLoadingById[entry.id]" class="entry-preview-tip">预览加载中...</div>
-              <div
-                v-else-if="entry.id in previewById"
-                class="entry-preview-board"
-                :style="previewBoardStyle(entry.id)"
-              >
-                <div class="entry-preview-top">
-                  <span class="entry-preview-score entry-preview-score--corner" />
-                  <span
-                    v-for="(score, idx) in previewColTargets(entry.id)"
-                    :key="`${entry.id}-col-${idx}`"
-                    class="entry-preview-score"
-                  >{{ formatScore(score) }}</span>
+            <button
+              v-for="entry in entries"
+              :key="entry.id"
+              type="button"
+              class="entry-btn"
+              :class="{ 'entry-btn--active': selectedEntryId === entry.id }"
+              @click="selectEntry(entry.id)"
+            >
+              <div class="entry-title">{{ entry.title }}</div>
+              <div class="entry-meta">
+                <span>{{ entry.id }}</span>
+                <span v-if="entry.difficulty">难度: {{ entry.difficulty }}</span>
+                <span v-if="entry.author">作者: {{ entry.author }}</span>
+              </div>
+              <div v-if="entry.tags.length" class="entry-tags">
+                <span v-for="tag in entry.tags" :key="`${entry.id}-${tag}`" class="tag-chip">{{
+                  tag
+                }}</span>
+              </div>
+              <div class="entry-preview-wrap">
+                <div
+                  v-if="entry.id in previewErrorById"
+                  class="entry-preview-tip entry-preview-tip--error"
+                >
+                  预览加载失败
                 </div>
-                <div class="entry-preview-body">
-                  <div
-                    v-for="row in previewRows(entry.id)"
-                    :key="`${entry.id}-row-${row.y}`"
-                    class="entry-preview-row"
-                  >
-                    <span class="entry-preview-score">{{ formatScore(row.targetScore) }}</span>
+                <div v-else-if="previewLoadingById[entry.id]" class="entry-preview-tip">
+                  预览加载中...
+                </div>
+                <div
+                  v-else-if="entry.id in previewById"
+                  class="entry-preview-board"
+                  :style="previewBoardStyle(entry.id)"
+                >
+                  <div class="entry-preview-top">
+                    <span class="entry-preview-score entry-preview-score--corner" />
                     <span
-                      v-for="cell in row.cells"
-                      :key="cell.key"
-                      class="entry-preview-cell"
-                      :class="{
-                        'entry-preview-cell--blocked': cell.blocked,
-                        'entry-preview-cell--piece': !!cell.pieceColor
-                      }"
-                      :style="previewCellStyle(cell)"
-                    />
+                      v-for="(score, idx) in previewColTargets(entry.id)"
+                      :key="`${entry.id}-col-${idx}`"
+                      class="entry-preview-score"
+                      >{{ formatScore(score) }}</span
+                    >
+                  </div>
+                  <div class="entry-preview-body">
+                    <div
+                      v-for="row in previewRows(entry.id)"
+                      :key="`${entry.id}-row-${row.y}`"
+                      class="entry-preview-row"
+                    >
+                      <span class="entry-preview-score">{{ formatScore(row.targetScore) }}</span>
+                      <span
+                        v-for="cell in row.cells"
+                        :key="cell.key"
+                        class="entry-preview-cell"
+                        :class="{
+                          'entry-preview-cell--blocked': cell.blocked,
+                          'entry-preview-cell--piece': !!cell.pieceColor,
+                        }"
+                        :style="previewCellStyle(cell)"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </button>
+            </button>
+          </div>
         </aside>
 
         <main class="entry-detail-panel">
-          <div v-if="!selectedEntry" class="state-card">请选择左侧题目。</div>
-
-          <template v-else>
-            <header class="detail-head">
-              <div>
-                <h2>{{ selectedEntry.title }}</h2>
-                <p class="collection-tip">id: {{ selectedEntry.id }}</p>
-              </div>
-              <div class="head-actions">
-                <button type="button" class="collection-btn" :disabled="!loadedLevel" @click="openInPuzzle('play')">
-                  在试玩打开
-                </button>
-                <button type="button" class="collection-btn" :disabled="!loadedLevel" @click="openInPuzzle('editor')">
-                  在编辑器打开
-                </button>
-              </div>
-            </header>
-
-            <section class="asset-card">
-              <div><strong>JSON:</strong> <a :href="resolvedJsonPath" target="_blank" rel="noreferrer">{{ resolvedJsonPath }}</a></div>
-              <div v-if="resolvedMarkdownPath">
-                <strong>Markdown:</strong>
-                <a :href="resolvedMarkdownPath" target="_blank" rel="noreferrer">{{ resolvedMarkdownPath }}</a>
-              </div>
-            </section>
-
-            <div v-if="entryLoading" class="state-card">正在加载题目文件...</div>
-            <div v-else-if="entryError" class="state-card state-card--error">{{ entryError }}</div>
+          <div class="entry-detail-body">
+            <div v-if="!selectedEntry" class="state-card">请选择左侧题目。</div>
 
             <template v-else>
-              <section class="markdown-card">
-                <h3>题目说明</h3>
-                <div class="doc-md" v-html="renderedMarkdown"></div>
+              <header class="detail-head">
+                <div>
+                  <h2>{{ selectedEntry.title }}</h2>
+                  <p class="collection-tip">id: {{ selectedEntry.id }}</p>
+                </div>
+                <div class="head-actions">
+                  <button
+                    type="button"
+                    class="collection-btn"
+                    :disabled="!loadedLevel"
+                    @click="openInPuzzle('play')"
+                  >
+                    在试玩打开
+                  </button>
+                  <button
+                    type="button"
+                    class="collection-btn"
+                    :disabled="!loadedLevel"
+                    @click="openInPuzzle('editor')"
+                  >
+                    在编辑器打开
+                  </button>
+                </div>
+              </header>
+
+              <section class="asset-card">
+                <div>
+                  <strong>JSON:</strong>
+                  <a :href="resolvedJsonPath" target="_blank" rel="noreferrer">{{
+                    resolvedJsonPath
+                  }}</a>
+                </div>
+                <div v-if="resolvedMarkdownPath">
+                  <strong>Markdown:</strong>
+                  <a :href="resolvedMarkdownPath" target="_blank" rel="noreferrer">{{
+                    resolvedMarkdownPath
+                  }}</a>
+                </div>
               </section>
 
-              <section class="markdown-card">
-                <details class="json-details">
-                  <summary>关卡 JSON 预览</summary>
-                  <pre class="json-preview">{{ levelJsonPreview }}</pre>
-                </details>
-              </section>
+              <div v-if="entryLoading" class="state-card">正在加载题目文件...</div>
+              <div v-else-if="entryError" class="state-card state-card--error">
+                {{ entryError }}
+              </div>
+
+              <template v-else>
+                <section class="markdown-card">
+                  <h3>题目说明</h3>
+                  <div class="doc-md" v-html="renderedMarkdown"></div>
+                </section>
+
+                <section class="markdown-card">
+                  <details class="json-details">
+                    <summary>关卡 JSON 预览</summary>
+                    <pre class="json-preview">{{ levelJsonPreview }}</pre>
+                  </details>
+                </section>
+              </template>
             </template>
-          </template>
+          </div>
         </main>
       </div>
     </div>
@@ -134,7 +172,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import { useRoute, useRouter } from 'vue-router';
 import MarkdownIt from 'markdown-it';
@@ -152,7 +190,11 @@ import {
   parsePuzzleJsonDocument,
   type PuzzleMultiLevelDefinition,
 } from 'src/components/circuit-puzzle/multi-level-format';
-import { buildSharePayload, getShareValue, resolveShareMode } from 'src/components/circuit-puzzle/url-share-options';
+import {
+  buildSharePayload,
+  getShareValue,
+  resolveShareMode,
+} from 'src/components/circuit-puzzle/url-share-options';
 import { encodeMultiLevelForUrlV3 } from 'src/components/circuit-puzzle/url-format-v3';
 import type { PuzzleLevelDefinition } from 'src/components/circuit-puzzle/types';
 import { useSettingsStore } from 'src/stores/settings';
@@ -195,6 +237,34 @@ const markdown = new MarkdownIt({
   typographer: true,
 });
 
+const pageHeight = ref(window.innerHeight);
+const pageStyle = computed(() => ({
+  height: `${pageHeight.value}px`,
+}));
+let headerObserver: ResizeObserver | null = null;
+
+function updateAvailableHeight(): void {
+  const header = document.querySelector('.q-header');
+  const headerHeight = header ? header.getBoundingClientRect().height : 0;
+  pageHeight.value = Math.floor(Math.max(0, window.innerHeight - headerHeight));
+}
+
+onMounted(() => {
+  updateAvailableHeight();
+  window.addEventListener('resize', updateAvailableHeight);
+  const header = document.querySelector('.q-header');
+  if (header && typeof ResizeObserver !== 'undefined') {
+    headerObserver = new ResizeObserver(() => updateAvailableHeight());
+    headerObserver.observe(header);
+  }
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateAvailableHeight);
+  headerObserver?.disconnect();
+  headerObserver = null;
+});
+
 const indexLoading = ref(false);
 const indexError = ref('');
 const collectionIndex = ref<PuzzleCollectionIndex | null>(null);
@@ -224,7 +294,9 @@ const resolvedMarkdownPath = computed(() => {
   if (!collectionIndex.value || !selectedEntry.value?.markdown) return '';
   return resolveCollectionAssetPath(collectionIndex.value.basePath, selectedEntry.value.markdown);
 });
-const renderedMarkdown = computed(() => markdown.render(loadedMarkdown.value || '_暂无题目说明。_'));
+const renderedMarkdown = computed(() =>
+  markdown.render(loadedMarkdown.value || '_暂无题目说明。_'),
+);
 const levelJsonPreview = computed(() => {
   if (loadedMultiPuzzle.value) {
     return JSON.stringify(multiPuzzleToJson(loadedMultiPuzzle.value), null, 2);
@@ -291,7 +363,13 @@ function withAlpha(color: string, alpha: number): string {
   if (!match) return `rgba(157, 219, 34, ${alpha})`;
   const hex = match[1] ?? '';
   if (!hex) return `rgba(157, 219, 34, ${alpha})`;
-  const full = hex.length === 3 ? hex.split('').map((ch) => `${ch}${ch}`).join('') : hex;
+  const full =
+    hex.length === 3
+      ? hex
+          .split('')
+          .map((ch) => `${ch}${ch}`)
+          .join('')
+      : hex;
   const r = Number.parseInt(full.slice(0, 2), 16);
   const g = Number.parseInt(full.slice(2, 4), 16);
   const b = Number.parseInt(full.slice(4, 6), 16);
@@ -403,7 +481,8 @@ async function loadEntryPreview(entry: PuzzleCollectionEntry): Promise<void> {
     if (!jsonResp.ok) throw new Error(`preview json fetch failed: ${jsonPath}`);
     const rawJson = (await jsonResp.json()) as unknown;
     const parsed = parsePrimaryLevelFromDocument(rawJson);
-    if (!parsed.level) throw new Error(`preview json invalid: ${entry.id}; ${parsed.errors.join('; ')}`);
+    if (!parsed.level)
+      throw new Error(`preview json invalid: ${entry.id}; ${parsed.errors.join('; ')}`);
 
     previewLevelById.value = {
       ...previewLevelById.value,
@@ -439,22 +518,24 @@ function buildPreviewPieceOverlay(level: PuzzleLevelDefinition): Record<string, 
     timeoutMs: 1_200,
     maxNodes: 160_000,
   });
-  const result = strict.status === 'no-solution' && hasHints
-    ? solveLevel(level, {
-      exactHintCover: false,
-      onlyHintCells: false,
-      enforceHintColors: true,
-      timeoutMs: 1_200,
-      maxNodes: 160_000,
-    })
-    : strict;
+  const result =
+    strict.status === 'no-solution' && hasHints
+      ? solveLevel(level, {
+          exactHintCover: false,
+          onlyHintCells: false,
+          enforceHintColors: true,
+          timeoutMs: 1_200,
+          maxNodes: 160_000,
+        })
+      : strict;
 
   if (result.status !== 'solved' || !result.solution) return {};
 
   const byKey: Record<string, string> = {};
   for (const placement of result.solution) {
     for (const cell of placement.cells) {
-      byKey[toKey(cell.x, cell.y)] = normalizeHexColor(placement.pieceColor) ?? PREVIEW_HINT_FALLBACK;
+      byKey[toKey(cell.x, cell.y)] =
+        normalizeHexColor(placement.pieceColor) ?? PREVIEW_HINT_FALLBACK;
     }
   }
   return byKey;
@@ -659,6 +740,10 @@ void reloadIndex();
   padding: 12px;
   color: var(--cp-page-text);
   background: var(--cp-page-bg);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 .collection-page--dark {
   --cp-page-bg: #0b1412;
@@ -679,11 +764,36 @@ void reloadIndex();
   --cp-error-text: #ffc9c9;
   --cp-json-text: #d6e8e1;
 }
-.collection-shell { display: flex; flex-direction: column; gap: 10px; }
-.collection-head { border: 1px solid var(--cp-panel-border); border-radius: 12px; background: var(--cp-panel-bg); padding: 12px; }
-.collection-head h1 { margin: 0 0 8px; font-size: 20px; color: var(--cp-title); }
-.collection-tip { margin: 0; font-size: 12px; color: var(--cp-muted); }
-.head-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+.collection-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+}
+.collection-head {
+  border: 1px solid var(--cp-panel-border);
+  border-radius: 12px;
+  background: var(--cp-panel-bg);
+  padding: 12px;
+}
+.collection-head h1 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  color: var(--cp-title);
+}
+.collection-tip {
+  margin: 0;
+  font-size: 12px;
+  color: var(--cp-muted);
+}
+.head-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  align-items: center;
+}
 .preview-toggle {
   display: inline-flex;
   align-items: center;
@@ -691,22 +801,108 @@ void reloadIndex();
   font-size: 12px;
   color: var(--cp-btn-text);
 }
-.preview-toggle input { margin: 0; }
-.collection-grid { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 10px; min-height: 520px; }
+.preview-toggle input {
+  margin: 0;
+}
+.collection-grid {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 10px;
+  min-height: 0;
+  flex: 1;
+}
 .entry-list-panel,
-.entry-detail-panel { border: 1px solid var(--cp-panel-border); border-radius: 12px; background: var(--cp-panel-bg); padding: 10px; overflow: auto; }
+.entry-detail-panel {
+  border: 1px solid var(--cp-panel-border);
+  border-radius: 12px;
+  background: var(--cp-panel-bg);
+  padding: 10px;
+  overflow: hidden;
+}
+.entry-list-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.entry-list-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
+.entry-detail-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.entry-detail-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
 .entry-list-panel h2,
-.entry-detail-panel h2 { margin: 0 0 10px; color: var(--cp-title); font-size: 16px; }
-.entry-btn { width: 100%; text-align: left; border: 1px solid var(--cp-btn-border); border-radius: 8px; background: var(--cp-item-bg); color: var(--cp-btn-text); padding: 8px; cursor: pointer; margin-bottom: 8px; display: flex; flex-direction: column; gap: 5px; }
-.entry-btn:hover { border-color: var(--cp-btn-hover); }
-.entry-btn--active { border-color: var(--cp-btn-hover); box-shadow: inset 0 0 0 1px rgba(124, 178, 95, 0.35); }
-.entry-title { font-size: 14px; font-weight: 600; }
-.entry-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--cp-muted); }
-.entry-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.tag-chip { border: 1px solid var(--cp-btn-border); border-radius: 99px; padding: 2px 7px; font-size: 11px; color: var(--cp-page-text); }
-.entry-preview-wrap { margin-top: 3px; min-height: 16px; }
-.entry-preview-tip { font-size: 11px; color: var(--cp-muted); }
-.entry-preview-tip--error { color: var(--cp-error-text); }
+.entry-detail-panel h2 {
+  margin: 0 0 10px;
+  color: var(--cp-title);
+  font-size: 16px;
+}
+.entry-btn {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--cp-btn-border);
+  border-radius: 8px;
+  background: var(--cp-item-bg);
+  color: var(--cp-btn-text);
+  padding: 8px;
+  cursor: pointer;
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.entry-btn:hover {
+  border-color: var(--cp-btn-hover);
+}
+.entry-btn--active {
+  border-color: var(--cp-btn-hover);
+  box-shadow: inset 0 0 0 1px rgba(124, 178, 95, 0.35);
+}
+.entry-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+.entry-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--cp-muted);
+}
+.entry-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tag-chip {
+  border: 1px solid var(--cp-btn-border);
+  border-radius: 99px;
+  padding: 2px 7px;
+  font-size: 11px;
+  color: var(--cp-page-text);
+}
+.entry-preview-wrap {
+  margin-top: 3px;
+  min-height: 16px;
+}
+.entry-preview-tip {
+  font-size: 11px;
+  color: var(--cp-muted);
+}
+.entry-preview-tip--error {
+  color: var(--cp-error-text);
+}
 .entry-preview-board {
   width: max-content;
   border: 1px solid var(--cp-btn-border);
@@ -724,7 +920,11 @@ void reloadIndex();
   gap: 1px;
   align-items: center;
 }
-.entry-preview-body { display: flex; flex-direction: column; gap: 1px; }
+.entry-preview-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
 .entry-preview-score {
   width: 12px;
   height: 12px;
@@ -734,7 +934,9 @@ void reloadIndex();
   color: var(--cp-muted);
   user-select: none;
 }
-.entry-preview-score--corner { opacity: 0; }
+.entry-preview-score--corner {
+  opacity: 0;
+}
 .entry-preview-cell {
   width: 12px;
   height: 12px;
@@ -756,29 +958,98 @@ void reloadIndex();
     rgba(35, 41, 41, 0.85);
   border-color: rgba(137, 147, 147, 0.48);
 }
-.entry-preview-cell--piece { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5); }
-.collection-btn { border: 1px solid var(--cp-btn-border); border-radius: 8px; background: var(--cp-btn-bg); color: var(--cp-btn-text); font-size: 13px; line-height: 1; padding: 9px 12px; cursor: pointer; }
-.collection-btn:hover { border-color: var(--cp-btn-hover); color: var(--cp-btn-accent); }
-.collection-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+.entry-preview-cell--piece {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+.collection-btn {
+  border: 1px solid var(--cp-btn-border);
+  border-radius: 8px;
+  background: var(--cp-btn-bg);
+  color: var(--cp-btn-text);
+  font-size: 13px;
+  line-height: 1;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+.collection-btn:hover {
+  border-color: var(--cp-btn-hover);
+  color: var(--cp-btn-accent);
+}
+.collection-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
 .asset-card,
 .markdown-card,
-.state-card { border: 1px solid var(--cp-panel-border); border-radius: 8px; background: var(--cp-card-bg); padding: 10px; margin-bottom: 8px; }
-.state-card { color: var(--cp-page-text); }
-.state-card--error { border-color: var(--cp-error-border); background: var(--cp-error-bg); color: var(--cp-error-text); }
-.empty-text { font-size: 13px; color: var(--cp-muted); padding: 10px 0; }
-.markdown-card h3 { margin: 0 0 8px; color: var(--cp-title); font-size: 14px; }
+.state-card {
+  border: 1px solid var(--cp-panel-border);
+  border-radius: 8px;
+  background: var(--cp-card-bg);
+  padding: 10px;
+  margin-bottom: 8px;
+}
+.state-card {
+  color: var(--cp-page-text);
+}
+.state-card--error {
+  border-color: var(--cp-error-border);
+  background: var(--cp-error-bg);
+  color: var(--cp-error-text);
+}
+.empty-text {
+  font-size: 13px;
+  color: var(--cp-muted);
+  padding: 10px 0;
+}
+.markdown-card h3 {
+  margin: 0 0 8px;
+  color: var(--cp-title);
+  font-size: 14px;
+}
 .json-details > summary {
   cursor: pointer;
   font-size: 13px;
   color: var(--cp-btn-text);
   user-select: none;
 }
-.json-details[open] > summary { margin-bottom: 8px; }
-.json-preview { margin: 0; font-size: 12px; white-space: pre-wrap; word-break: break-word; color: var(--cp-json-text); font-family: Consolas, 'Courier New', monospace; }
-.doc-md :deep(pre) { white-space: pre-wrap; word-break: break-word; }
-.doc-md :deep(h1) { font-size: 18px; margin: 0 0 8px; }
-.doc-md :deep(h2) { font-size: 16px; margin: 12px 0 8px; }
-.doc-md :deep(p), .doc-md :deep(ul), .doc-md :deep(ol) { margin: 6px 0; }
-@media (max-width: 980px) { .collection-grid { grid-template-columns: 1fr; } }
+.json-details[open] > summary {
+  margin-bottom: 8px;
+}
+.json-preview {
+  margin: 0;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--cp-json-text);
+  font-family: Consolas, 'Courier New', monospace;
+}
+.doc-md :deep(pre) {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.doc-md :deep(h1) {
+  font-size: 18px;
+  margin: 0 0 8px;
+}
+.doc-md :deep(h2) {
+  font-size: 16px;
+  margin: 12px 0 8px;
+}
+.doc-md :deep(p),
+.doc-md :deep(ul),
+.doc-md :deep(ol) {
+  margin: 6px 0;
+}
+@media (max-width: 980px) {
+  .collection-grid {
+    grid-template-columns: 1fr;
+  }
+}
 </style>
