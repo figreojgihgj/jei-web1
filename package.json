@@ -23,7 +23,7 @@
     "crawl:wiki": "node scripts/crawl-skland-wiki.mjs",
     "proxy:skland": "node scripts/skland-proxy/server.js",
     "crawl:wiki:oneclick": "node scripts/crawl-wiki-oneclick.mjs",
-    "predev": "pnpm run gen:about && pnpm run sync:temp && pnpm run gen:items-lite",
+    "predev": "pnpm run gen:about && pnpm run gen:items-lite",
     "dev": "quasar dev",
     "prebuild": "pnpm run gen:about && pnpm run gen:items-lite",
     "build": "quasar build",
