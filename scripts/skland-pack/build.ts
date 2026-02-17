@@ -58,7 +58,11 @@ const RARITY_COLOR_BY_STARS: Record<number, string> = {
   3: '#66bb6a',
   4: '#ffa726',
   5: '#fb8c00',
-  6: '#8e24aa',
+  6: '#bd1c1c',
+};
+const DEFAULT_TARGET_RATE_PRESETS = {
+  halfPerMinute: 3,
+  fullPerMinute: 6,
 };
 
 function flattenTagNodes(nodes: WikiTagNode[] | undefined): WikiTagNode[] {
@@ -114,7 +118,7 @@ function extractItemRarity(item: Record<string, unknown>): ItemRarityInfo | null
   const groupId = asString(rarityGroup.id);
   const childNodes = (
     Array.isArray(rarityGroup.children) ? rarityGroup.children : []
-  ) as WikiTagNode[];
+  );
   if (!childNodes.length) return null;
 
   let selectedChild: WikiTagNode | undefined;
@@ -332,6 +336,15 @@ export async function buildSklandPack(args: BuildArgs, repoRoot: string): Promis
       itemsLite: 'itemsLite.json',
       recipeTypes: 'recipeTypes.json',
       recipes: 'recipes.json',
+    },
+    planner: {
+      targetRatePresets: DEFAULT_TARGET_RATE_PRESETS,
+    },
+    startupDialog: {
+      id: 'skland-data-notice-v1',
+      title: '重要说明',
+      message: '请注意：本工具中显示的物品 ID（如 endfield.xxx）仅供本站内部索引与配方关联使用，并非游戏内的真实物品 ID。请勿将其作为游戏内控制台代码或其他修改工具的参考依据。\n\n合成表数据来自Wiki，可能存在错误或与游戏实际不符，请以游戏内数据为准。',
+      confirmText: '我知道了',
     },
     ...(imageHandling.manifestImageProxy ? { imageProxy: imageHandling.manifestImageProxy } : {}),
   });

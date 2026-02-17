@@ -192,6 +192,12 @@ export interface PackManifest {
       anonymousTokenResponsePath?: string;
     };
   };
+  planner?: {
+    targetRatePresets?: {
+      halfPerMinute?: number;
+      fullPerMinute?: number;
+    };
+  };
 }
 
 export interface PackData {

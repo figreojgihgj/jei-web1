@@ -155,6 +155,24 @@
               :model-value="targetUnit"
               @update:model-value="(v) => (targetUnit = v as (typeof unitOptions)[number]['value'])"
             />
+            <q-btn-group outline>
+              <q-btn
+                dense
+                no-caps
+                size="md"
+                label="HS"
+                :disable="!canApplyHalfRatePreset"
+                @click="applyTargetRatePreset('half')"
+              />
+              <q-btn
+                dense
+                no-caps
+                size="md"
+                label="FS"
+                :disable="!canApplyFullRatePreset"
+                @click="applyTargetRatePreset('full')"
+              />
+            </q-btn-group>
             <q-space />
             <q-btn-toggle
               v-model="treeDisplayMode"
@@ -418,6 +436,24 @@
                   (v) => (targetUnit = v as (typeof unitOptions)[number]['value'])
                 "
               />
+              <q-btn-group outline>
+                <q-btn
+                  dense
+                  no-caps
+                  size="md"
+                  label="HS"
+                  :disable="!canApplyHalfRatePreset"
+                  @click="applyTargetRatePreset('half')"
+                />
+                <q-btn
+                  dense
+                  no-caps
+                  size="md"
+                  label="FS"
+                  :disable="!canApplyFullRatePreset"
+                  @click="applyTargetRatePreset('full')"
+                />
+              </q-btn-group>
               <q-toggle v-model="graphShowFluids" dense :label="t('showFluids')" />
               <q-toggle v-model="graphMergeRawMaterials" dense :label="t('mergeRawMaterials')" />
               <q-space />
@@ -579,6 +615,24 @@
                   (v) => (targetUnit = v as (typeof unitOptions)[number]['value'])
                 "
               />
+              <q-btn-group outline>
+                <q-btn
+                  dense
+                  no-caps
+                  size="md"
+                  label="HS"
+                  :disable="!canApplyHalfRatePreset"
+                  @click="applyTargetRatePreset('half')"
+                />
+                <q-btn
+                  dense
+                  no-caps
+                  size="md"
+                  label="FS"
+                  :disable="!canApplyFullRatePreset"
+                  @click="applyTargetRatePreset('full')"
+                />
+              </q-btn-group>
               <q-toggle v-model="lineCollapseIntermediate" dense :label="t('hideIntermediate')" />
               <q-toggle v-model="lineWidthByRate" dense :label="t('lineWidthByRate')" />
               <q-toggle
@@ -859,6 +913,24 @@
               :model-value="targetUnit"
               @update:model-value="(v) => (targetUnit = v as (typeof unitOptions)[number]['value'])"
             />
+            <q-btn-group outline>
+              <q-btn
+                dense
+                no-caps
+                size="md"
+                label="HS"
+                :disable="!canApplyHalfRatePreset"
+                @click="applyTargetRatePreset('half')"
+              />
+              <q-btn
+                dense
+                no-caps
+                size="md"
+                label="FS"
+                :disable="!canApplyFullRatePreset"
+                @click="applyTargetRatePreset('full')"
+              />
+            </q-btn-group>
           </div>
           <div v-if="treeResult" class="q-mt-md">
             <div class="text-caption text-grey-8 q-mb-sm">所需原料</div>
@@ -1214,6 +1286,33 @@ const lineFullscreen = ref(false);
 const graphFlowWrapEl = ref<HTMLElement | null>(null);
 const lineFlowWrapEl = ref<HTMLElement | null>(null);
 
+const targetRatePresets = computed(() => {
+  const preset = props.pack?.manifest?.planner?.targetRatePresets;
+  const halfCandidate = Number(preset?.halfPerMinute);
+  const fullCandidate = Number(preset?.fullPerMinute);
+  return {
+    halfPerMinute:
+      Number.isFinite(halfCandidate) && halfCandidate > 0
+        ? halfCandidate
+        : null,
+    fullPerMinute:
+      Number.isFinite(fullCandidate) && fullCandidate > 0
+        ? fullCandidate
+        : null,
+  };
+});
+
+const canApplyHalfRatePreset = computed(() => targetRatePresets.value.halfPerMinute !== null);
+const canApplyFullRatePreset = computed(() => targetRatePresets.value.fullPerMinute !== null);
+
+function applyTargetRatePreset(kind: 'half' | 'full') {
+  const targetValue =
+    kind === 'half' ? targetRatePresets.value.halfPerMinute : targetRatePresets.value.fullPerMinute;
+  if (targetValue === null) return;
+  targetUnit.value = 'per_minute';
+  targetAmount.value = targetValue;
+}
+
 function toggleGraphFullscreen() {
   if (!$q.fullscreen.isCapable) return;
   const el = graphFlowWrapEl.value;
@@ -1409,14 +1508,13 @@ function setForcedRawForItemId(itemId: string, forced: boolean): void {
 }
 
 function recipeOptionsForDecision(d: Extract<PlannerDecision, { kind: 'item_recipe' }>) {
-  return d.recipeOptions
-    .map((recipeId) => {
-      const r = props.index.recipesById.get(recipeId);
-      const recipeType = r ? props.index.recipeTypesByKey.get(r.type) : undefined;
-      const label = r ? `${recipeType?.displayName ?? r.type}` : recipeId;
-      const inputs: Stack[] = r ? extractRecipeStacks(r, recipeType).inputs : [];
-      return { label, value: recipeId, inputs, recipe: r, recipeType };
-    });
+  return d.recipeOptions.map((recipeId) => {
+    const r = props.index.recipesById.get(recipeId);
+    const recipeType = r ? props.index.recipeTypesByKey.get(r.type) : undefined;
+    const label = r ? `${recipeType?.displayName ?? r.type}` : recipeId;
+    const inputs: Stack[] = r ? extractRecipeStacks(r, recipeType).inputs : [];
+    return { label, value: recipeId, inputs, recipe: r, recipeType };
+  });
 }
 
 function tagItemOptions(d: Extract<PlannerDecision, { kind: 'tag_item' }>) {
@@ -1563,9 +1661,7 @@ function unitSuffix() {
 
 const LINE_EDGE_BASE_STROKE_WIDTH = 2;
 
-function lineEdgeBaseWidthFromRate(
-  amountPerMinute: number,
-): number {
+function lineEdgeBaseWidthFromRate(amountPerMinute: number): number {
   if (!lineWidthByRate.value) return LINE_EDGE_BASE_STROKE_WIDTH;
   const cfg = lineWidthCurveConfig.value;
   const unitValue = convertAmountPerMinuteToUnitValue(
@@ -2751,15 +2847,11 @@ const intermediateRowsWithRates = computed<IntermediateRowWithRate[]>(() => {
   const amounts = new Map<string, number>();
   const rates = new Map<string, number>();
 
-  const walk = (
-    node: RequirementNode | EnhancedRequirementNode,
-    isRoot: boolean,
-  ) => {
+  const walk = (node: RequirementNode | EnhancedRequirementNode, isRoot: boolean) => {
     if (node.kind !== 'item') return;
     const key = node.itemKey.id;
     const forcedRaw = isForcedRawKey(node.itemKey);
-    const isIntermediate =
-      !isRoot && node.children.length > 0 && !node.cycleSeed && !forcedRaw;
+    const isIntermediate = !isRoot && node.children.length > 0 && !node.cycleSeed && !forcedRaw;
     if (isIntermediate) {
       amounts.set(key, (amounts.get(key) ?? 0) + nodeDisplayAmount(node));
       rates.set(key, (rates.get(key) ?? 0) + nodeDisplayRate(node));

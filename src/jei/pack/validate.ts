@@ -351,6 +351,50 @@ export function assertPackManifest(value: unknown, jsonPath: string): PackManife
     out.startupDialog = startupDialog;
   }
 
+  if (isRecord(obj.planner)) {
+    const planner = obj.planner;
+    let targetRatePresets: NonNullable<PackManifest['planner']>['targetRatePresets'];
+
+    if (isRecord(planner.targetRatePresets)) {
+      const presets = planner.targetRatePresets;
+      const halfPerMinuteRaw = presets.halfPerMinute;
+      const fullPerMinuteRaw = presets.fullPerMinute;
+
+      let halfPerMinute: number | undefined;
+      if (halfPerMinuteRaw !== undefined) {
+        halfPerMinute = assertNumber(halfPerMinuteRaw, `${jsonPath}.planner.targetRatePresets.halfPerMinute`);
+        if (!Number.isFinite(halfPerMinute) || halfPerMinute <= 0) {
+          throw new PackValidationError(
+            `${jsonPath}.planner.targetRatePresets.halfPerMinute`,
+            'expected positive number',
+          );
+        }
+      }
+
+      let fullPerMinute: number | undefined;
+      if (fullPerMinuteRaw !== undefined) {
+        fullPerMinute = assertNumber(fullPerMinuteRaw, `${jsonPath}.planner.targetRatePresets.fullPerMinute`);
+        if (!Number.isFinite(fullPerMinute) || fullPerMinute <= 0) {
+          throw new PackValidationError(
+            `${jsonPath}.planner.targetRatePresets.fullPerMinute`,
+            'expected positive number',
+          );
+        }
+      }
+
+      if (halfPerMinute !== undefined || fullPerMinute !== undefined) {
+        targetRatePresets = {
+          ...(halfPerMinute !== undefined ? { halfPerMinute } : {}),
+          ...(fullPerMinute !== undefined ? { fullPerMinute } : {}),
+        };
+      }
+    }
+
+    if (targetRatePresets !== undefined) {
+      out.planner = { targetRatePresets };
+    }
+  }
+
   if (isRecord(obj.imageProxy)) {
     const ip = obj.imageProxy;
     const enabledRaw = ip.enabled;
