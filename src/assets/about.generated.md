@@ -1,16 +1,26 @@
 # About
 
 ## Build
-- Version: d070126-dirty
-- Commit: d070126 (d07012611a1e132a08db92dffaab448c7f9cd5ce)
-- Commit count: 93
-- Subject: feat(ui): 添加物品图标缓存及存储管理界面
+- Version: 36337dd-dirty
+- Commit: 36337dd (36337dd9ef6d357fc29c5cc3ea902d734d34c514)
+- Commit count: 94
+- Subject: feat(wiki): 为液体容器生成派生物品并优化表格解析
 - Author: AndreaFrederica
-- Date: 2026-02-17T04:36:21+08:00
-- Generated at: 2026-02-16T21:33:24.744Z
+- Date: 2026-02-17T06:17:58+08:00
+- Generated at: 2026-02-17T12:10:55.115Z
 - Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History
+
+### r94 (2026-02-17T06:17:58+08:00)
+- 36337dd
+  feat(wiki): 为液体容器生成派生物品并优化表格解析
+  
+  - 新增派生物品生成机制，自动为“已盛装”等关键词的液体容器创建组合物品
+  - 扩展转换器上下文，支持物品图标和标签的缓存与传递
+  - 改进表格解析逻辑，自动检测表头行并优化行列顺序
+  - 调整部分设备配方的规划器优先级，使反应池等关键设备排序更合理
+  - 更新物品索引和轻量清单，包含新生成的派生物品条目
 
 ### r93 (2026-02-17T04:36:21+08:00)
 - d070126
