@@ -12,6 +12,7 @@ import type {
 } from '../jei/types';
 import { stableJsonStringify } from 'src/jei/utils/stableJson';
 import { collectPackAssetUrls } from 'src/jei/pack/collectAssetUrls';
+import { storage } from 'src/utils/storage';
 
 export interface EditorAssetMeta {
   path: string;
@@ -105,11 +106,19 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   function clearPersistedPack() {
-    localStorage.removeItem(STORAGE_KEY);
+    if (storage.isUsingJEIStorage()) {
+      void storage.removeItem(STORAGE_KEY);
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
   }
 
   function clearPersistedAssetsMeta() {
-    localStorage.removeItem(ASSETS_META_KEY);
+    if (storage.isUsingJEIStorage()) {
+      void storage.removeItem(ASSETS_META_KEY);
+    } else {
+      localStorage.removeItem(ASSETS_META_KEY);
+    }
   }
 
   function clearAssets() {
@@ -122,9 +131,12 @@ export const useEditorStore = defineStore('editor', () => {
     clearAssets();
   }
 
-  (function tryRestorePersistedPack() {
+  // Async initialization for JEIStorage
+  async function tryRestorePersistedPack() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = storage.isUsingJEIStorage()
+        ? await storage.getItem(STORAGE_KEY)
+        : localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw) as PackData;
       if (!parsed?.manifest) return;
@@ -132,17 +144,48 @@ export const useEditorStore = defineStore('editor', () => {
     } catch {
       return;
     }
-  })();
+  }
 
-  (function tryRestoreAssetsMeta() {
+  async function tryRestoreAssetsMeta() {
     try {
-      const raw = localStorage.getItem(ASSETS_META_KEY);
+      const raw = storage.isUsingJEIStorage()
+        ? await storage.getItem(ASSETS_META_KEY)
+        : localStorage.getItem(ASSETS_META_KEY);
       if (!raw) return;
       loadAssetsMeta(JSON.parse(raw));
     } catch {
       return;
     }
-  })();
+  }
+
+  // Initialize - async if using JEIStorage
+  if (storage.isUsingJEIStorage()) {
+    tryRestorePersistedPack().catch(e => console.error('[Editor] Failed to restore pack:', e));
+    tryRestoreAssetsMeta().catch(e => console.error('[Editor] Failed to restore assets:', e));
+  } else {
+    // Synchronous initialization for localStorage
+    (function tryRestoreSync() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as PackData;
+        if (!parsed?.manifest) return;
+        loadPack(parsed);
+      } catch {
+        return;
+      }
+    })();
+
+    (function tryRestoreAssetsMetaSync() {
+      try {
+        const raw = localStorage.getItem(ASSETS_META_KEY);
+        if (!raw) return;
+        loadAssetsMeta(JSON.parse(raw));
+      } catch {
+        return;
+      }
+    })();
+  }
 
   if (!baselinePack.value) {
     baselinePack.value = exportPack();
@@ -153,7 +196,12 @@ export const useEditorStore = defineStore('editor', () => {
     [manifest, items, recipeTypes, recipes, tags],
     () => {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(exportPack()));
+        const value = JSON.stringify(exportPack());
+        if (storage.isUsingJEIStorage()) {
+          void storage.setItem(STORAGE_KEY, value);
+        } else {
+          localStorage.setItem(STORAGE_KEY, value);
+        }
       } catch {
         return;
       }
@@ -165,7 +213,12 @@ export const useEditorStore = defineStore('editor', () => {
     assets,
     () => {
       try {
-        localStorage.setItem(ASSETS_META_KEY, JSON.stringify(assets.value));
+        const value = JSON.stringify(assets.value);
+        if (storage.isUsingJEIStorage()) {
+          void storage.setItem(ASSETS_META_KEY, value);
+        } else {
+          localStorage.setItem(ASSETS_META_KEY, value);
+        }
       } catch {
         return;
       }

@@ -312,6 +312,7 @@ import CircuitPuzzlePiecePanel from './CircuitPuzzlePiecePanel.vue';
 import CircuitPuzzleShapeCanvas from './CircuitPuzzleShapeCanvas.vue';
 import { useSettingsStore } from 'src/stores/settings';
 import { useKeyBindingsStore, eventMatchesBinding } from 'src/stores/keybindings';
+import { storage } from 'src/utils/storage';
 import { solveLevel, verifySolution } from './auto-solver';
 import { cloneLevel } from './defaultLevel';
 
@@ -713,17 +714,25 @@ function clampNumber(value: number, min: number, max: number): number {
   if (min > max) return min;
   return Math.min(max, Math.max(min, value));
 }
-function safeStorageGet(key: string): string {
+async function safeStorageGet(key: string): Promise<string> {
   try {
-    return String(localStorage.getItem(key) ?? '');
+    const value = storage.isUsingJEIStorage()
+      ? await storage.getItem(key)
+      : localStorage.getItem(key);
+    return String(value ?? '');
   } catch {
     return '';
   }
 }
 function safeStorageSetOrRemove(key: string, value: string): void {
   try {
-    if (value) localStorage.setItem(key, value);
-    else localStorage.removeItem(key);
+    if (storage.isUsingJEIStorage()) {
+      if (value) void storage.setItem(key, value);
+      else void storage.removeItem(key);
+    } else {
+      if (value) localStorage.setItem(key, value);
+      else localStorage.removeItem(key);
+    }
   } catch {
     return;
   }
@@ -749,8 +758,8 @@ function normalizeFavoritePiece(raw: FavoritePiece): FavoritePiece {
   const key = buildFavoriteKey({ id, name, color, count, cells: sortedCells });
   return { key, id, name, color, count, cells: sortedCells };
 }
-function loadFavoritePieces(): FavoritePiece[] {
-  const raw = safeStorageGet(FAVORITE_STORAGE_KEY);
+async function loadFavoritePieces(): Promise<FavoritePiece[]> {
+  const raw = await safeStorageGet(FAVORITE_STORAGE_KEY);
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw) as
@@ -2259,8 +2268,8 @@ function isTypingTarget(target: EventTarget | null): boolean {
   const tag = target.tagName;
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 }
-onMounted(() => {
-  favoritePieces.value = loadFavoritePieces();
+onMounted(async () => {
+  favoritePieces.value = await loadFavoritePieces();
   clampPiecePanelState();
   persistPiecePanelState();
   window.addEventListener('keydown', onEditorKeyDown);

@@ -5,6 +5,7 @@ import type { ItemDef, PackData, Recipe } from 'src/jei/types';
 import { stableJsonStringify } from 'src/jei/utils/stableJson';
 import { idbDeletePackZip, idbGetPackZip, idbSetPackZip } from 'src/jei/utils/idb';
 import { useEditorStore } from 'src/stores/editor';
+import { storage } from 'src/utils/storage';
 
 export interface LocalPackEntry {
   id: string;
@@ -190,14 +191,39 @@ export const usePackManagerStore = defineStore('packManager', () => {
   const INDEX_KEY = 'jei.editor.localPacks.v1';
   const editorStore = useEditorStore();
 
-  const entries = ref<LocalPackEntry[]>(safeParseIndex(localStorage.getItem(INDEX_KEY)).entries);
-  const currentId = ref<string | null>(safeParseIndex(localStorage.getItem(INDEX_KEY)).currentId ?? null);
+  // Initialize with empty values, will be loaded asynchronously
+  const entries = ref<LocalPackEntry[]>([]);
+  const currentId = ref<string | null>(null);
+
+  // Async initialization function
+  async function initStore() {
+    const raw = storage.isUsingJEIStorage()
+      ? await storage.getItem(INDEX_KEY)
+      : localStorage.getItem(INDEX_KEY);
+    const parsed = safeParseIndex(raw);
+    entries.value = parsed.entries;
+    currentId.value = parsed.currentId ?? null;
+  }
+
+  // Auto-initialize when using JEIStorage
+  if (storage.isUsingJEIStorage()) {
+    initStore().catch(e => console.error('[PackManager] Failed to initialize:', e));
+  } else {
+    // Synchronous initialization for localStorage
+    const parsed = safeParseIndex(localStorage.getItem(INDEX_KEY));
+    entries.value = parsed.entries;
+    currentId.value = parsed.currentId ?? null;
+  }
 
   function persist() {
     const out: StoredPackIndex = currentId.value
       ? { version: 1, currentId: currentId.value, entries: entries.value }
       : { version: 1, entries: entries.value };
-    localStorage.setItem(INDEX_KEY, JSON.stringify(out));
+    if (storage.isUsingJEIStorage()) {
+      void storage.setItem(INDEX_KEY, JSON.stringify(out));
+    } else {
+      localStorage.setItem(INDEX_KEY, JSON.stringify(out));
+    }
   }
 
   const currentEntry = computed(() => entries.value.find((e) => e.id === currentId.value) || null);

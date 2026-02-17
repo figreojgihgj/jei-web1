@@ -291,6 +291,7 @@ import { itemKeyHash } from 'src/jei/indexing/key';
 import { autoPlanSelections } from 'src/jei/planner/planner';
 import { useSettingsStore } from 'src/stores/settings';
 import { useKeyBindingsStore, eventMatchesBinding } from 'src/stores/keybindings';
+import { storage } from 'src/utils/storage';
 
 const settingsStore = useSettingsStore();
 const keyBindingsStore = useKeyBindingsStore();
@@ -370,9 +371,11 @@ type StoredLocalPackIndex = {
   entries?: Array<{ id: string; name: string; packId: string; updatedAt: number }>;
 };
 
-function loadLocalPackOptions(): PackOption[] {
+async function loadLocalPackOptions(): Promise<PackOption[]> {
   const INDEX_KEY = 'jei.editor.localPacks.v1';
-  const raw = localStorage.getItem(INDEX_KEY);
+  const raw = storage.isUsingJEIStorage()
+    ? await storage.getItem(INDEX_KEY)
+    : localStorage.getItem(INDEX_KEY);
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw) as StoredLocalPackIndex;
@@ -1313,8 +1316,8 @@ async function reloadPack(packId: string) {
     }, 100);
 
     index.value = buildJeiIndex(loaded.pack);
-    favorites.value = loadFavorites(loaded.pack.manifest.packId);
-    savedPlans.value = loadPlans(loaded.pack.manifest.packId);
+    favorites.value = await loadFavorites(loaded.pack.manifest.packId);
+    savedPlans.value = await loadPlans(loaded.pack.manifest.packId);
     plannerInitialState.value = null;
     selectedKeyHash.value = filteredItems.value[0]?.keyHash ?? null;
 
@@ -1330,7 +1333,7 @@ async function reloadPack(packId: string) {
 }
 
 async function loadPacksIndex() {
-  const local = loadLocalPackOptions();
+  const local = await loadLocalPackOptions();
   try {
     const res = await fetch('/packs/index.json');
     if (!res.ok) {
@@ -1860,8 +1863,11 @@ function plansStorageKey(packId: string) {
   return `jei.plans.${packId}`;
 }
 
-function loadPlans(packId: string): SavedPlan[] {
-  const raw = localStorage.getItem(plansStorageKey(packId));
+async function loadPlans(packId: string): Promise<SavedPlan[]> {
+  const key = plansStorageKey(packId);
+  const raw = storage.isUsingJEIStorage()
+    ? await storage.getItem(key)
+    : localStorage.getItem(key);
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -1931,7 +1937,13 @@ function loadPlans(packId: string): SavedPlan[] {
 }
 
 function savePlans(packId: string, plans: SavedPlan[]) {
-  localStorage.setItem(plansStorageKey(packId), JSON.stringify(plans));
+  const key = plansStorageKey(packId);
+  const value = JSON.stringify(plans);
+  if (storage.isUsingJEIStorage()) {
+    void storage.setItem(key, value);
+  } else {
+    localStorage.setItem(key, value);
+  }
 }
 
 function newPlanId() {
@@ -2000,8 +2012,11 @@ function deleteSavedPlan(id: string) {
   savePlans(packId, next);
 }
 
-function loadFavorites(packId: string): Set<string> {
-  const raw = localStorage.getItem(favoritesStorageKey(packId));
+async function loadFavorites(packId: string): Promise<Set<string>> {
+  const key = favoritesStorageKey(packId);
+  const raw = storage.isUsingJEIStorage()
+    ? await storage.getItem(key)
+    : localStorage.getItem(key);
   if (!raw) return new Set();
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -2013,7 +2028,13 @@ function loadFavorites(packId: string): Set<string> {
 }
 
 function saveFavorites(packId: string, fav: Set<string>) {
-  localStorage.setItem(favoritesStorageKey(packId), JSON.stringify(Array.from(fav)));
+  const key = favoritesStorageKey(packId);
+  const value = JSON.stringify(Array.from(fav));
+  if (storage.isUsingJEIStorage()) {
+    void storage.setItem(key, value);
+  } else {
+    localStorage.setItem(key, value);
+  }
 }
 
 function isFavorite(keyHash: string) {
