@@ -49,6 +49,7 @@
                   filled
                   emit-value
                   map-options
+                  popup-content-class="planner__select-menu"
                   style="width: 120px"
                   :options="rateUnitOptions"
                   :model-value="target.unit"
@@ -329,6 +330,7 @@
                 filled
                 emit-value
                 map-options
+                popup-content-class="planner__select-menu"
                 style="min-width: 120px"
                 :options="rateUnitOptions"
                 :model-value="treeDisplayUnit"
@@ -508,6 +510,7 @@
                 filled
                 emit-value
                 map-options
+                popup-content-class="planner__select-menu"
                 style="min-width: 120px"
                 :options="rateUnitOptions"
                 :model-value="graphDisplayUnit"
@@ -637,6 +640,7 @@
                 filled
                 emit-value
                 map-options
+                popup-content-class="planner__select-menu"
                 style="min-width: 120px"
                 :options="rateUnitOptions"
                 :model-value="lineDisplayUnit"
@@ -902,6 +906,7 @@
                 filled
                 emit-value
                 map-options
+                popup-content-class="planner__select-menu"
                 style="min-width: 120px"
                 :options="rateUnitOptions"
                 :model-value="calcDisplayUnit"
@@ -3576,5 +3581,10 @@ defineExpose({
   .advanced-planner :deep(.q-card) {
     padding: 8px !important;
   }
+}
+
+/* 修复全屏模式下 q-select 下拉菜单的 z-index 问题 */
+:deep(.q-menu.planner__select-menu) {
+  z-index: 99999 !important;
 }
 </style>

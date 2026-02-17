@@ -149,6 +149,7 @@
               filled
               emit-value
               map-options
+              popup-content-class="planner__select-menu"
               style="min-width: 100px"
               :options="unitOptions"
               :model-value="targetUnit"
@@ -409,6 +410,7 @@
                 filled
                 emit-value
                 map-options
+                popup-content-class="planner__select-menu"
                 style="min-width: 100px"
                 :options="unitOptions"
                 :model-value="targetUnit"
@@ -569,6 +571,7 @@
                 filled
                 emit-value
                 map-options
+                popup-content-class="planner__select-menu"
                 style="min-width: 100px"
                 :options="unitOptions"
                 :model-value="targetUnit"
@@ -850,6 +853,7 @@
               filled
               emit-value
               map-options
+              popup-content-class="planner__select-menu"
               style="min-width: 100px"
               :options="unitOptions"
               :model-value="targetUnit"
@@ -1185,7 +1189,7 @@ const selectedItemIdByTagId = ref<Map<string, ItemId>>(new Map());
 
 const activeTab = ref<'tree' | 'graph' | 'line' | 'calc'>('tree');
 const targetAmount = ref(1);
-const targetUnit = ref<'items' | 'per_second' | 'per_minute' | 'per_hour'>('items');
+const targetUnit = ref<'items' | 'per_second' | 'per_minute' | 'per_hour'>('per_minute');
 const treeDisplayMode = ref<'list' | 'compact'>('list');
 const collapsed = ref<Set<string>>(new Set());
 const lineCollapseIntermediate = ref(true);
@@ -3179,5 +3183,10 @@ const flowBackgroundPatternColor = computed(() =>
 
 .planner__flow-node-machine {
   flex: 0 0 auto;
+}
+
+/* 修复全屏模式下 q-select 下拉菜单的 z-index 问题 */
+:deep(.q-menu.planner__select-menu) {
+  z-index: 99999 !important;
 }
 </style>

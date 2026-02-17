@@ -58,4 +58,9 @@ body.body--dark *::-webkit-scrollbar-thumb:active {
 body.body--dark * {
   scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
 }
+
+/* 修复全屏模式下 q-select 下拉菜单的 z-index 问题 */
+body .q-menu.planner__select-menu {
+  z-index: 99999 !important;
+}
 </style>
