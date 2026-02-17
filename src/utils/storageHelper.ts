@@ -26,12 +26,15 @@ let pendingUpdate: (() => void) | null = null;
  * Should be called during app initialization
  */
 export async function initSettings(): Promise<void> {
+  console.log('[Settings] initSettings called, initialLoadDone:', initialLoadDone, 'isUsingJEIStorage:', storage.isUsingJEIStorage());
   if (initialLoadDone) return;
 
   if (storage.isUsingJEIStorage()) {
     // Load from JEIStorage (async)
     try {
+      console.log('[Settings] Loading from JEIStorage with key:', SETTINGS_KEY);
       const jeiStorageValue = await storage.getItem(SETTINGS_KEY);
+      console.log('[Settings] JEIStorage returned:', jeiStorageValue ? `${jeiStorageValue.length} chars` : 'null');
       if (jeiStorageValue) {
         cachedSettings = jeiStorageValue;
         console.log('[Settings] ✓ Loaded from JEIStorage');
@@ -61,9 +64,11 @@ export async function initSettings(): Promise<void> {
   }
 
   initialLoadDone = true;
+  console.log('[Settings] initSettings complete, cachedSettings:', cachedSettings ? `${cachedSettings.length} chars` : 'null');
 
   // Notify pending listeners
   if (pendingUpdate) {
+    console.log('[Settings] Calling pending callback');
     pendingUpdate();
     pendingUpdate = null;
   }
@@ -101,6 +106,7 @@ export function isSettingsInitialized(): boolean {
  * Returns cached value, or null if not loaded yet
  */
 export function getSettingsJSON(): string | null {
+  console.log('[Settings] getSettingsJSON called, initialLoadDone:', initialLoadDone, 'cachedSettings:', cachedSettings ? `${cachedSettings.length} chars` : 'null');
   // During first load (before initSettings), try localStorage for immediate access
   if (!initialLoadDone && !storage.isUsingJEIStorage()) {
     const localValue = localStorage.getItem(SETTINGS_KEY);
