@@ -1,11 +1,20 @@
 import { defineStore } from 'pinia';
 import { Dark } from 'quasar';
+import {
+  initSettings,
+  getSettingsJSON,
+  saveSettingsJSON,
+  getStorageItem,
+  setStorageItem,
+  isUsingJEIStorage,
+  onSettingsLoaded,
+  PROXY_ACCESS_TOKEN_KEY,
+  PROXY_ANONYMOUS_TOKEN_KEY,
+  PROXY_FRAMEWORK_TOKEN_KEY,
+} from 'src/utils/storageHelper';
 
 export type DarkMode = 'auto' | 'light' | 'dark';
 export type Language = 'zh-CN' | 'en-US' | 'ja-JP';
-const PROXY_ACCESS_TOKEN_KEY = 'access_token';
-const PROXY_ANONYMOUS_TOKEN_KEY = 'anonymous_token';
-const PROXY_FRAMEWORK_TOKEN_KEY = 'framework_token';
 
 type CircuitEditorPiecePanelState = {
   x: number;
@@ -21,21 +30,12 @@ function darkModeToQuasar(mode: DarkMode): boolean | 'auto' {
   return mode === 'dark';
 }
 
-function safeStorageGet(key: string): string {
-  try {
-    return String(localStorage.getItem(key) ?? '');
-  } catch {
-    return '';
-  }
-}
-
-function safeStorageSetOrRemove(key: string, value: string): void {
-  try {
-    if (value) localStorage.setItem(key, value);
-    else localStorage.removeItem(key);
-  } catch {
-    // Ignore storage failures.
-  }
+// 探测浏览器语言
+function detectBrowserLanguage(): Language {
+  const browserLang = navigator.language;
+  if (browserLang.startsWith('zh')) return 'zh-CN';
+  if (browserLang.startsWith('ja')) return 'ja-JP';
+  return 'en-US';
 }
 
 function syncProxyTokensToStorage(state: {
@@ -43,17 +43,9 @@ function syncProxyTokensToStorage(state: {
   packImageProxyAnonymousToken: string;
   packImageProxyFrameworkToken: string;
 }): void {
-  safeStorageSetOrRemove(PROXY_ACCESS_TOKEN_KEY, state.packImageProxyAccessToken);
-  safeStorageSetOrRemove(PROXY_ANONYMOUS_TOKEN_KEY, state.packImageProxyAnonymousToken);
-  safeStorageSetOrRemove(PROXY_FRAMEWORK_TOKEN_KEY, state.packImageProxyFrameworkToken);
-}
-
-// 探测浏览器语言
-function detectBrowserLanguage(): Language {
-  const browserLang = navigator.language;
-  if (browserLang.startsWith('zh')) return 'zh-CN';
-  if (browserLang.startsWith('ja')) return 'ja-JP';
-  return 'en-US';
+  setStorageItem(PROXY_ACCESS_TOKEN_KEY, state.packImageProxyAccessToken);
+  setStorageItem(PROXY_ANONYMOUS_TOKEN_KEY, state.packImageProxyAnonymousToken);
+  setStorageItem(PROXY_FRAMEWORK_TOKEN_KEY, state.packImageProxyFrameworkToken);
 }
 
 export const useSettingsStore = defineStore('settings', {
@@ -82,16 +74,16 @@ export const useSettingsStore = defineStore('settings', {
       packImageProxyUseDev: false,
       packImageProxyManualUrl: '',
       packImageProxyDevUrl: '',
-      packImageProxyAccessToken: safeStorageGet(PROXY_ACCESS_TOKEN_KEY),
-      packImageProxyAnonymousToken: safeStorageGet(PROXY_ANONYMOUS_TOKEN_KEY),
-      packImageProxyFrameworkToken: safeStorageGet(PROXY_FRAMEWORK_TOKEN_KEY),
+      packImageProxyAccessToken: getStorageItem(PROXY_ACCESS_TOKEN_KEY),
+      packImageProxyAnonymousToken: getStorageItem(PROXY_ANONYMOUS_TOKEN_KEY),
+      packImageProxyFrameworkToken: getStorageItem(PROXY_FRAMEWORK_TOKEN_KEY),
       circuitCollectionPreviewShowPieces: false,
       circuitEditorPiecePanel: { x: 16, y: 120, width: 420, height: 620, minimized: false, docked: false } as CircuitEditorPiecePanelState,
       circuitEditorPiecePanelSplitRatio: 0.5,
       detectPcDisableMobile: true,
     };
     try {
-      const raw = localStorage.getItem('jei.settings');
+      const raw = getSettingsJSON();
       if (!raw) {
         Dark.set('auto');
         return defaults;
@@ -230,117 +222,117 @@ export const useSettingsStore = defineStore('settings', {
   actions: {
     setHistoryLimit(limit: number) {
       this.historyLimit = limit;
-      this.save();
+      void this.save();
     },
     setDebugLayout(enabled: boolean) {
       this.debugLayout = enabled;
-      this.save();
+      void this.save();
     },
     setDebugNavPanel(enabled: boolean) {
       this.debugNavPanel = enabled;
-      this.save();
+      void this.save();
     },
     setRecipeViewMode(mode: 'dialog' | 'panel') {
       this.recipeViewMode = mode;
-      this.save();
+      void this.save();
     },
     setRecipeSlotShowName(enabled: boolean) {
       this.recipeSlotShowName = enabled;
-      this.save();
+      void this.save();
     },
     setSelectedPack(packId: string) {
       this.selectedPack = packId;
-      this.save();
+      void this.save();
     },
     setFavoritesCollapsed(value: boolean) {
       this.favoritesCollapsed = value;
-      this.save();
+      void this.save();
     },
     setPanelCollapsed(value: boolean) {
       this.panelCollapsed = value;
-      this.save();
+      void this.save();
     },
     setDarkMode(mode: DarkMode) {
       this.darkMode = mode;
       Dark.set(darkModeToQuasar(mode));
-      this.save();
+      void this.save();
     },
     setLanguage(lang: Language) {
       this.language = lang;
-      this.save();
+      void this.save();
     },
     setDebugPanelPos(pos: { x: number; y: number }) {
       this.debugPanelPos = pos;
-      this.save();
+      void this.save();
     },
     addAcceptedStartupDialog(id: string) {
       if (!this.acceptedStartupDialogs.includes(id)) {
         this.acceptedStartupDialogs.push(id);
-        this.save();
+        void this.save();
       }
     },
     setFavoritesOpensNewStack(value: boolean) {
       this.favoritesOpensNewStack = value;
-      this.save();
+      void this.save();
     },
     setWikiImageUseProxy(value: boolean) {
       this.wikiImageUseProxy = value;
-      this.save();
+      void this.save();
     },
     setWikiImageProxyUrl(value: string) {
       this.wikiImageProxyUrl = value;
-      this.save();
+      void this.save();
     },
     setWikiCatalogFileName(value: string) {
       this.wikiCatalogFileName = value;
-      this.save();
+      void this.save();
     },
     setPackImageProxyUsePackProvided(value: boolean) {
       this.packImageProxyUsePackProvided = value;
-      this.save();
+      void this.save();
     },
     setPackImageProxyUseManual(value: boolean) {
       this.packImageProxyUseManual = value;
-      this.save();
+      void this.save();
     },
     setPackImageProxyUseDev(value: boolean) {
       this.packImageProxyUseDev = value;
-      this.save();
+      void this.save();
     },
     setPackImageProxyManualUrl(value: string) {
       this.packImageProxyManualUrl = value;
-      this.save();
+      void this.save();
     },
     setPackImageProxyDevUrl(value: string) {
       this.packImageProxyDevUrl = value;
-      this.save();
+      void this.save();
     },
     setPackImageProxyAccessToken(value: string) {
       this.packImageProxyAccessToken = value;
       syncProxyTokensToStorage(this);
-      this.save();
+      void this.save();
     },
     setPackImageProxyAnonymousToken(value: string) {
       this.packImageProxyAnonymousToken = value;
       syncProxyTokensToStorage(this);
-      this.save();
+      void this.save();
     },
     setPackImageProxyFrameworkToken(value: string) {
       this.packImageProxyFrameworkToken = value;
       syncProxyTokensToStorage(this);
-      this.save();
+      void this.save();
     },
     setCompletedTutorial(value: boolean) {
       this.completedTutorial = value;
-      this.save();
+      void this.save();
     },
     setCircuitCollectionPreviewShowPieces(value: boolean) {
       this.circuitCollectionPreviewShowPieces = value;
-      this.save();
+      void this.save();
     },
     setCircuitEditorPiecePanelSplitRatio(value: number) {
       this.circuitEditorPiecePanelSplitRatio = value;
-      this.save();
+      void this.save();
     },
     setCircuitEditorPiecePanel(value: CircuitEditorPiecePanelState) {
       this.circuitEditorPiecePanel = {
@@ -351,47 +343,110 @@ export const useSettingsStore = defineStore('settings', {
         minimized: value.minimized,
         docked: value.docked,
       };
-      this.save();
+      void this.save();
     },
     setDetectPcDisableMobile(value: boolean) {
       this.detectPcDisableMobile = value;
-      this.save();
+      void this.save();
     },
-    save() {
-      localStorage.setItem(
-        'jei.settings',
-        JSON.stringify({
-          historyLimit: this.historyLimit,
-          debugLayout: this.debugLayout,
-          debugNavPanel: this.debugNavPanel,
-          recipeViewMode: this.recipeViewMode,
-          recipeSlotShowName: this.recipeSlotShowName,
-          selectedPack: this.selectedPack,
-          favoritesCollapsed: this.favoritesCollapsed,
-          panelCollapsed: this.panelCollapsed,
-          darkMode: this.darkMode,
-          language: this.language,
-          debugPanelPos: this.debugPanelPos,
-          acceptedStartupDialogs: this.acceptedStartupDialogs,
-          completedTutorial: this.completedTutorial,
-          favoritesOpensNewStack: this.favoritesOpensNewStack,
-          wikiImageUseProxy: this.wikiImageUseProxy,
-          wikiImageProxyUrl: this.wikiImageProxyUrl,
-          wikiCatalogFileName: this.wikiCatalogFileName,
-          packImageProxyUsePackProvided: this.packImageProxyUsePackProvided,
-          packImageProxyUseManual: this.packImageProxyUseManual,
-          packImageProxyUseDev: this.packImageProxyUseDev,
-          packImageProxyManualUrl: this.packImageProxyManualUrl,
-          packImageProxyDevUrl: this.packImageProxyDevUrl,
-          packImageProxyAccessToken: this.packImageProxyAccessToken,
-          packImageProxyAnonymousToken: this.packImageProxyAnonymousToken,
-          packImageProxyFrameworkToken: this.packImageProxyFrameworkToken,
-          circuitCollectionPreviewShowPieces: this.circuitCollectionPreviewShowPieces,
-          circuitEditorPiecePanel: this.circuitEditorPiecePanel,
-          circuitEditorPiecePanelSplitRatio: this.circuitEditorPiecePanelSplitRatio,
-          detectPcDisableMobile: this.detectPcDisableMobile,
-        }),
-      );
+    async save() {
+      const json = JSON.stringify({
+        historyLimit: this.historyLimit,
+        debugLayout: this.debugLayout,
+        debugNavPanel: this.debugNavPanel,
+        recipeViewMode: this.recipeViewMode,
+        recipeSlotShowName: this.recipeSlotShowName,
+        selectedPack: this.selectedPack,
+        favoritesCollapsed: this.favoritesCollapsed,
+        panelCollapsed: this.panelCollapsed,
+        darkMode: this.darkMode,
+        language: this.language,
+        debugPanelPos: this.debugPanelPos,
+        acceptedStartupDialogs: this.acceptedStartupDialogs,
+        completedTutorial: this.completedTutorial,
+        favoritesOpensNewStack: this.favoritesOpensNewStack,
+        wikiImageUseProxy: this.wikiImageUseProxy,
+        wikiImageProxyUrl: this.wikiImageProxyUrl,
+        wikiCatalogFileName: this.wikiCatalogFileName,
+        packImageProxyUsePackProvided: this.packImageProxyUsePackProvided,
+        packImageProxyUseManual: this.packImageProxyUseManual,
+        packImageProxyUseDev: this.packImageProxyUseDev,
+        packImageProxyManualUrl: this.packImageProxyManualUrl,
+        packImageProxyDevUrl: this.packImageProxyDevUrl,
+        packImageProxyAccessToken: this.packImageProxyAccessToken,
+        packImageProxyAnonymousToken: this.packImageProxyAnonymousToken,
+        packImageProxyFrameworkToken: this.packImageProxyFrameworkToken,
+        circuitCollectionPreviewShowPieces: this.circuitCollectionPreviewShowPieces,
+        circuitEditorPiecePanel: this.circuitEditorPiecePanel,
+        circuitEditorPiecePanelSplitRatio: this.circuitEditorPiecePanelSplitRatio,
+        detectPcDisableMobile: this.detectPcDisableMobile,
+      });
+      await saveSettingsJSON(json);
+    },
+    isUsingJEIStorage() {
+      return isUsingJEIStorage();
+    },
+    /**
+     * Reload settings from storage
+     * Call this after JEIStorage async loading completes
+     */
+    reloadFromStorage() {
+      const raw = getSettingsJSON();
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw) as Partial<typeof this.$state>;
+
+      // Update state with loaded values
+      if (typeof parsed.historyLimit === 'number') this.historyLimit = parsed.historyLimit;
+      if (typeof parsed.debugLayout === 'boolean') this.debugLayout = parsed.debugLayout;
+      if (typeof parsed.debugNavPanel === 'boolean') this.debugNavPanel = parsed.debugNavPanel;
+      if (parsed.recipeViewMode === 'panel' || parsed.recipeViewMode === 'dialog') this.recipeViewMode = parsed.recipeViewMode;
+      if (typeof parsed.recipeSlotShowName === 'boolean') this.recipeSlotShowName = parsed.recipeSlotShowName;
+      if (typeof parsed.selectedPack === 'string') this.selectedPack = parsed.selectedPack;
+      if (typeof parsed.favoritesCollapsed === 'boolean') this.favoritesCollapsed = parsed.favoritesCollapsed;
+      if (typeof parsed.panelCollapsed === 'boolean') this.panelCollapsed = parsed.panelCollapsed;
+      if (parsed.darkMode === 'auto' || parsed.darkMode === 'light' || parsed.darkMode === 'dark') {
+        this.darkMode = parsed.darkMode;
+        Dark.set(darkModeToQuasar(parsed.darkMode));
+      }
+      if (parsed.language === 'zh-CN' || parsed.language === 'en-US' || parsed.language === 'ja-JP') this.language = parsed.language;
+      if (parsed.debugPanelPos && typeof parsed.debugPanelPos.x === 'number') this.debugPanelPos = parsed.debugPanelPos;
+      if (Array.isArray(parsed.acceptedStartupDialogs)) this.acceptedStartupDialogs = parsed.acceptedStartupDialogs.filter((x): x is string => typeof x === 'string');
+      if (typeof parsed.completedTutorial === 'boolean') this.completedTutorial = parsed.completedTutorial;
+      if (typeof parsed.favoritesOpensNewStack === 'boolean') this.favoritesOpensNewStack = parsed.favoritesOpensNewStack;
+      if (typeof parsed.wikiImageUseProxy === 'boolean') this.wikiImageUseProxy = parsed.wikiImageUseProxy;
+      if (typeof parsed.wikiImageProxyUrl === 'string') this.wikiImageProxyUrl = parsed.wikiImageProxyUrl;
+      if (typeof parsed.wikiCatalogFileName === 'string') this.wikiCatalogFileName = parsed.wikiCatalogFileName;
+      if (typeof parsed.packImageProxyUsePackProvided === 'boolean') this.packImageProxyUsePackProvided = parsed.packImageProxyUsePackProvided;
+      if (typeof parsed.packImageProxyUseManual === 'boolean') this.packImageProxyUseManual = parsed.packImageProxyUseManual;
+      if (typeof parsed.packImageProxyUseDev === 'boolean') this.packImageProxyUseDev = parsed.packImageProxyUseDev;
+      if (typeof parsed.packImageProxyManualUrl === 'string') this.packImageProxyManualUrl = parsed.packImageProxyManualUrl;
+      if (typeof parsed.packImageProxyDevUrl === 'string') this.packImageProxyDevUrl = parsed.packImageProxyDevUrl;
+      if (typeof parsed.packImageProxyAccessToken === 'string') this.packImageProxyAccessToken = parsed.packImageProxyAccessToken;
+      if (typeof parsed.packImageProxyAnonymousToken === 'string') this.packImageProxyAnonymousToken = parsed.packImageProxyAnonymousToken;
+      if (typeof parsed.packImageProxyFrameworkToken === 'string') this.packImageProxyFrameworkToken = parsed.packImageProxyFrameworkToken;
+      if (typeof parsed.circuitCollectionPreviewShowPieces === 'boolean') this.circuitCollectionPreviewShowPieces = parsed.circuitCollectionPreviewShowPieces;
+      if (typeof parsed.circuitEditorPiecePanelSplitRatio === 'number') this.circuitEditorPiecePanelSplitRatio = parsed.circuitEditorPiecePanelSplitRatio;
+      if (typeof parsed.detectPcDisableMobile === 'boolean') this.detectPcDisableMobile = parsed.detectPcDisableMobile;
     },
   },
 });
+
+/**
+ * Initialize settings store from storage
+ * Call this during app initialization before creating the store
+ */
+export async function initSettingsStore() {
+  await initSettings();
+}
+
+/**
+ * Setup settings store to auto-reload when JEIStorage loading completes
+ * Call this after creating the store instance
+ */
+export function setupSettingsStoreAutoReload(store: ReturnType<typeof useSettingsStore>) {
+  onSettingsLoaded(() => {
+    console.log('[Settings] Reloading store from async storage...');
+    void store.reloadFromStorage();
+  });
+}

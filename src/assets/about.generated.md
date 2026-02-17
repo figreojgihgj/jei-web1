@@ -1,16 +1,22 @@
 # About
 
 ## Build
-- Version: acc9ab7-dirty
-- Commit: acc9ab7 (acc9ab7a9a3bb0f5ccf348641773c4b0b9ddf5b4)
-- Commit count: 95
-- Subject: fix: 修正数据包列表顺序并更新许可证说明
+- Version: 636158a-dirty
+- Commit: 636158a (636158a95be5c817ee3111c5878253ff6b78564c)
+- Commit count: 96
+- Subject: feat(settings): 添加检测PC端并禁用移动端界面功能 fix(licenses): 更新数据来源说明以明确数据来源 fix(about): 更新版本信息和提交历史
 - Author: AndreaFrederica
-- Date: 2026-02-17T20:28:10+08:00
-- Generated at: 2026-02-17T19:49:47.020Z
+- Date: 2026-02-18T03:58:03+08:00
+- Generated at: 2026-02-17T20:24:08.321Z
 - Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History
+
+### r96 (2026-02-18T03:58:03+08:00)
+- 636158a
+  feat(settings): 添加检测PC端并禁用移动端界面功能
+  fix(licenses): 更新数据来源说明以明确数据来源
+  fix(about): 更新版本信息和提交历史
 
 ### r95 (2026-02-17T20:28:10+08:00)
 - acc9ab7

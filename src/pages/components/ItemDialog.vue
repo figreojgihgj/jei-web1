@@ -28,7 +28,7 @@
           <q-tab name="wiki" :label="t('tabsWikiWithLabel')" />
           <q-tab name="planner" :label="t('tabsPlannerWithLabel')" />
         </q-tabs>
-        <div class="jei-dialog__hint text-caption">Backspace: 返回 · Esc: 关闭</div>
+        <div class="jei-dialog__hint text-caption">{{ keyHint }}</div>
       </div>
 
       <q-scroll-area class="jei-dialog__body">
@@ -65,13 +65,23 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { PackData, ItemDef, ItemKey } from 'src/jei/types';
 import type { JeiIndex } from 'src/jei/indexing/buildIndex';
 import type { PlannerInitialState, PlannerLiveState } from 'src/jei/planner/plannerUi';
 import RecipeContentView from './RecipeContentView.vue';
+import { useKeyBindingsStore, keyBindingToString } from 'src/stores/keybindings';
 
 const { t } = useI18n();
+const keyBindingsStore = useKeyBindingsStore();
+
+// 显示快捷键提示
+const keyHint = computed(() => {
+  const backspace = keyBindingToString(keyBindingsStore.getBinding('goBack'));
+  const escape = keyBindingToString(keyBindingsStore.getBinding('closeDialog'));
+  return `${backspace}: ${t('goBack')} · ${escape}: ${t('close')}`;
+});
 
 interface RecipeGroup {
   typeKey: string;

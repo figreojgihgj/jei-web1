@@ -51,6 +51,13 @@
           :model-value="detectPcDisableMobile"
           @update:model-value="$emit('update:detect-pc-disable-mobile', !!$event)"
         />
+        <q-btn
+          flat
+          :label="t('keybindings')"
+          color="primary"
+          class="q-my-sm full-width"
+          @click="$emit('open-keybindings')"
+        />
         <q-separator class="q-my-sm" />
         <div class="text-subtitle2 q-mb-sm">{{ t('packImageProxyTitle') }}</div>
         <q-toggle
@@ -168,6 +175,7 @@ defineEmits<{
   'update:recipe-slot-show-name': [value: boolean];
   'update:favorites-open-stack': [value: boolean];
   'update:detect-pc-disable-mobile': [value: boolean];
+  'open-keybindings': [];
   'update:pack-image-proxy-use-pack-provided': [value: boolean];
   'update:pack-image-proxy-use-manual': [value: boolean];
   'update:pack-image-proxy-use-dev': [value: boolean];

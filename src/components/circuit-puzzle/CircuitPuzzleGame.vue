@@ -152,6 +152,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import CircuitPuzzleBoard from './CircuitPuzzleBoard.vue';
 import CircuitPuzzlePieceCard from './CircuitPuzzlePieceCard.vue';
+import { useKeyBindingsStore, eventMatchesBinding } from 'src/stores/keybindings';
 import type {
   ClueDisplayMode,
   GridCell,
@@ -160,6 +161,8 @@ import type {
   PuzzlePieceDefinition,
   PuzzleScorePart,
 } from './types';
+
+const keyBindingsStore = useKeyBindingsStore();
 
 type PieceRuntimeState = {
   rotation: number;
@@ -944,17 +947,19 @@ function resetAll(): void {
 function onKeyDown(event: KeyboardEvent): void {
   if (isTypingTarget(event.target)) return;
 
-  if (event.key === 'r' || event.key === 'R') {
+  const bindings = keyBindingsStore.bindings;
+
+  if (eventMatchesBinding(event, bindings.circuitRotate)) {
     event.preventDefault();
     rotateSelectedPiece();
     return;
   }
-  if (event.key === 'Escape') {
+  if (eventMatchesBinding(event, bindings.circuitDeselect)) {
     selectedPieceId.value = null;
     selectedPieceInstanceId.value = null;
     return;
   }
-  if ((event.key === 'Backspace' || event.key === 'Delete') && selectedPieceInstanceId.value) {
+  if (eventMatchesBinding(event, bindings.circuitDelete) && selectedPieceInstanceId.value) {
     event.preventDefault();
     pickupPiece(selectedPieceInstanceId.value);
   }

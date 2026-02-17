@@ -311,8 +311,11 @@ import CircuitPuzzleBoard from './CircuitPuzzleBoard.vue';
 import CircuitPuzzlePiecePanel from './CircuitPuzzlePiecePanel.vue';
 import CircuitPuzzleShapeCanvas from './CircuitPuzzleShapeCanvas.vue';
 import { useSettingsStore } from 'src/stores/settings';
+import { useKeyBindingsStore, eventMatchesBinding } from 'src/stores/keybindings';
 import { solveLevel, verifySolution } from './auto-solver';
 import { cloneLevel } from './defaultLevel';
+
+const keyBindingsStore = useKeyBindingsStore();
 import {
   buildAxisScoreParts,
   cellsForShape,
@@ -2191,7 +2194,10 @@ function applyImportJson(): void {
 }
 function onEditorKeyDown(event: KeyboardEvent): void {
   if (isTypingTarget(event.target)) return;
-  if (event.key === 'r' || event.key === 'R') {
+
+  const bindings = keyBindingsStore.bindings;
+
+  if (eventMatchesBinding(event, bindings.circuitRotate)) {
     event.preventDefault();
     if (boardTool.value === 'place') {
       const boardKey = boardHover.value ? keyOf(boardHover.value.x, boardHover.value.y) : null;
@@ -2204,7 +2210,7 @@ function onEditorKeyDown(event: KeyboardEvent): void {
     } else if (shapePieceUid.value) rotatePieceShape(shapePieceUid.value);
     return;
   }
-  if (event.key === 'g' || event.key === 'G') {
+  if (eventMatchesBinding(event, bindings.circuitRun)) {
     event.preventDefault();
     generateHintsFromPlacements();
     return;
@@ -2215,8 +2221,8 @@ function onEditorKeyDown(event: KeyboardEvent): void {
   if (event.key === '4') boardTool.value = 'hint';
   if (event.key === '5') boardTool.value = 'paint';
   if (event.key === '6') boardTool.value = 'erase';
-  if (event.key === 'Escape') selectedPieceUid.value = null;
-  if (event.key === 'Delete' || event.key === 'Backspace') {
+  if (eventMatchesBinding(event, bindings.circuitDeselect)) selectedPieceUid.value = null;
+  if (eventMatchesBinding(event, bindings.circuitDelete)) {
     const boardKey = boardHover.value ? keyOf(boardHover.value.x, boardHover.value.y) : null;
     if (boardKey) {
       const placementId = placementCellMap.value.get(boardKey);

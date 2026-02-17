@@ -1,5 +1,6 @@
 import { defineBoot } from '#q-app/wrappers';
 import { createI18n } from 'vue-i18n';
+import { storage } from 'src/utils/storage';
 
 import messages from 'src/i18n';
 
@@ -23,7 +24,7 @@ declare module 'vue-i18n' {
 }
 /* eslint-enable @typescript-eslint/no-empty-object-type */
 
-export default defineBoot(({ app }) => {
+export default defineBoot(async ({ app }) => {
   // 探测浏览器语言
   const browserLang = navigator.language;
   const detectedLocale: MessageLanguages = browserLang.startsWith('zh')
@@ -32,10 +33,10 @@ export default defineBoot(({ app }) => {
       ? 'ja-JP'
       : 'en-US';
 
-  // 从 localStorage 读取语言设置，默认为浏览器探测的语言
+  // 从存储读取语言设置（支持 JEIStorage 和 localStorage）
   let initialLocale: MessageLanguages = detectedLocale;
   try {
-    const raw = localStorage.getItem('jei.settings');
+    const raw = await storage.getItem('jei.settings');
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed.language === 'zh-CN' || parsed.language === 'en-US' || parsed.language === 'ja-JP') {

@@ -195,6 +195,13 @@
       @update:pack-image-proxy-framework-token="
         settingsStore.setPackImageProxyFrameworkToken($event)
       "
+      @open-keybindings="keybindingsOpen = true"
+    />
+
+    <!-- 快捷键设置对话框 -->
+    <key-bindings-dialog
+      :open="keybindingsOpen"
+      @update:open="keybindingsOpen = $event"
     />
 
     <pre v-if="settingsStore.debugLayout" class="jei-debug-overlay">{{ debugText }}</pre>
@@ -269,6 +276,7 @@ import ItemListPanel from './components/ItemListPanel.vue';
 import CenterPanel from './components/CenterPanel.vue';
 import BottomBar from './components/BottomBar.vue';
 import SettingsDialog from './components/SettingsDialog.vue';
+import KeyBindingsDialog from './components/KeyBindingsDialog.vue';
 import ItemDialog from './components/ItemDialog.vue';
 import ItemContextMenu from './components/ItemContextMenu.vue';
 import DebugPanel from './components/DebugPanel.vue';
@@ -282,8 +290,10 @@ import type {
 import { itemKeyHash } from 'src/jei/indexing/key';
 import { autoPlanSelections } from 'src/jei/planner/planner';
 import { useSettingsStore } from 'src/stores/settings';
+import { useKeyBindingsStore, eventMatchesBinding } from 'src/stores/keybindings';
 
 const settingsStore = useSettingsStore();
+const keyBindingsStore = useKeyBindingsStore();
 const dialogManager = useDialogManager();
 const { t } = useI18n();
 const contextMenuTarget = ref<HTMLElement | null>(null);
@@ -427,6 +437,7 @@ const gridColumns = 2;
 const pageSize = ref(120);
 
 const settingsOpen = ref(false);
+const keybindingsOpen = ref(false);
 const dialogOpen = ref(false);
 const contextMenuRef = ref();
 const centerPanelRef = ref();
@@ -1686,16 +1697,17 @@ function onKeyDown(e: KeyboardEvent) {
     tag === 'input' || tag === 'textarea' || target?.getAttribute('contenteditable') === 'true';
   if (isTyping) return;
 
-  const key = e.key;
+  // 获取快捷键绑定
+  const bindings = keyBindingsStore.bindings;
 
-  // Backspace 和 Escape 在面板模式和对话框模式下都应该工作
+  // 导航快捷键（在面板模式和对话框模式下都工作）
   if (navStack.value.length > 0) {
-    if (key === 'Escape') {
+    if (eventMatchesBinding(e, bindings.closeDialog)) {
       e.preventDefault();
       closeDialog();
       return;
     }
-    if (key === 'Backspace') {
+    if (eventMatchesBinding(e, bindings.goBack)) {
       e.preventDefault();
       goBackInDialog();
       return;
@@ -1716,25 +1728,25 @@ function onKeyDown(e: KeyboardEvent) {
       return true;
     };
 
-    if (key === 'r' || key === 'R') {
+    if (eventMatchesBinding(e, bindings.viewRecipes)) {
       e.preventDefault();
       if (openHoverInDialog('recipes')) return;
       activeTab.value = 'recipes';
       return;
     }
-    if (key === 'u' || key === 'U') {
+    if (eventMatchesBinding(e, bindings.viewUses)) {
       e.preventDefault();
       if (openHoverInDialog('uses')) return;
       activeTab.value = 'uses';
       return;
     }
-    if (key === 'w' || key === 'W') {
+    if (eventMatchesBinding(e, bindings.viewWiki)) {
       e.preventDefault();
       if (openHoverInDialog('wiki')) return;
       activeTab.value = 'wiki';
       return;
     }
-    if (key === 'p' || key === 'P') {
+    if (eventMatchesBinding(e, bindings.viewPlanner)) {
       e.preventDefault();
       if (openHoverInDialog('planner')) {
         plannerTab.value = 'tree';
@@ -1745,7 +1757,7 @@ function onKeyDown(e: KeyboardEvent) {
       ensurePlannerAutoForCurrentItem();
       return;
     }
-    if (key === 't' || key === 'T' || key === '1') {
+    if (eventMatchesBinding(e, bindings.plannerTree)) {
       e.preventDefault();
       if (openHoverInDialog('planner')) {
         plannerTab.value = 'tree';
@@ -1756,7 +1768,7 @@ function onKeyDown(e: KeyboardEvent) {
       ensurePlannerAutoForCurrentItem();
       return;
     }
-    if (key === 'g' || key === 'G' || key === '2') {
+    if (eventMatchesBinding(e, bindings.plannerGraph)) {
       e.preventDefault();
       if (openHoverInDialog('planner')) {
         plannerTab.value = 'graph';
@@ -1767,7 +1779,7 @@ function onKeyDown(e: KeyboardEvent) {
       ensurePlannerAutoForCurrentItem();
       return;
     }
-    if (key === 'l' || key === 'L' || key === '3') {
+    if (eventMatchesBinding(e, bindings.plannerLine)) {
       e.preventDefault();
       if (openHoverInDialog('planner')) {
         plannerTab.value = 'line';
@@ -1778,7 +1790,7 @@ function onKeyDown(e: KeyboardEvent) {
       ensurePlannerAutoForCurrentItem();
       return;
     }
-    if (key === 'c' || key === 'C' || key === '4') {
+    if (eventMatchesBinding(e, bindings.plannerCalc)) {
       e.preventDefault();
       activeTab.value = 'planner';
       plannerTab.value = 'calc';
@@ -1797,39 +1809,39 @@ function onKeyDown(e: KeyboardEvent) {
     else openDialogByKeyHash(hoveredKeyHash.value!, tab);
   };
 
-  if (key === 'r' || key === 'R') {
+  if (eventMatchesBinding(e, bindings.viewRecipes)) {
     e.preventDefault();
     openTarget('recipes');
-  } else if (key === 'u' || key === 'U') {
+  } else if (eventMatchesBinding(e, bindings.viewUses)) {
     e.preventDefault();
     openTarget('uses');
-  } else if (key === 'w' || key === 'W') {
+  } else if (eventMatchesBinding(e, bindings.viewWiki)) {
     e.preventDefault();
     openTarget('wiki');
-  } else if (key === 'p' || key === 'P') {
+  } else if (eventMatchesBinding(e, bindings.viewPlanner)) {
     e.preventDefault();
     plannerTab.value = 'tree';
     openTarget('planner');
-  } else if (key === 't' || key === 'T' || key === '1') {
+  } else if (eventMatchesBinding(e, bindings.plannerTree)) {
     e.preventDefault();
     plannerTab.value = 'tree';
     openTarget('planner');
-  } else if (key === 'g' || key === 'G' || key === '2') {
+  } else if (eventMatchesBinding(e, bindings.plannerGraph)) {
     e.preventDefault();
     plannerTab.value = 'graph';
     openTarget('planner');
-  } else if (key === 'l' || key === 'L' || key === '3') {
+  } else if (eventMatchesBinding(e, bindings.plannerLine)) {
     e.preventDefault();
     plannerTab.value = 'line';
     openTarget('planner');
-  } else if (key === 'c' || key === 'C' || key === '4') {
+  } else if (eventMatchesBinding(e, bindings.plannerCalc)) {
     e.preventDefault();
     plannerTab.value = 'calc';
     openTarget('planner');
-  } else if (key === 'a' || key === 'A') {
+  } else if (eventMatchesBinding(e, bindings.toggleFavorite)) {
     e.preventDefault();
     toggleFavorite(hoveredKeyHash.value);
-  } else if (key === 'd' || key === 'D') {
+  } else if (eventMatchesBinding(e, bindings.addToAdvanced)) {
     e.preventDefault();
     // 添加到高级计划器
     centerTab.value = 'advanced';
