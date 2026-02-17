@@ -1,16 +1,24 @@
 # About
 
 ## Build
-- Version: 36337dd-dirty
-- Commit: 36337dd (36337dd9ef6d357fc29c5cc3ea902d734d34c514)
-- Commit count: 94
-- Subject: feat(wiki): 为液体容器生成派生物品并优化表格解析
+- Version: acc9ab7-dirty
+- Commit: acc9ab7 (acc9ab7a9a3bb0f5ccf348641773c4b0b9ddf5b4)
+- Commit count: 95
+- Subject: fix: 修正数据包列表顺序并更新许可证说明
 - Author: AndreaFrederica
-- Date: 2026-02-17T06:17:58+08:00
-- Generated at: 2026-02-17T12:10:55.115Z
+- Date: 2026-02-17T20:28:10+08:00
+- Generated at: 2026-02-17T19:49:47.020Z
 - Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History
+
+### r95 (2026-02-17T20:28:10+08:00)
+- acc9ab7
+  fix: 修正数据包列表顺序并更新许可证说明
+  
+  - 调整 public/packs/index.json 中数据包顺序，将 "Arknights:Endfield Skland Wiki" 移至正确位置
+  - 更新 THIRD-PARTY_LICENSES.md 中 aef 数据包的来源说明，明确数据来自 factoriolab-zmd 项目的手动整理
+  - 自动生成 about.generated.md 文件，更新版本信息和提交历史
 
 ### r94 (2026-02-17T06:17:58+08:00)
 - 36337dd

@@ -48,7 +48,9 @@ Local copy available at: `D:\Projcets\factoriolab-zmd`
 
 **Data Pack Location:** `public/packs/aef/`
 
-**Note:** The Arknights:Endfield data pack contains game data extracted from the game Arknights:Endfield. This data is used for informational purposes only and remains the property of Hypergryph.
+**Data Source:** factoriolab-zmd (https://github.com/Bakingss/factoriolab-zmd)
+
+**Note:** This data pack is derived from the manually curated Arknights:Endfield data in factoriolab-zmd, with format conversion for use in this project. The original data was independently compiled by the factoriolab-zmd project and is not extracted game files. Game data and concepts remain the property of Hypergryph.
 
 ## aef-skland Data Source
 

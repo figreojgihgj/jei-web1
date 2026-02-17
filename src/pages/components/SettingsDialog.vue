@@ -46,6 +46,11 @@
           :model-value="favoritesOpensNewStack"
           @update:model-value="$emit('update:favorites-open-stack', !!$event)"
         />
+        <q-toggle
+          :label="t('detectPcDisableMobile')"
+          :model-value="detectPcDisableMobile"
+          @update:model-value="$emit('update:detect-pc-disable-mobile', !!$event)"
+        />
         <q-separator class="q-my-sm" />
         <div class="text-subtitle2 q-mb-sm">{{ t('packImageProxyTitle') }}</div>
         <q-toggle
@@ -141,6 +146,7 @@ defineProps<{
   recipeViewMode: 'dialog' | 'panel';
   recipeSlotShowName: boolean;
   favoritesOpensNewStack: boolean;
+  detectPcDisableMobile: boolean;
   packProxyTemplate: string;
   packDevProxyTemplate: string;
   packImageProxyUsePackProvided: boolean;
@@ -161,6 +167,7 @@ defineEmits<{
   'update:recipe-view-mode': [value: 'dialog' | 'panel'];
   'update:recipe-slot-show-name': [value: boolean];
   'update:favorites-open-stack': [value: boolean];
+  'update:detect-pc-disable-mobile': [value: boolean];
   'update:pack-image-proxy-use-pack-provided': [value: boolean];
   'update:pack-image-proxy-use-manual': [value: boolean];
   'update:pack-image-proxy-use-dev': [value: boolean];

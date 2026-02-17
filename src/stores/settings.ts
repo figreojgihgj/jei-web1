@@ -88,6 +88,7 @@ export const useSettingsStore = defineStore('settings', {
       circuitCollectionPreviewShowPieces: false,
       circuitEditorPiecePanel: { x: 16, y: 120, width: 420, height: 620, minimized: false, docked: false } as CircuitEditorPiecePanelState,
       circuitEditorPiecePanelSplitRatio: 0.5,
+      detectPcDisableMobile: true,
     };
     try {
       const raw = localStorage.getItem('jei.settings');
@@ -214,6 +215,10 @@ export const useSettingsStore = defineStore('settings', {
             && Number.isFinite(parsed.circuitEditorPiecePanelSplitRatio)
             ? parsed.circuitEditorPiecePanelSplitRatio
             : defaults.circuitEditorPiecePanelSplitRatio,
+        detectPcDisableMobile:
+          typeof parsed.detectPcDisableMobile === 'boolean'
+            ? parsed.detectPcDisableMobile
+            : defaults.detectPcDisableMobile,
       };
       syncProxyTokensToStorage(restored);
       return restored;
@@ -348,6 +353,10 @@ export const useSettingsStore = defineStore('settings', {
       };
       this.save();
     },
+    setDetectPcDisableMobile(value: boolean) {
+      this.detectPcDisableMobile = value;
+      this.save();
+    },
     save() {
       localStorage.setItem(
         'jei.settings',
@@ -380,6 +389,7 @@ export const useSettingsStore = defineStore('settings', {
           circuitCollectionPreviewShowPieces: this.circuitCollectionPreviewShowPieces,
           circuitEditorPiecePanel: this.circuitEditorPiecePanel,
           circuitEditorPiecePanelSplitRatio: this.circuitEditorPiecePanelSplitRatio,
+          detectPcDisableMobile: this.detectPcDisableMobile,
         }),
       );
     },

@@ -169,6 +169,8 @@
       @update:recipe-slot-show-name="settingsStore.setRecipeSlotShowName($event)"
       :favorites-opens-new-stack="settingsStore.favoritesOpensNewStack"
       @update:favorites-open-stack="settingsStore.setFavoritesOpensNewStack($event)"
+      :detect-pc-disable-mobile="settingsStore.detectPcDisableMobile"
+      @update:detect-pc-disable-mobile="settingsStore.setDetectPcDisableMobile($event)"
       :pack-proxy-template="packProxyTemplate"
       :pack-dev-proxy-template="packDevProxyTemplate"
       :pack-image-proxy-use-pack-provided="settingsStore.packImageProxyUsePackProvided"
@@ -286,7 +288,48 @@ const dialogManager = useDialogManager();
 const { t } = useI18n();
 const contextMenuTarget = ref<HTMLElement | null>(null);
 const $q = useQuasar();
-const isMobile = computed(() => $q.screen.lt.md);
+
+// PC UA 检测函数 - 检测是否为 PC 环境
+function detectPcUserAgent(): boolean {
+  const ua = navigator.userAgent;
+
+  // 检测 JEIBrowser（定制浏览器）
+  if (ua.includes('JEIBrowser')) {
+    return true;
+  }
+
+  // 检测常见的 PC UA 特征
+  const pcPatterns = [
+    'Windows',           // Windows
+    'Macintosh',         // macOS
+    'Linux x86_64',      // Linux 桌面
+    'Linux i686',        // Linux 32位
+    'CrOS',              // Chrome OS
+    'X11',               // X Window System (Unix 桌面)
+  ];
+
+  for (const pattern of pcPatterns) {
+    if (ua.includes(pattern)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// 是否禁用移动端 UI（检测到 PC UA 且设置开启）
+const shouldDisableMobileUi = computed(() => {
+  return settingsStore.detectPcDisableMobile && detectPcUserAgent();
+});
+
+// 移动端检测：屏幕尺寸 OR（非 PC 检测禁用 AND 屏幕小）
+const isMobile = computed(() => {
+  if (shouldDisableMobileUi.value) {
+    return false; // PC UA 且开启检测，强制使用桌面端
+  }
+  return $q.screen.lt.md;
+});
+
 const isDark = computed(() => $q.dark.isActive);
 const mobileTab = ref<'list' | 'fav' | 'panel'>('list');
 
