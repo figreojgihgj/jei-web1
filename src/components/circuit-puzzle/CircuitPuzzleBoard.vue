@@ -1,7 +1,15 @@
 <template>
-  <div :class="['puzzle-board', isDark ? 'puzzle-board--dark' : 'puzzle-board--light']" :style="boardVars">
+  <div
+    :class="['puzzle-board', isDark ? 'puzzle-board--dark' : 'puzzle-board--light']"
+    :style="boardVars"
+  >
     <div class="board-shell">
-      <div class="board-ring" :style="ringStyle" @mouseleave="$emit('board-leave')" @contextmenu.prevent="$emit('cancel-selection')">
+      <div
+        class="board-ring"
+        :style="ringStyle"
+        @mouseleave="$emit('board-leave')"
+        @contextmenu.prevent="$emit('cancel-selection')"
+      >
         <div class="ring-corner ring-item" />
 
         <CircuitPuzzleClueCell
@@ -69,7 +77,9 @@
       <span class="caption-key caption-key--blocked" /> blocked
       <span class="caption-key caption-key--hint" /> hint
       <span class="caption-key caption-key--locked" /> fixed
-      <span v-if="selectedPieceName" class="caption-selected">selected: {{ selectedPieceName }}</span>
+      <span v-if="selectedPieceName" class="caption-selected"
+        >selected: {{ selectedPieceName }}</span
+      >
     </div>
   </div>
 </template>
@@ -145,7 +155,9 @@ const cellSize = computed(() => {
   const ringAxis = axis + 1;
   const fallbackSize = 620;
   const maxBoardSize =
-    typeof props.maxBoardSize === 'number' && Number.isFinite(props.maxBoardSize) && props.maxBoardSize > 0
+    typeof props.maxBoardSize === 'number' &&
+    Number.isFinite(props.maxBoardSize) &&
+    props.maxBoardSize > 0
       ? props.maxBoardSize
       : fallbackSize;
   const usable = maxBoardSize - boardPadding * 2 - (ringAxis - 1) * boardGap;
@@ -167,9 +179,15 @@ const ringStyle = computed(() => ({
 const blockedSet = computed(() => new Set(props.blockedKeys));
 const lockedSet = computed(() => new Set(props.lockedKeys ?? []));
 const hintOverlayMap = computed(() => buildOverlayMap(props.hintKeys, props.hintCells, '#9ddb22'));
-const occupiedOverlayMap = computed(() => buildOverlayMap(props.occupiedKeys, props.occupiedCells, '#9ddb22'));
+const occupiedOverlayMap = computed(() =>
+  buildOverlayMap(props.occupiedKeys, props.occupiedCells, '#9ddb22'),
+);
 const previewOverlayMap = computed(() =>
-  buildOverlayMap(props.previewKeys, props.previewCells, props.previewValid ? '#9ddb22' : '#ff6f6f'),
+  buildOverlayMap(
+    props.previewKeys,
+    props.previewCells,
+    props.previewValid ? '#9ddb22' : '#ff6f6f',
+  ),
 );
 
 const rowTargets = computed(() => props.rowTargets);
@@ -222,11 +240,15 @@ const cells = computed(() => {
         ? getGroupEdges(key, hintOverlayMap.value, hintCell.groupId)
         : { top: false, right: false, bottom: false, left: false };
 
-      const fillOutlineColor = filledCell ? getContrastOutlineColor(filledCell.color) : 'rgba(255, 255, 255, 0.9)';
+      const fillOutlineColor = filledCell
+        ? getContrastOutlineColor(filledCell.color)
+        : 'rgba(255, 255, 255, 0.9)';
       const previewOutlineColor = previewCell
         ? withAlpha(previewCell.color, props.previewValid ? 0.95 : 0.9)
         : 'rgba(230, 255, 170, 0.95)';
-      const hintOutlineColor = hintCell ? withAlpha(hintCell.color, 0.9) : 'rgba(196, 255, 53, 0.84)';
+      const hintOutlineColor = hintCell
+        ? withAlpha(hintCell.color, 0.9)
+        : 'rgba(196, 255, 53, 0.84)';
 
       result.push({
         x,
@@ -255,7 +277,9 @@ const cells = computed(() => {
                 : withAlpha('#ff7474', 0.46),
             }
           : undefined,
-        fillOutlineStyle: filledCell ? edgeStyle(fillEdges, outlineWidth, fillOutlineColor, false) : undefined,
+        fillOutlineStyle: filledCell
+          ? edgeStyle(fillEdges, outlineWidth, fillOutlineColor, false)
+          : undefined,
         previewOutlineStyle: previewCell
           ? edgeStyle(previewEdges, outlineWidth, previewOutlineColor, false)
           : undefined,
@@ -278,7 +302,14 @@ function isKeyInsideBoard(key: string): boolean {
   const [xRaw, yRaw] = key.split(',');
   const x = Number(xRaw);
   const y = Number(yRaw);
-  return Number.isInteger(x) && Number.isInteger(y) && x >= 0 && x < props.cols && y >= 0 && y < props.rows;
+  return (
+    Number.isInteger(x) &&
+    Number.isInteger(y) &&
+    x >= 0 &&
+    x < props.cols &&
+    y >= 0 &&
+    y < props.rows
+  );
 }
 
 function buildOverlayMap(
@@ -315,7 +346,11 @@ function parseKey(key: string): GridCell {
   return { x: Number(xRaw), y: Number(yRaw) };
 }
 
-function getGroupEdges(key: string, overlayMap: Map<string, OverlayResolved>, groupId: string): EdgeMap {
+function getGroupEdges(
+  key: string,
+  overlayMap: Map<string, OverlayResolved>,
+  groupId: string,
+): EdgeMap {
   const { x, y } = parseKey(key);
   const top = overlayMap.get(`${x},${y - 1}`)?.groupId !== groupId;
   const right = overlayMap.get(`${x + 1},${y}`)?.groupId !== groupId;
@@ -324,7 +359,12 @@ function getGroupEdges(key: string, overlayMap: Map<string, OverlayResolved>, gr
   return { top, right, bottom, left };
 }
 
-function edgeStyle(edges: EdgeMap, width: number, color: string, dashed: boolean): Record<string, string> {
+function edgeStyle(
+  edges: EdgeMap,
+  width: number,
+  color: string,
+  dashed: boolean,
+): Record<string, string> {
   const style = dashed ? 'dashed' : 'solid';
   return {
     borderTop: `${edges.top ? width : 0}px ${style} ${color}`,
@@ -341,7 +381,13 @@ function withAlpha(color: string, alpha: number): string {
   if (!match) return color;
   const raw = match[1];
   if (!raw) return color;
-  const full = raw.length === 3 ? raw.split('').map((ch) => `${ch}${ch}`).join('') : raw;
+  const full =
+    raw.length === 3
+      ? raw
+          .split('')
+          .map((ch) => `${ch}${ch}`)
+          .join('')
+      : raw;
   if (!full) return color;
   const r = Number.parseInt(full.slice(0, 2), 16);
   const g = Number.parseInt(full.slice(2, 4), 16);
@@ -355,7 +401,13 @@ function getContrastOutlineColor(color: string): string {
   const match = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(hex);
   if (!match || !match[1]) return 'rgba(255, 255, 255, 0.9)';
   const raw = match[1];
-  const full = raw.length === 3 ? raw.split('').map((ch) => `${ch}${ch}`).join('') : raw;
+  const full =
+    raw.length === 3
+      ? raw
+          .split('')
+          .map((ch) => `${ch}${ch}`)
+          .join('')
+      : raw;
   if (!full) return 'rgba(255, 255, 255, 0.9)';
   const r = Number.parseInt(full.slice(0, 2), 16);
   const g = Number.parseInt(full.slice(2, 4), 16);
@@ -515,10 +567,10 @@ function getContrastOutlineColor(color: string): string {
 
 .locked-mark {
   position: absolute;
-  right: 2px;
-  bottom: 1px;
+  right: 10px;
+  bottom: 6px;
   z-index: 6;
-  font-size: 8px;
+  font-size: 20px;
   letter-spacing: 0.2px;
   color: rgba(245, 239, 166, 0.95);
   text-shadow: 0 0 4px rgba(248, 232, 122, 0.35);
