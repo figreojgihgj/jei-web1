@@ -52,7 +52,7 @@ describe('type2-format', () => {
     expect(cellKeys(parsed.cells ?? [])).toEqual(['0,1', '1,0', '1,1']);
   });
 
-  it('converts type2 list to multi puzzle and preserves color constraints via weighted targets', () => {
+  it('converts type2 list to multi puzzle and uses single-point totals across colors', () => {
     const blocks = new Map<string, GridCell[]>([
       ['line-2', [{ x: 0, y: 0 }, { x: 1, y: 0 }]],
       ['l-3', [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }]],
@@ -148,12 +148,9 @@ describe('type2-format', () => {
       '0,0': '#9ddb22',
       '3,3': '#89d817',
     });
-    expect(second.colorWeights).toEqual({
-      '#9ddb22': 1,
-      '#89d817': 5,
-    });
-    expect(second.rowTargets).toEqual([1, 10, 1, 10]);
-    expect(second.colTargets).toEqual([1, 6, 10, 5]);
+    expect(second.colorWeights).toBeUndefined();
+    expect(second.rowTargets).toEqual([1, 2, 1, 2]);
+    expect(second.colTargets).toEqual([1, 2, 2, 1]);
   });
 
   it('parses bundled file_type2 dataset with block files', () => {
@@ -187,5 +184,17 @@ describe('type2-format', () => {
       throw new Error('expected bundled type2 dataset to parse as multi puzzle');
     }
     expect(parsed.document.puzzle.levels.length).toBeGreaterThan(50);
+
+    const wl0014 = parsed.document.puzzle.levels.find((level) => level.id === 'M02L02_mid_3_1');
+    const wl0016 = parsed.document.puzzle.levels.find((level) => level.id === 'M02L02_mid_5_1');
+    if (!wl0014 || !wl0016) {
+      throw new Error('missing expected bundled levels for regression assertions');
+    }
+    expect(wl0014.rowTargets).toEqual([5, 5, 4, 4, 2]);
+    expect(wl0014.colTargets).toEqual([4, 5, 2, 5, 4]);
+    expect(wl0014.colorWeights).toBeUndefined();
+    expect(wl0016.rowTargets).toEqual([5, 3, 5, 3, 5]);
+    expect(wl0016.colTargets).toEqual([5, 3, 5, 3, 5]);
+    expect(wl0016.colorWeights).toBeUndefined();
   });
 });

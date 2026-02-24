@@ -103,13 +103,12 @@ function parseConditionTotals(
   axisLength: number,
   axisLabel: 'row' | 'column',
   errors: string[],
-): { totals: number[]; countsByColorCode: Map<number, number[]> } {
+): { totals: number[] } {
   const totals = Array.from({ length: axisLength }, () => 0);
-  const countsByColorCode = new Map<number, number[]>();
   const obj = asObject(raw);
   if (!obj) {
     errors.push(`${axisLabel}Condition must be an object`);
-    return { totals, countsByColorCode };
+    return { totals };
   }
 
   for (const [key, value] of Object.entries(obj)) {
@@ -133,23 +132,12 @@ function parseConditionTotals(
       counts.push(num);
     }
     if (!valid) continue;
-    countsByColorCode.set(colorCode, counts);
-  }
-
-  return { totals, countsByColorCode };
-}
-
-function fillWeightedTotals(
-  totals: number[],
-  countsByColorCode: Map<number, number[]>,
-  weightByColorCode: Map<number, number>,
-): void {
-  for (const [code, counts] of countsByColorCode.entries()) {
-    const weight = weightByColorCode.get(code) ?? 1;
     for (let i = 0; i < totals.length; i += 1) {
-      totals[i] = (totals[i] ?? 0) + (counts[i] ?? 0) * weight;
+      totals[i] = (totals[i] ?? 0) + (counts[i] ?? 0);
     }
   }
+
+  return { totals };
 }
 
 function parseCellsArray(raw: unknown, path: string, errors: string[]): GridCell[] {
@@ -169,21 +157,16 @@ function parseCellsArray(raw: unknown, path: string, errors: string[]): GridCell
   return out;
 }
 
-function parseFixedPlacements(raw: unknown, errors: string[]): {
-  fixedPlacements: PuzzleFixedPlacementDefinition[];
-  usedColorCodes: Set<number>;
-} {
+function parseFixedPlacements(raw: unknown, errors: string[]): PuzzleFixedPlacementDefinition[] {
   const fixedPlacements: PuzzleFixedPlacementDefinition[] = [];
-  const usedColorCodes = new Set<number>();
   const obj = asObject(raw);
-  if (!obj) return { fixedPlacements, usedColorCodes };
+  if (!obj) return fixedPlacements;
 
   for (const [key, value] of Object.entries(obj)) {
     const colorCode = parseColorCodeFromKey(key);
     if (colorCode === null) continue;
     const color = colorCodeToHex(colorCode);
     const cells = parseCellsArray(value, `preGrids.${key}`, errors);
-    usedColorCodes.add(colorCode);
 
     cells.forEach((cell, idx) => {
       fixedPlacements.push({
@@ -196,19 +179,18 @@ function parseFixedPlacements(raw: unknown, errors: string[]): {
     });
   }
 
-  return { fixedPlacements, usedColorCodes };
+  return fixedPlacements;
 }
 
 function parseAttachBlocks(
   raw: unknown,
   blockCellsById: Map<string, GridCell[]>,
   errors: string[],
-): { pieces: PuzzlePieceDefinition[]; usedColorCodes: Set<number> } {
+): PuzzlePieceDefinition[] {
   const pieces: PuzzlePieceDefinition[] = [];
-  const usedColorCodes = new Set<number>();
   if (!Array.isArray(raw)) {
     errors.push('attachBlocks must be an array');
-    return { pieces, usedColorCodes };
+    return pieces;
   }
 
   const idSeqByBase = new Map<string, number>();
@@ -237,7 +219,6 @@ function parseAttachBlocks(
       continue;
     }
 
-    usedColorCodes.add(colorCode);
     const baseId = `${blockId}-c${colorCode}`;
     const seq = (idSeqByBase.get(baseId) ?? 0) + 1;
     idSeqByBase.set(baseId, seq);
@@ -253,19 +234,17 @@ function parseAttachBlocks(
     });
   }
 
-  return { pieces, usedColorCodes };
+  return pieces;
 }
 
 function parseHintCellsFromRefAnswerGrids(raw: unknown, errors: string[]): {
   hintCells: GridCell[];
   hintColors: Record<string, string>;
-  usedColorCodes: Set<number>;
 } {
   const hintCells: GridCell[] = [];
   const hintColors: Record<string, string> = {};
-  const usedColorCodes = new Set<number>();
   const obj = asObject(raw);
-  if (!obj) return { hintCells, hintColors, usedColorCodes };
+  if (!obj) return { hintCells, hintColors };
 
   for (const [key, value] of Object.entries(obj)) {
     const colorCode = parseColorCodeFromKey(key);
@@ -273,7 +252,6 @@ function parseHintCellsFromRefAnswerGrids(raw: unknown, errors: string[]): {
     if (!Array.isArray(value) || value.length === 0) continue;
 
     const color = colorCodeToHex(colorCode);
-    usedColorCodes.add(colorCode);
     const cells = parseCellsArray(value, `refAnswerGrids.${key}`, errors);
     for (const cell of cells) {
       const cellKey = `${cell.x},${cell.y}`;
@@ -291,39 +269,7 @@ function parseHintCellsFromRefAnswerGrids(raw: unknown, errors: string[]): {
   return {
     hintCells: uniqueCells(hintCells),
     hintColors,
-    usedColorCodes,
   };
-}
-
-function buildWeightByColorCode(
-  usedColorCodes: Set<number>,
-  rows: number,
-  cols: number,
-): Map<number, number> {
-  const sortedCodes = Array.from(usedColorCodes).sort((a, b) => a - b);
-  const map = new Map<number, number>();
-  if (sortedCodes.length === 0) return map;
-  if (sortedCodes.length === 1) {
-    map.set(sortedCodes[0] ?? 1, 1);
-    return map;
-  }
-
-  const base = Math.max(rows, cols) + 1;
-  for (let i = 0; i < sortedCodes.length; i += 1) {
-    const code = sortedCodes[i];
-    if (!code) continue;
-    map.set(code, base ** i);
-  }
-  return map;
-}
-
-function buildColorWeights(weightByColorCode: Map<number, number>): Record<string, number> {
-  const weights: Record<string, number> = {};
-  for (const [code, weight] of weightByColorCode.entries()) {
-    const color = colorCodeToHex(code);
-    weights[color] = weight;
-  }
-  return weights;
 }
 
 function convertType2EntryToLevel(
@@ -349,8 +295,8 @@ function convertType2EntryToLevel(
   if (errors.length) return { level: null, errors };
 
   const blocked = parseCellsArray(puzzleData.bannedGrids ?? [], `entries[${index}].puzzleData.bannedGrids`, errors);
-  const { fixedPlacements, usedColorCodes: fixedColorCodes } = parseFixedPlacements(puzzleData.preGrids, errors);
-  const { pieces, usedColorCodes: pieceColorCodes } = parseAttachBlocks(
+  const fixedPlacements = parseFixedPlacements(puzzleData.preGrids, errors);
+  const pieces = parseAttachBlocks(
     puzzleData.attachBlocks,
     blockCellsById,
     errors,
@@ -358,7 +304,6 @@ function convertType2EntryToLevel(
   const {
     hintCells,
     hintColors,
-    usedColorCodes: hintColorCodes,
   } = parseHintCellsFromRefAnswerGrids(puzzleData.refAnswerGrids, errors);
   if (!pieces.length) {
     errors.push(`entries[${index}] has no valid attachBlocks`);
@@ -376,21 +321,6 @@ function convertType2EntryToLevel(
     'column',
     errors,
   );
-
-  const usedConditionColorCodes = new Set<number>([
-    ...rowParsed.countsByColorCode.keys(),
-    ...colParsed.countsByColorCode.keys(),
-  ]);
-  const usedColorCodes = new Set<number>([
-    ...usedConditionColorCodes,
-    ...fixedColorCodes,
-    ...pieceColorCodes,
-    ...hintColorCodes,
-  ]);
-  const weightByColorCode = buildWeightByColorCode(usedColorCodes, rows, cols);
-
-  fillWeightedTotals(rowParsed.totals, rowParsed.countsByColorCode, weightByColorCode);
-  fillWeightedTotals(colParsed.totals, colParsed.countsByColorCode, weightByColorCode);
 
   const id =
     asString(entryObj.minigameId)
@@ -417,10 +347,6 @@ function convertType2EntryToLevel(
 
   if (Object.keys(hintColors).length > 0) {
     level.hintColors = hintColors;
-  }
-  const colorWeights = buildColorWeights(weightByColorCode);
-  if (Object.keys(colorWeights).length > 0) {
-    level.colorWeights = colorWeights;
   }
   if (fixedPlacements.length > 0) {
     level.fixedPlacements = fixedPlacements;
