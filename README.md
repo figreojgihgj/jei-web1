@@ -329,15 +329,17 @@ npm run format
 
 **许可证:** MIT License
 
+**数据包位置:** `public/packs/aef-skland/`
+
 **说明:** 本项目的数据生成工具和数据结构设计受到了 factoriolab-zmd 项目的启发。Arknights:Endfield 数据包使用了基于 factoriolab-zmd 的工具生成。
 
-### Arknights:Endfield 数据
+### Arknights:Endfield Skland Wiki数据
 
 **游戏开发商:** Hypergryph
 
-**数据包位置:** `public/packs/aef/`
+**数据包位置:** `public/packs/aef-skland/`
 
-**说明:** Arknights:Endfield 数据包包含从游戏中提取的物品、配方和机器数据，仅供信息参考使用。
+**说明:** Arknights:Endfield Skland wiki 数据包包含从Wiki公开访问区域中提取的物品、配方和机器数据，仅供信息参考使用。
 
 ## 许可证
 
