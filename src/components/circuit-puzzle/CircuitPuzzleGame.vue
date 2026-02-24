@@ -106,6 +106,14 @@
         </div>
 
         <div class="status-actions">
+          <button
+            type="button"
+            class="action-btn"
+            :disabled="autoSolving"
+            @click="autoSolve"
+          >
+            {{ autoSolving ? '自动解密中...' : '自动解密' }}
+          </button>
           <button type="button" class="action-btn" @click="resetAll">Reset All</button>
           <button
             type="button"
@@ -152,6 +160,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import CircuitPuzzleBoard from './CircuitPuzzleBoard.vue';
 import CircuitPuzzlePieceCard from './CircuitPuzzlePieceCard.vue';
+import { solveLevel, verifySolution } from './auto-solver';
 import { useKeyBindingsStore, eventMatchesBinding } from 'src/stores/keybindings';
 import type {
   ClueDisplayMode,
@@ -222,6 +231,7 @@ const hoverCell = ref<GridCell | null>(null);
 const displayMode = ref<ClueDisplayMode>('graphic');
 const showHints = ref(false);
 const showVictory = ref(false);
+const autoSolving = ref(false);
 const boardStageRef = ref<HTMLElement | null>(null);
 const boardStageSize = ref({ width: 0, height: 0 });
 let boardStageResizeObserver: ResizeObserver | null = null;
@@ -915,7 +925,21 @@ function onCellClick(cell: GridCell): void {
 }
 
 function resetAll(): void {
-  pieceStates.value = Object.fromEntries(
+  pieceStates.value = buildResetPieceStates();
+  if (selectedPieceId.value) {
+    selectedPieceInstanceId.value = findFirstAvailableInstanceId(selectedPieceId.value);
+  } else {
+    selectedPieceId.value = level.value.pieces[0]?.id ?? null;
+    selectedPieceInstanceId.value = selectedPieceId.value
+      ? findFirstAvailableInstanceId(selectedPieceId.value)
+      : null;
+  }
+  selectedPlacementRotation.value = 0;
+  hoverCell.value = null;
+}
+
+function buildResetPieceStates(): Record<string, PieceRuntimeState> {
+  return Object.fromEntries(
     pieceInstances.value.map((inst) => {
       const prevState = pieceStates.value[inst.instanceId];
       const shape =
@@ -932,16 +956,122 @@ function resetAll(): void {
       ];
     }),
   );
-  if (selectedPieceId.value) {
-    selectedPieceInstanceId.value = findFirstAvailableInstanceId(selectedPieceId.value);
-  } else {
-    selectedPieceId.value = level.value.pieces[0]?.id ?? null;
-    selectedPieceInstanceId.value = selectedPieceId.value
-      ? findFirstAvailableInstanceId(selectedPieceId.value)
-      : null;
+}
+
+function autoSolve(): void {
+  if (autoSolving.value) return;
+  autoSolving.value = true;
+
+  try {
+    const hasHints = level.value.hintCells.length > 0;
+    const strictOptions = {
+      exactHintCover: hasHints,
+      onlyHintCells: hasHints,
+      enforceHintColors: true,
+      timeoutMs: 4_000,
+      maxNodes: 900_000,
+    };
+    const relaxedOptions = {
+      exactHintCover: false,
+      onlyHintCells: false,
+      enforceHintColors: true,
+      timeoutMs: 4_000,
+      maxNodes: 900_000,
+    };
+
+    let solverOptions = strictOptions;
+    let result = solveLevel(level.value, strictOptions);
+    if (result.status === 'no-solution' && hasHints) {
+      const relaxedResult = solveLevel(level.value, relaxedOptions);
+      if (relaxedResult.status !== 'no-solution') {
+        result = relaxedResult;
+        solverOptions = relaxedOptions;
+      }
+    }
+
+    if (result.status !== 'solved' || !result.solution) {
+      if (result.status === 'timeout') {
+        $q.notify({ type: 'warning', message: `自动解密超时（已搜索 ${result.nodes} 节点）。` });
+        return;
+      }
+      if (result.status === 'node-limit') {
+        $q.notify({ type: 'warning', message: `自动解密达到搜索上限（${result.nodes} 节点）。` });
+        return;
+      }
+      $q.notify({ type: 'negative', message: '未找到可行解，请检查关卡配置。' });
+      return;
+    }
+
+    const verify = verifySolution(level.value, result.solution, {
+      exactHintCover: solverOptions.exactHintCover,
+      enforceHintColors: solverOptions.enforceHintColors,
+    });
+    if (!verify.ok) {
+      const firstError = verify.errors[0] ?? '结果校验失败';
+      $q.notify({ type: 'negative', message: `自动解密结果无效：${firstError}` });
+      return;
+    }
+
+    const availableByPieceId = new Map<string, string[]>();
+    for (const inst of pieceInstances.value) {
+      const queue = availableByPieceId.get(inst.pieceId) ?? [];
+      queue.push(inst.instanceId);
+      availableByPieceId.set(inst.pieceId, queue);
+    }
+
+    const missingPieceIds = new Set<string>();
+    const exhaustedPieceIds = new Set<string>();
+    const nextStates = buildResetPieceStates();
+    for (const solvedPlacement of result.solution) {
+      const queue = availableByPieceId.get(solvedPlacement.pieceId);
+      if (!queue) {
+        missingPieceIds.add(solvedPlacement.pieceId);
+        continue;
+      }
+      const instanceId = queue.shift();
+      if (!instanceId) {
+        exhaustedPieceIds.add(solvedPlacement.pieceId);
+        continue;
+      }
+      const state = nextStates[instanceId];
+      if (!state) {
+        missingPieceIds.add(solvedPlacement.pieceId);
+        continue;
+      }
+      nextStates[instanceId] = {
+        ...state,
+        rotation: ((solvedPlacement.rot % 4) + 4) % 4,
+        anchor: { ...solvedPlacement.anchor },
+      };
+    }
+
+    if (missingPieceIds.size > 0 || exhaustedPieceIds.size > 0) {
+      const labels: string[] = [];
+      if (missingPieceIds.size > 0) labels.push(`未知方块: ${Array.from(missingPieceIds).join(', ')}`);
+      if (exhaustedPieceIds.size > 0) labels.push(`实例不足: ${Array.from(exhaustedPieceIds).join(', ')}`);
+      $q.notify({ type: 'negative', message: `自动解密失败（${labels.join('；')}）` });
+      return;
+    }
+
+    pieceStates.value = nextStates;
+    if (selectedPieceId.value) {
+      selectedPieceInstanceId.value = findFirstAvailableInstanceId(selectedPieceId.value);
+    } else {
+      selectedPieceId.value = level.value.pieces[0]?.id ?? null;
+      selectedPieceInstanceId.value = selectedPieceId.value
+        ? findFirstAvailableInstanceId(selectedPieceId.value)
+        : null;
+    }
+    selectedPlacementRotation.value = 0;
+    hoverCell.value = null;
+
+    $q.notify({
+      type: 'positive',
+      message: `自动解密完成：共 ${result.solution.length} 个摆放（搜索 ${result.nodes} 节点）。`,
+    });
+  } finally {
+    autoSolving.value = false;
   }
-  selectedPlacementRotation.value = 0;
-  hoverCell.value = null;
 }
 
 function onKeyDown(event: KeyboardEvent): void {
@@ -1178,6 +1308,7 @@ watch(solved, (isSolved) => {
 .status-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .action-btn {
