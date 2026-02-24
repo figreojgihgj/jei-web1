@@ -469,6 +469,16 @@ async function copyText(text: string): Promise<void> {
 
 function buildCurrentShareEncoding(): { encoded: string; mode: 'v1' | 'v2' | 'v3' } {
   if (isMultiMode.value) {
+    if (activePuzzle.value.levels.length === 1) {
+      const onlyLevel = activePuzzle.value.levels[0];
+      if (onlyLevel) {
+        const payload = buildSharePayload(onlyLevel);
+        const autoMode = resolveShareMode(payload, 'auto');
+        const mode: 'v1' | 'v2' = autoMode === 'v2' ? 'v2' : 'v1';
+        const encoded = getShareValue(payload, mode);
+        return { encoded, mode };
+      }
+    }
     return {
       encoded: encodeMultiLevelForUrlV3(activePuzzle.value),
       mode: 'v3',
