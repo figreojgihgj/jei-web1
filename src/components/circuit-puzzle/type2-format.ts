@@ -418,13 +418,15 @@ export function parseType2BlockJson(value: unknown): {
       errors.push(`originBlocks[${i}] x/y must be finite numbers`);
       continue;
     }
-    const x = Math.round(xRaw);
-    const y = Math.round(yRaw);
-    if (Math.abs(x - xRaw) > 1e-6 || Math.abs(y - yRaw) > 1e-6) {
+    const roundedX = Math.round(xRaw);
+    const roundedY = Math.round(yRaw);
+    if (Math.abs(roundedX - xRaw) > 1e-6 || Math.abs(roundedY - yRaw) > 1e-6) {
       errors.push(`originBlocks[${i}] x/y must be integer-like values`);
       continue;
     }
-    cells.push({ x, y });
+    // Type2 originBlocks uses an inverted Y axis compared to our board coordinates.
+    // Mirror all shapes on Y when importing so chirality matches in-game solutions.
+    cells.push({ x: roundedX, y: -roundedY });
   }
 
   const normalized = normalizeShapeCells(uniqueCells(cells));

@@ -1,16 +1,38 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { solveLevel } from './auto-solver';
 import {
   collectType2BlockIds,
   isType2PuzzleDocument,
   parseType2BlockJson,
   parseType2PuzzleDocument,
 } from './type2-format';
-import type { GridCell } from './types';
+import type { GridCell, PuzzleLevelDefinition } from './types';
 
 function cellKeys(cells: GridCell[]): string[] {
   return cells.map((cell) => `${cell.x},${cell.y}`).sort();
+}
+
+function solveWithPolicy(level: PuzzleLevelDefinition) {
+  const hasHints = level.hintCells.length > 0;
+  const strict = solveLevel(level, {
+    exactHintCover: hasHints,
+    onlyHintCells: hasHints,
+    enforceHintColors: true,
+    timeoutMs: 1_200,
+    maxNodes: 260_000,
+  });
+  if (strict.status === 'no-solution' && hasHints) {
+    return solveLevel(level, {
+      exactHintCover: false,
+      onlyHintCells: false,
+      enforceHintColors: true,
+      timeoutMs: 1_200,
+      maxNodes: 260_000,
+    });
+  }
+  return strict;
 }
 
 describe('type2-format', () => {
@@ -49,7 +71,7 @@ describe('type2-format', () => {
 
     expect(parsed.errors).toEqual([]);
     expect(parsed.blockId).toBe('shape-z');
-    expect(cellKeys(parsed.cells ?? [])).toEqual(['0,1', '1,0', '1,1']);
+    expect(cellKeys(parsed.cells ?? [])).toEqual(['0,0', '1,0', '1,1']);
   });
 
   it('converts type2 list to multi puzzle and uses single-point totals across colors', () => {
@@ -187,8 +209,12 @@ describe('type2-format', () => {
 
     const wl0014 = parsed.document.puzzle.levels.find((level) => level.id === 'M02L02_mid_3_1');
     const wl0016 = parsed.document.puzzle.levels.find((level) => level.id === 'M02L02_mid_5_1');
+    const v40012 = parsed.document.puzzle.levels.find((level) => level.id === 'M01L03_mid_1_1');
     if (!wl0014 || !wl0016) {
       throw new Error('missing expected bundled levels for regression assertions');
+    }
+    if (!v40012) {
+      throw new Error('missing expected bundled level M01L03_mid_1_1 for regression assertions');
     }
     expect(wl0014.rowTargets).toEqual([5, 5, 4, 4, 2]);
     expect(wl0014.colTargets).toEqual([4, 5, 2, 5, 4]);
@@ -196,5 +222,6 @@ describe('type2-format', () => {
     expect(wl0016.rowTargets).toEqual([5, 3, 5, 3, 5]);
     expect(wl0016.colTargets).toEqual([5, 3, 5, 3, 5]);
     expect(wl0016.colorWeights).toBeUndefined();
+    expect(solveWithPolicy(v40012).status).toBe('solved');
   });
 });
