@@ -338,6 +338,7 @@ import {
   parsePuzzleJsonDocument,
   type PuzzleMultiLevelDefinition,
 } from './multi-level-format';
+import { collectType2BlockIds, parseType2BlockJson } from './type2-format';
 import { buildSharePayload, getShareValue, resolveShareMode } from './url-share-options';
 import { encodeMultiLevelForUrlV3 } from './url-format-v3';
 import type {
@@ -363,6 +364,8 @@ type FavoritePiece = {
   color: string;
   count: number;
   cells: string[];
+  readonly?: boolean;
+  source?: 'user' | 'type2';
 };
 type Placement = {
   placementId: string;
@@ -396,6 +399,7 @@ type PiecePanelDragSession = {
 const PIECE_PANEL_MIN_WIDTH = 340;
 const PIECE_PANEL_MIN_HEIGHT = 280;
 const FAVORITE_STORAGE_KEY = 'jei.circuitPuzzle.favoritePieces.v1';
+const BUILTIN_TYPE2_FAVORITE_PREFIX = 'builtin-type2:';
 const PIECE_PANEL_DEFAULT: PiecePanelState = {
   x: 16,
   y: 120,
@@ -443,7 +447,12 @@ const shapePieceUid = ref<string | null>(null);
 const selectedPlacementRotation = ref(0);
 const pieceListRotationByUid = ref<Record<string, number>>({});
 const colorWeights = ref<Record<string, number>>({});
-const favoritePieces = ref<FavoritePiece[]>([]);
+const userFavoritePieces = ref<FavoritePiece[]>([]);
+const builtinType2FavoritePieces = ref<FavoritePiece[]>([]);
+const favoritePieces = computed<FavoritePiece[]>(() => [
+  ...userFavoritePieces.value,
+  ...builtinType2FavoritePieces.value,
+]);
 
 const placements = ref<Placement[]>([]);
 const fixedColorByKey = ref<Record<string, string>>({});
@@ -756,7 +765,7 @@ function normalizeFavoritePiece(raw: FavoritePiece): FavoritePiece {
     : [];
   const sortedCells = uniqueKeys(cells).sort((a, b) => a.localeCompare(b));
   const key = buildFavoriteKey({ id, name, color, count, cells: sortedCells });
-  return { key, id, name, color, count, cells: sortedCells };
+  return { key, id, name, color, count, cells: sortedCells, source: 'user' };
 }
 async function loadFavoritePieces(): Promise<FavoritePiece[]> {
   const raw = await safeStorageGet(FAVORITE_STORAGE_KEY);
@@ -779,6 +788,52 @@ function persistFavoritePieces(next: FavoritePiece[]): void {
     pieces: next,
   });
   safeStorageSetOrRemove(FAVORITE_STORAGE_KEY, payload);
+}
+async function loadBuiltinType2FavoritePieces(): Promise<FavoritePiece[]> {
+  try {
+    const listResp = await fetch('/circuit-puzzle-levels/file_type2/minigame_puzzle.json', {
+      headers: { Accept: 'application/json' },
+    });
+    if (!listResp.ok) return [];
+    const puzzleRaw = (await listResp.json()) as unknown;
+    const blockIds = collectType2BlockIds(puzzleRaw).sort((a, b) => a.localeCompare(b));
+    if (!blockIds.length) return [];
+
+    const favorites = await Promise.all(
+      blockIds.map(async (blockId): Promise<FavoritePiece | null> => {
+        try {
+          const blockResp = await fetch(
+            `/circuit-puzzle-levels/file_type2/blocks/${encodeURIComponent(blockId)}.json`,
+            { headers: { Accept: 'application/json' } },
+          );
+          if (!blockResp.ok) return null;
+          const blockRaw = (await blockResp.json()) as unknown;
+          const parsed = parseType2BlockJson(blockRaw);
+          if (!parsed.cells) return null;
+          const cells = uniqueKeys(parsed.cells.map((cell) => keyOf(cell.x, cell.y))).sort((a, b) =>
+            a.localeCompare(b),
+          );
+          if (!cells.length) return null;
+          return {
+            key: `${BUILTIN_TYPE2_FAVORITE_PREFIX}${blockId}`,
+            id: blockId,
+            name: blockId,
+            color: '#9ddb22',
+            count: 1,
+            cells,
+            readonly: true,
+            source: 'type2',
+          };
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    return favorites.filter((item): item is FavoritePiece => !!item);
+  } catch {
+    return [];
+  }
 }
 function sanitizePiecePanelState(raw: unknown): PiecePanelState {
   if (!raw || typeof raw !== 'object') return { ...PIECE_PANEL_DEFAULT };
@@ -1514,13 +1569,14 @@ function addFavoritePiece(uid: string): void {
     count,
     cells,
   });
-  const next = [candidate, ...favoritePieces.value.filter((fav) => fav.key !== candidate.key)];
-  favoritePieces.value = next;
+  const next = [candidate, ...userFavoritePieces.value.filter((fav) => fav.key !== candidate.key)];
+  userFavoritePieces.value = next;
   persistFavoritePieces(next);
 }
 function removeFavoritePiece(key: string): void {
-  const next = favoritePieces.value.filter((fav) => fav.key !== key);
-  favoritePieces.value = next;
+  if (key.startsWith(BUILTIN_TYPE2_FAVORITE_PREFIX)) return;
+  const next = userFavoritePieces.value.filter((fav) => fav.key !== key);
+  userFavoritePieces.value = next;
   persistFavoritePieces(next);
 }
 function importFavoritePiece(key: string): void {
@@ -2269,7 +2325,12 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 }
 onMounted(async () => {
-  favoritePieces.value = await loadFavoritePieces();
+  const [savedFavorites, builtinFavorites] = await Promise.all([
+    loadFavoritePieces(),
+    loadBuiltinType2FavoritePieces(),
+  ]);
+  userFavoritePieces.value = savedFavorites;
+  builtinType2FavoritePieces.value = builtinFavorites;
   clampPiecePanelState();
   persistPiecePanelState();
   window.addEventListener('keydown', onEditorKeyDown);

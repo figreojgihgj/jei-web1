@@ -51,12 +51,14 @@
                     导入到当前
                   </button>
                   <button
+                    v-if="!fav.readonly"
                     type="button"
                     class="editor-btn editor-btn--danger"
                     @click="emit('remove-favorite', fav.key)"
                   >
                     移除收藏
                   </button>
+                  <span v-else class="favorite-badge">内置</span>
                 </div>
               </article>
             </div>
@@ -310,12 +312,14 @@
                     导入到当前
                   </button>
                   <button
+                    v-if="!fav.readonly"
                     type="button"
                     class="editor-btn editor-btn--danger"
                     @click="emit('remove-favorite', fav.key)"
                   >
                     移除收藏
                   </button>
+                  <span v-else class="favorite-badge">内置</span>
                 </div>
               </article>
             </div>
@@ -362,6 +366,8 @@ type FavoritePiece = {
   color: string;
   count: number;
   cells: string[];
+  readonly?: boolean;
+  source?: 'user' | 'type2';
 };
 type PiecePanelState = {
   x: number;
@@ -592,6 +598,13 @@ onUnmounted(() => {
 }
 .favorite-empty {
   font-size: 12px;
+  color: var(--ed-muted);
+}
+.favorite-badge {
+  border: 1px solid var(--ed-btn-border);
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
   color: var(--ed-muted);
 }
 .piece-columns {

@@ -11,6 +11,14 @@
         </p>
         <div class="head-actions">
           <button type="button" class="collection-btn" @click="reloadIndex">重新加载索引</button>
+          <label class="search-box">
+            <span>关卡搜索</span>
+            <input
+              v-model.trim="searchKeyword"
+              type="text"
+              placeholder="标题 / ID / 标签 / 作者 / 难度"
+            />
+          </label>
           <label class="preview-toggle">
             <input
               type="checkbox"
@@ -32,8 +40,11 @@
             <div v-if="!entries.length" class="empty-text">
               索引为空，请先在 public 目录添加题目。
             </div>
+            <div v-else-if="!visibleEntries.length" class="empty-text">
+              未匹配到关卡，请调整搜索关键词。
+            </div>
             <button
-              v-for="entry in entries"
+              v-for="entry in visibleEntries"
               :key="entry.id"
               type="button"
               class="entry-btn"
@@ -188,19 +199,22 @@ import {
   multiPuzzleToJson,
   multiPuzzleToSingleLevel,
   parsePuzzleJsonDocument,
+  type PuzzleJsonDocument,
   type PuzzleMultiLevelDefinition,
 } from 'src/components/circuit-puzzle/multi-level-format';
 import {
-  buildSharePayload,
-  getShareValue,
-  resolveShareMode,
-} from 'src/components/circuit-puzzle/url-share-options';
-import { encodeMultiLevelForUrlV3 } from 'src/components/circuit-puzzle/url-format-v3';
-import type { PuzzleLevelDefinition } from 'src/components/circuit-puzzle/types';
+  collectType2BlockIds,
+  isType2PuzzleDocument,
+  parseType2BlockJson,
+  parseType2PuzzleDocument,
+} from 'src/components/circuit-puzzle/type2-format';
+import { encodeMultiLevelForUrlV3, encodeSingleLevelForUrlV3 } from 'src/components/circuit-puzzle/url-format-v3';
+import type { GridCell, PuzzleLevelDefinition } from 'src/components/circuit-puzzle/types';
 import { useSettingsStore } from 'src/stores/settings';
 
 const INDEX_PATH = '/circuit-puzzle-levels/index.json';
 const PREVIEW_HINT_FALLBACK = '#9ddb22';
+const type2BlockCache = new Map<string, GridCell[]>();
 
 type EntryPreviewCell = {
   key: string;
@@ -224,6 +238,11 @@ type EntryPreviewRenderRow = {
   y: number;
   targetScore: number;
   cells: EntryPreviewRenderCell[];
+};
+
+type RuntimeCollectionEntry = PuzzleCollectionEntry & {
+  __stageIndex?: number;
+  __sourceDirectory?: string;
 };
 
 const $q = useQuasar();
@@ -267,7 +286,7 @@ onUnmounted(() => {
 
 const indexLoading = ref(false);
 const indexError = ref('');
-const collectionIndex = ref<PuzzleCollectionIndex | null>(null);
+const collectionIndex = ref<(Omit<PuzzleCollectionIndex, 'entries'> & { entries: RuntimeCollectionEntry[] }) | null>(null);
 const selectedEntryId = ref<string | null>(null);
 
 const entryLoading = ref(false);
@@ -275,6 +294,7 @@ const entryError = ref('');
 const loadedLevel = ref<PuzzleLevelDefinition | null>(null);
 const loadedMultiPuzzle = ref<PuzzleMultiLevelDefinition | null>(null);
 const loadedMarkdown = ref('');
+const searchKeyword = ref('');
 const previewById = ref<Record<string, EntryPreview>>({});
 const previewLoadingById = ref<Record<string, boolean>>({});
 const previewErrorById = ref<Record<string, string>>({});
@@ -282,8 +302,24 @@ const previewLevelById = ref<Record<string, PuzzleLevelDefinition>>({});
 const previewPieceOverlayById = ref<Record<string, Record<string, string>>>({});
 const previewPieceLoadingById = ref<Record<string, boolean>>({});
 
-const entries = computed(() => collectionIndex.value?.entries ?? []);
-const selectedEntry = computed<PuzzleCollectionEntry | null>(
+const entries = computed<RuntimeCollectionEntry[]>(() => collectionIndex.value?.entries ?? []);
+const visibleEntries = computed<RuntimeCollectionEntry[]>(() => {
+  const keyword = searchKeyword.value.trim().toLowerCase();
+  if (!keyword) return entries.value;
+  return entries.value.filter((entry) => {
+    const haystack = [
+      entry.id,
+      entry.title,
+      entry.author ?? '',
+      entry.difficulty ?? '',
+      ...entry.tags,
+    ]
+      .join(' ')
+      .toLowerCase();
+    return haystack.includes(keyword);
+  });
+});
+const selectedEntry = computed<RuntimeCollectionEntry | null>(
   () => entries.value.find((item) => item.id === selectedEntryId.value) ?? null,
 );
 const resolvedJsonPath = computed(() => {
@@ -305,26 +341,276 @@ const levelJsonPreview = computed(() => {
   return JSON.stringify(levelToJson(loadedLevel.value), null, 2);
 });
 
-function parsePrimaryLevelFromDocument(value: unknown): {
+function resolveType2BlockPath(jsonPath: string, blockId: string): string {
+  const normalized = jsonPath.replace(/\\/g, '/');
+  const clean = normalized.split('?')[0] ?? normalized;
+  const slashIndex = clean.lastIndexOf('/');
+  const baseDir = slashIndex >= 0 ? clean.slice(0, slashIndex) : '';
+  return `${baseDir}/blocks/${blockId}.json`;
+}
+
+async function loadType2BlockLibrary(
+  value: unknown,
+  jsonPath: string,
+): Promise<{ blockCellsById: Map<string, GridCell[]>; errors: string[] }> {
+  const blockCellsById = new Map<string, GridCell[]>();
+  const errors: string[] = [];
+  const blockIds = collectType2BlockIds(value);
+  if (!blockIds.length) {
+    return {
+      blockCellsById,
+      errors: ['type2 attachBlocks has no block references'],
+    };
+  }
+
+  await Promise.all(
+    blockIds.map(async (blockId) => {
+      const blockPath = resolveType2BlockPath(jsonPath, blockId);
+      const cached = type2BlockCache.get(blockPath);
+      if (cached) {
+        blockCellsById.set(blockId, cached.map((cell) => ({ ...cell })));
+        return;
+      }
+
+      try {
+        const resp = await fetch(blockPath, { headers: { Accept: 'application/json' } });
+        if (!resp.ok) {
+          errors.push(`type2 block fetch failed: ${blockPath}`);
+          return;
+        }
+        const raw = (await resp.json()) as unknown;
+        const parsed = parseType2BlockJson(raw);
+        if (!parsed.cells) {
+          errors.push(`type2 block invalid (${blockPath}): ${parsed.errors.join('; ')}`);
+          return;
+        }
+        type2BlockCache.set(blockPath, parsed.cells.map((cell) => ({ ...cell })));
+        blockCellsById.set(blockId, parsed.cells.map((cell) => ({ ...cell })));
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'unknown';
+        errors.push(`type2 block load failed (${blockPath}): ${message}`);
+      }
+    }),
+  );
+
+  return { blockCellsById, errors };
+}
+
+async function parseDocumentWithType2Fallback(
+  value: unknown,
+  jsonPath: string,
+): Promise<{ document: PuzzleJsonDocument | null; errors: string[] }> {
+  const parsed = parsePuzzleJsonDocument(value);
+  if (parsed.document) return parsed;
+  if (!isType2PuzzleDocument(value)) return parsed;
+
+  const library = await loadType2BlockLibrary(value, jsonPath);
+  if (library.errors.length) {
+    return { document: null, errors: library.errors };
+  }
+
+  const type2Parsed = parseType2PuzzleDocument(value, library.blockCellsById);
+  if (type2Parsed.document) {
+    return type2Parsed;
+  }
+
+  return {
+    document: null,
+    errors: [...parsed.errors, ...type2Parsed.errors],
+  };
+}
+
+async function parsePrimaryLevelFromDocument(
+  value: unknown,
+  jsonPath: string,
+  preferredLevelIndex = 0,
+): Promise<{
   level: PuzzleLevelDefinition | null;
   errors: string[];
-} {
-  const parsed = parsePuzzleJsonDocument(value);
-  if (!parsed.document) {
-    return { level: null, errors: parsed.errors };
-  }
-
-  if (parsed.document.kind === 'single') {
-    return { level: parsed.document.level, errors: [] };
-  }
+}> {
+  const parsed = await parseDocumentWithType2Fallback(value, jsonPath);
+  if (!parsed.document) return { level: null, errors: parsed.errors };
+  if (parsed.document.kind === 'single') return { level: parsed.document.level, errors: [] };
 
   try {
-    const first = multiPuzzleToSingleLevel(parsed.document.puzzle, 0);
-    return { level: first, errors: [] };
+    const safeLevelIndex =
+      Number.isInteger(preferredLevelIndex) && preferredLevelIndex >= 0 ? preferredLevelIndex : 0;
+    return { level: multiPuzzleToSingleLevel(parsed.document.puzzle, safeLevelIndex), errors: [] };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'multi puzzle first level parse failed';
     return { level: null, errors: [message] };
   }
+}
+
+function normalizeRelativeAssetPath(path: string): string {
+  return path.replace(/\\/g, '/').replace(/^\.\/+/, '').replace(/^\/+/, '').replace(/\/+$/, '').trim();
+}
+
+function joinRelativeAssetPath(baseDir: string, child: string): string {
+  const base = normalizeRelativeAssetPath(baseDir);
+  const next = child.replace(/\\/g, '/').replace(/^\.\/+/, '').trim();
+  if (!next) return base;
+  if (next.startsWith('/')) return next.slice(1);
+  if (!base) return next;
+  return `${base}/${next}`;
+}
+
+function sanitizeEntryIdSegment(value: string): string {
+  const safe = value.trim().replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  return safe || 'stage';
+}
+
+function addDirectoryTag(tags: string[], directory: string): string[] {
+  const base = normalizeRelativeAssetPath(directory).split('/').filter(Boolean).pop() ?? 'directory';
+  const next = [...tags];
+  if (!next.includes(base)) next.push(base);
+  return next;
+}
+
+function getEntryStageIndex(entry: PuzzleCollectionEntry): number | null {
+  const raw = (entry as RuntimeCollectionEntry).__stageIndex;
+  return Number.isInteger(raw) && Number(raw) >= 0 ? Number(raw) : null;
+}
+
+function getEntryDirectory(entry: PuzzleCollectionEntry): string | null {
+  const runtimeDirectory = (entry as RuntimeCollectionEntry).__sourceDirectory;
+  if (typeof runtimeDirectory === 'string' && runtimeDirectory.trim()) {
+    return normalizeRelativeAssetPath(runtimeDirectory);
+  }
+  if (typeof entry.directory === 'string' && entry.directory.trim()) {
+    return normalizeRelativeAssetPath(entry.directory);
+  }
+  return null;
+}
+
+function buildDirectoryStageEntries(
+  entry: PuzzleCollectionEntry,
+  directory: string,
+  sourceJsonRelativePath: string,
+  parsed: PuzzleJsonDocument,
+): RuntimeCollectionEntry[] {
+  if (parsed.kind === 'single') {
+    return [
+      {
+        ...entry,
+        json: sourceJsonRelativePath,
+        directory,
+        __sourceDirectory: directory,
+      },
+    ];
+  }
+
+  return parsed.puzzle.levels.map((level, idx) => {
+    const stageTitle = level.name?.trim() || level.id?.trim() || `Stage ${idx + 1}`;
+    const stageId = sanitizeEntryIdSegment(level.id || stageTitle || String(idx + 1));
+    return {
+      ...entry,
+      id: `${entry.id}--${String(idx + 1).padStart(3, '0')}-${stageId}`,
+      title: `${entry.title} · ${stageTitle}`,
+      json: sourceJsonRelativePath,
+      tags: addDirectoryTag(entry.tags, directory),
+      directory,
+      __stageIndex: idx,
+      __sourceDirectory: directory,
+    };
+  });
+}
+
+async function tryExpandDirectoryEntryByNestedIndex(
+  entry: PuzzleCollectionEntry,
+  basePath: string,
+  directory: string,
+): Promise<RuntimeCollectionEntry[] | null> {
+  const nestedIndexRelativePath = joinRelativeAssetPath(directory, 'index.json');
+  const nestedIndexPath = resolveCollectionAssetPath(basePath, nestedIndexRelativePath);
+  const resp = await fetch(nestedIndexPath, { headers: { Accept: 'application/json' } });
+  if (!resp.ok) return null;
+  const raw = (await resp.json()) as unknown;
+  const parsed = parseCollectionIndex(raw);
+  if (!parsed.index) return null;
+
+  return parsed.index.entries.map((child) => ({
+    ...child,
+    id: `${entry.id}--${sanitizeEntryIdSegment(child.id)}`,
+    title: `${entry.title} · ${child.title}`,
+    json: joinRelativeAssetPath(directory, child.json),
+    ...(child.markdown ? { markdown: joinRelativeAssetPath(directory, child.markdown) } : {}),
+    tags: addDirectoryTag(child.tags, directory),
+    directory,
+    __sourceDirectory: directory,
+  }));
+}
+
+async function expandDirectoryEntry(
+  entry: PuzzleCollectionEntry,
+  basePath: string,
+): Promise<RuntimeCollectionEntry[]> {
+  const directory = getEntryDirectory(entry);
+  if (!directory) return [entry];
+
+  const type2RelativePath = joinRelativeAssetPath(directory, 'minigame_puzzle.json');
+  const type2JsonPath = resolveCollectionAssetPath(basePath, type2RelativePath);
+  try {
+    const resp = await fetch(type2JsonPath, { headers: { Accept: 'application/json' } });
+    if (resp.ok) {
+      const raw = (await resp.json()) as unknown;
+      const parsed = await parseDocumentWithType2Fallback(raw, type2JsonPath);
+      if (parsed.document) {
+        return buildDirectoryStageEntries(entry, directory, type2RelativePath, parsed.document);
+      }
+    }
+  } catch {
+    // Fall through to nested index strategy.
+  }
+
+  try {
+    const nested = await tryExpandDirectoryEntryByNestedIndex(entry, basePath, directory);
+    if (nested && nested.length) return nested;
+  } catch {
+    // Keep a fallback entry.
+  }
+
+  return [
+    {
+      ...entry,
+      json: type2RelativePath,
+      directory,
+      tags: addDirectoryTag(entry.tags, directory),
+      __sourceDirectory: directory,
+    },
+  ];
+}
+
+async function expandCollectionEntries(
+  basePath: string,
+  inputEntries: PuzzleCollectionEntry[],
+): Promise<RuntimeCollectionEntry[]> {
+  const groups = await Promise.all(inputEntries.map((entry) => expandDirectoryEntry(entry, basePath)));
+  const output: RuntimeCollectionEntry[] = [];
+  const usedIds = new Set<string>();
+  for (const group of groups) {
+    for (const item of group) {
+      const baseId = item.id;
+      if (!usedIds.has(baseId)) {
+        usedIds.add(baseId);
+        output.push(item);
+        continue;
+      }
+
+      let serial = 2;
+      let nextId = `${baseId}-${serial}`;
+      while (usedIds.has(nextId)) {
+        serial += 1;
+        nextId = `${baseId}-${serial}`;
+      }
+      usedIds.add(nextId);
+      output.push({
+        ...item,
+        id: nextId,
+      });
+    }
+  }
+  return output;
 }
 
 function getSingleQueryValue(value: unknown): string | null {
@@ -480,7 +766,8 @@ async function loadEntryPreview(entry: PuzzleCollectionEntry): Promise<void> {
     const jsonResp = await fetch(jsonPath, { headers: { Accept: 'application/json' } });
     if (!jsonResp.ok) throw new Error(`preview json fetch failed: ${jsonPath}`);
     const rawJson = (await jsonResp.json()) as unknown;
-    const parsed = parsePrimaryLevelFromDocument(rawJson);
+    const preferredLevelIndex = getEntryStageIndex(entry) ?? 0;
+    const parsed = await parsePrimaryLevelFromDocument(rawJson, jsonPath, preferredLevelIndex);
     if (!parsed.level)
       throw new Error(`preview json invalid: ${entry.id}; ${parsed.errors.join('; ')}`);
 
@@ -588,13 +875,14 @@ async function loadEntryAssets(entry: PuzzleCollectionEntry): Promise<void> {
     const jsonResp = await fetch(jsonPath, { headers: { Accept: 'application/json' } });
     if (!jsonResp.ok) throw new Error(`JSON 文件加载失败: ${jsonPath}`);
     const rawJson = (await jsonResp.json()) as unknown;
-    const parsed = parsePuzzleJsonDocument(rawJson);
+    const parsed = await parseDocumentWithType2Fallback(rawJson, jsonPath);
     if (!parsed.document) {
       throw new Error(`关卡 JSON 校验失败: ${parsed.errors.join('; ')}`);
     }
     if (parsed.document.kind === 'multi') {
-      loadedMultiPuzzle.value = parsed.document.puzzle;
-      loadedLevel.value = multiPuzzleToSingleLevel(parsed.document.puzzle, 0);
+      const preferredLevelIndex = getEntryStageIndex(entry) ?? 0;
+      loadedLevel.value = multiPuzzleToSingleLevel(parsed.document.puzzle, preferredLevelIndex);
+      loadedMultiPuzzle.value = getEntryStageIndex(entry) === null ? parsed.document.puzzle : null;
     } else {
       loadedMultiPuzzle.value = null;
       loadedLevel.value = parsed.document.level;
@@ -637,18 +925,22 @@ async function reloadIndex(): Promise<void> {
     if (!parsed.index) {
       throw new Error(`索引格式错误: ${parsed.errors.join('; ')}`);
     }
-    collectionIndex.value = parsed.index;
+    const expandedEntries = await expandCollectionEntries(parsed.index.basePath, parsed.index.entries);
+    collectionIndex.value = {
+      ...parsed.index,
+      entries: expandedEntries,
+    };
 
     const queryEntryId = getSingleQueryValue(route.query.id);
-    const firstId = parsed.index.entries[0]?.id ?? null;
+    const firstId = expandedEntries[0]?.id ?? null;
     const initialId =
-      queryEntryId && parsed.index.entries.some((entry) => entry.id === queryEntryId)
+      queryEntryId && expandedEntries.some((entry) => entry.id === queryEntryId)
         ? queryEntryId
         : firstId;
     if (initialId) {
       selectedEntryId.value = initialId;
     }
-    void loadAllPreviews(parsed.index.entries);
+    void loadAllPreviews(expandedEntries);
   } catch (err) {
     indexError.value = err instanceof Error ? err.message : '收录索引加载失败';
   } finally {
@@ -666,8 +958,11 @@ function openInPuzzle(tab: 'play' | 'editor'): void {
     if (loadedMultiPuzzle.value) {
       encoded = encodeMultiLevelForUrlV3(loadedMultiPuzzle.value);
     } else {
-      const payload = buildSharePayload(level);
-      encoded = getShareValue(payload, resolveShareMode(payload, 'auto'));
+      encoded = encodeSingleLevelForUrlV3(level, {
+        rootId: entry.id,
+        rootName: entry.title,
+        mode: 'sequential',
+      });
     }
     void router.push({
       path: '/circuit-puzzle',
@@ -793,6 +1088,25 @@ void reloadIndex();
   flex-wrap: wrap;
   margin-top: 10px;
   align-items: center;
+}
+.search-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--cp-btn-text);
+}
+.search-box input {
+  width: 220px;
+  border: 1px solid var(--cp-btn-border);
+  border-radius: 8px;
+  background: var(--cp-btn-bg);
+  color: var(--cp-btn-text);
+  font-size: 12px;
+  padding: 7px 9px;
+}
+.search-box input::placeholder {
+  color: var(--cp-muted);
 }
 .preview-toggle {
   display: inline-flex;

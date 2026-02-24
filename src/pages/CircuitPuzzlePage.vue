@@ -50,16 +50,22 @@
       <p v-if="loadedFromUrl" class="toolbar-tip">当前关卡来自 URL 参数，可直接分享当前地址。</p>
 
       <div v-if="activeTab === 'play'" class="tab-panel">
-        <div v-if="isMultiMode && stageCount > 1" class="stage-nav">
-          <button type="button" class="toolbar-btn" :disabled="!hasPrevStage" @click="goPrevStage">
-            上一关
-          </button>
-          <span class="stage-nav-label">
-            第 {{ activeStageIndex + 1 }} / {{ stageCount }} 关：{{ activeStageName }}
-          </span>
-          <button type="button" class="toolbar-btn" :disabled="!hasNextStage" @click="goNextStage">
-            下一关
-          </button>
+        <div class="stage-nav">
+          <template v-if="isMultiMode && stageCount > 1">
+            <button type="button" class="toolbar-btn" :disabled="!hasPrevStage" @click="goPrevStage">
+              上一关
+            </button>
+            <span class="stage-nav-label">
+              第 {{ activeStageIndex + 1 }} / {{ stageCount }} 关：{{ activeStageName }}
+            </span>
+            <button type="button" class="toolbar-btn" :disabled="!hasNextStage" @click="goNextStage">
+              下一关
+            </button>
+          </template>
+          <template v-else>
+            <span class="stage-nav-label">当前关卡：{{ activeStageName }}</span>
+          </template>
+          <button type="button" class="toolbar-btn" @click="syncPlayToEditor">同步到编辑器</button>
         </div>
         <CircuitPuzzleGame :level="activeLevel" @solved="onPlaySolved" />
       </div>
@@ -601,6 +607,10 @@ function onPlaySolved(): void {
       message: `已完成全部 ${stageCount.value} 关。`,
     });
   }
+}
+
+function syncPlayToEditor(): void {
+  activeTab.value = 'editor';
 }
 
 watch(

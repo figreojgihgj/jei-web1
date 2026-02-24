@@ -33,6 +33,16 @@ describe('collection index', () => {
     expect(parsed.errors.length).toBeGreaterThan(0);
   });
 
+  it('accepts directory-only entries', () => {
+    const parsed = parseCollectionIndex({
+      version: 1,
+      entries: [{ id: 'dir-all', title: 'Dir All', directory: 'file_type2', tags: ['batch'] }],
+    });
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.index?.entries[0]?.json).toBe('file_type2');
+    expect(parsed.index?.entries[0]?.directory).toBe('file_type2');
+  });
+
   it('resolves relative and absolute asset paths', () => {
     expect(resolveCollectionAssetPath('/circuit-puzzle-levels', 'a/b.json')).toBe('/circuit-puzzle-levels/a/b.json');
     expect(resolveCollectionAssetPath('/circuit-puzzle-levels/', '/static/x.md')).toBe('/static/x.md');

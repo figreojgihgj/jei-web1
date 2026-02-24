@@ -2,6 +2,7 @@ export type PuzzleCollectionEntry = {
   id: string;
   title: string;
   json: string;
+  directory?: string;
   markdown?: string;
   author?: string;
   difficulty?: string;
@@ -68,7 +69,9 @@ export function parseCollectionIndex(value: unknown): { index: PuzzleCollectionI
     const row = item as Record<string, unknown>;
     const id = asNonEmptyString(row.id);
     const titleValue = asNonEmptyString(row.title);
-    const json = asNonEmptyString(row.json);
+    const directory = asNonEmptyString(row.directory) ?? undefined;
+    const jsonValue = asNonEmptyString(row.json);
+    const json = jsonValue ?? directory;
     const markdown = asNonEmptyString(row.markdown) ?? undefined;
     const author = asNonEmptyString(row.author) ?? undefined;
     const difficulty = asNonEmptyString(row.difficulty) ?? undefined;
@@ -79,13 +82,14 @@ export function parseCollectionIndex(value: unknown): { index: PuzzleCollectionI
 
     if (!id) errors.push(`entries[${i}].id is required`);
     if (!titleValue) errors.push(`entries[${i}].title is required`);
-    if (!json) errors.push(`entries[${i}].json is required`);
+    if (!json) errors.push(`entries[${i}].json or entries[${i}].directory is required`);
     if (!id || !titleValue || !json) continue;
 
     entries.push({
       id,
       title: titleValue,
       json,
+      ...(directory ? { directory } : {}),
       ...(markdown ? { markdown } : {}),
       ...(author ? { author } : {}),
       ...(difficulty ? { difficulty } : {}),

@@ -21,6 +21,22 @@
           <br />
           Edgeone全球版（由Arcwolf提供）：https://jei.arcwolf.top
         </p>
+        <p>
+          以防你不知道，你可以在这里下载 JEI Web 的客户端版本，便于在游戏中一个键打开 JEI Web：
+          <br />
+          https://github.com/AndreaFrederica/JEIWebBrowser/releases
+          <br />
+          您也可以在这里找到 JEI Web 的源代码：
+          <br />
+          https://github.com/AndreaFrederica/jei-web
+          <br />
+          另外您可以在我们的 Circuit Puzzle
+          找到明日方舟:终末地的电路谜题的自动求解器、试玩器和关卡编辑器（请在侧边栏切换到Circuit
+          Puzzle）
+          <br />
+          另外 Puzzle Collection 收录了所有我们知道的电路谜题的解法和关卡数据（请在侧边栏切换到
+          Puzzle Collection）
+        </p>
         <p class="text-grey text-caption q-mt-md">
           免责声明：JEI-Web 和 Minecraft Mod JEI 没有任何隶属和其他关系，仅仅是灵感来源于 JEI Mod。
         </p>

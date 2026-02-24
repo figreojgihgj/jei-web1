@@ -1,16 +1,43 @@
 # About
 
 ## Build
-- Version: 636158a-dirty
-- Commit: 636158a (636158a95be5c817ee3111c5878253ff6b78564c)
-- Commit count: 96
-- Subject: feat(settings): 添加检测PC端并禁用移动端界面功能 fix(licenses): 更新数据来源说明以明确数据来源 fix(about): 更新版本信息和提交历史
+- Version: 83607ea-dirty
+- Commit: 83607ea (83607eab57e7d643d87febec3e4796ac07d56ebc)
+- Commit count: 101
+- Subject: feat(planner): 添加目标速率预设和启动对话框说明
 - Author: AndreaFrederica
-- Date: 2026-02-18T03:58:03+08:00
-- Generated at: 2026-02-17T20:24:08.321Z
+- Date: 2026-02-18T06:26:40+08:00
+- Generated at: 2026-02-24T16:31:31.152Z
 - Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History
+
+### r101 (2026-02-18T06:26:40+08:00)
+- 83607ea
+  feat(planner): 添加目标速率预设和启动对话框说明
+
+### r100 (2026-02-18T06:12:41+08:00)
+- 5aab038
+  fix: 修复全屏模式下 q-select 下拉菜单的 z-index 问题
+
+### r99 (2026-02-18T05:54:48+08:00)
+- b4c01de
+  feat(storage): 支持JEIStorage的异步存储操作和初始化
+
+### r98 (2026-02-18T05:32:43+08:00)
+- be052c2
+  feat(settings): 添加存储初始化日志以便调试
+
+### r97 (2026-02-18T05:24:18+08:00)
+- 969a3df
+  feat: add keybindings management and settings storage
+  
+  - Implemented a new KeyBindingsDialog component for managing keybindings.
+  - Added keybindings store to handle keybinding configurations and persistence.
+  - Updated ItemDialog to display dynamic key hints based on user-defined keybindings.
+  - Enhanced SettingsDialog to include a button for opening the keybindings dialog.
+  - Refactored storage utilities to support both localStorage and JEIStorage for settings and keybindings.
+  - Introduced a storage helper for synchronous access to settings, improving initialization flow.
 
 ### r96 (2026-02-18T03:58:03+08:00)
 - 636158a

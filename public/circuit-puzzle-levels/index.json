@@ -78,6 +78,17 @@
         "维修总动员",
         "合集"
       ]
+    },
+    {
+      "id": "file-type2-all",
+      "title": "明日方舟:终末地",
+      "directory": "file_type2",
+      "difficulty": "mixed",
+      "author": "local",
+      "tags": [
+        "type2",
+        "batch"
+      ]
     }
   ]
 }
