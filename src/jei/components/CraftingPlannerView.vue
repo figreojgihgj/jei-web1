@@ -124,12 +124,12 @@
         </div>
       </div>
 
-      <div v-else class="q-mt-md">
+        <div v-else class="q-mt-md">
         <q-tabs v-model="activeTab" dense outside-arrows mobile-arrows inline-label>
-          <q-tab name="tree" :label="t('plannerTabTree')" />
-          <q-tab name="graph" :label="t('plannerTabGraph')" />
-          <q-tab name="line" :label="t('plannerTabLine')" />
-          <q-tab name="calc" :label="t('plannerTabCalc')" />
+          <q-tab name="tree" :label="treeTabLabel" />
+          <q-tab name="graph" :label="graphTabLabel" />
+          <q-tab name="line" :label="lineTabLabel" />
+          <q-tab name="calc" :label="calcTabLabel" />
         </q-tabs>
         <q-separator />
 
@@ -1225,8 +1225,14 @@ import {
   type RequirementNode,
   type EnhancedRequirementNode,
 } from 'src/jei/planner/planner';
+import {
+  useKeyBindingsStore,
+  keyBindingToString,
+  type KeyAction,
+} from 'src/stores/keybindings';
 
 const { t } = useI18n();
+const keyBindingsStore = useKeyBindingsStore();
 
 const props = defineProps<{
   pack: PackData;
@@ -1258,6 +1264,15 @@ const emit = defineEmits<{
 
 const selectedRecipeIdByItemKeyHash = ref<Map<string, string>>(new Map());
 const selectedItemIdByTagId = ref<Map<string, ItemId>>(new Map());
+
+function labelWithShortcut(label: string, action: KeyAction) {
+  return `${label} (${keyBindingToString(keyBindingsStore.getBinding(action))})`;
+}
+
+const treeTabLabel = computed(() => labelWithShortcut(t('treeStructure'), 'plannerTree'));
+const graphTabLabel = computed(() => labelWithShortcut(t('nodeGraph'), 'plannerGraph'));
+const lineTabLabel = computed(() => labelWithShortcut(t('productionLine'), 'plannerLine'));
+const calcTabLabel = computed(() => labelWithShortcut(t('calculator'), 'plannerCalc'));
 
 const activeTab = ref<'tree' | 'graph' | 'line' | 'calc'>('tree');
 const targetAmount = ref(1);

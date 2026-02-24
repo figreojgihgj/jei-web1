@@ -8,6 +8,7 @@ export type KeyAction =
   | 'viewRecipes'        // R - 查看配方
   | 'viewUses'           // U - 查看用途
   | 'viewWiki'           // W - 查看维基
+  | 'viewIcon'           // I - 查看图标
   | 'viewPlanner'        // P - 查看规划器
   | 'plannerTree'        // T/1 - 树结构
   | 'plannerGraph'       // G/2 - 节点图
@@ -39,6 +40,7 @@ const defaultKeyBindings: KeyBindingsConfig = {
   viewRecipes: { key: 'r' },
   viewUses: { key: 'u' },
   viewWiki: { key: 'w' },
+  viewIcon: { key: 'i' },
   viewPlanner: { key: 'p' },
   plannerTree: { key: 't' },
   plannerGraph: { key: 'g' },

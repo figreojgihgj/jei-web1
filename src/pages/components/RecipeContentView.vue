@@ -109,6 +109,55 @@
       </div>
     </div>
 
+    <!-- Icon 标签页内容 -->
+    <div v-if="activeTab === 'icon'" class="q-pa-md">
+      <div v-if="currentItemDef" class="column q-gutter-md">
+        <div class="text-h6">{{ t('tabsIcon') }}</div>
+        <div v-if="iconViewerSrc" class="icon-tab-viewer">
+          <InlineImageViewer :src="iconViewerSrc" :name="iconViewerName" />
+        </div>
+        <div v-else class="text-caption text-grey-7">{{ t('noIconFound') }}</div>
+
+        <div v-if="iconViewerSrc" class="row q-gutter-sm">
+          <q-chip dense outline color="primary">
+            {{ iconSourceLabel }}
+          </q-chip>
+          <q-chip
+            v-if="currentItemDef.iconSprite?.position"
+            dense
+            outline
+            color="grey-7"
+          >
+            sprite: {{ currentItemDef.iconSprite.position }}
+          </q-chip>
+          <q-chip
+            v-if="currentItemDef.iconSprite?.size"
+            dense
+            outline
+            color="grey-7"
+          >
+            size: {{ currentItemDef.iconSprite.size }}
+          </q-chip>
+          <q-btn
+            flat
+            dense
+            icon="open_in_full"
+            :label="t('openImageViewer')"
+            @click="openViewer(iconViewerSrc, iconViewerName)"
+          />
+        </div>
+
+        <div
+          v-if="currentItemDef.iconSprite && iconSpriteSrc"
+          class="icon-tab-sprite-preview"
+        >
+          <div class="icon-tab-sprite" :style="iconSpritePreviewStyle">
+            <div class="icon-tab-sprite-image" :style="iconSpritePreviewImageStyle" />
+          </div>
+        </div>
+      </div>
+    </div>
+
     <q-dialog v-model="viewerOpen" maximized>
       <q-card class="column" style="height: 100%">
         <q-card-section class="row items-center">
@@ -273,6 +322,7 @@ import CraftingPlannerView from 'src/jei/components/CraftingPlannerView.vue';
 import WikiDocument from 'src/components/wiki/WikiDocument.vue';
 import WikiChapterGroup from 'src/components/wiki/layout/WikiChapterGroup.vue';
 import InlineImageViewer from 'src/components/InlineImageViewer.vue';
+import { useCachedImageUrl, useRuntimeImageUrl } from 'src/jei/pack/runtimeImage';
 import type {
   ChapterGroup,
   Document,
@@ -304,7 +354,7 @@ const props = defineProps<{
   currentItemDef: ItemDef | null;
   itemDefsByKeyHash: Record<string, ItemDef>;
   renderedDescription: string;
-  activeTab: 'recipes' | 'uses' | 'wiki' | 'planner';
+  activeTab: 'recipes' | 'uses' | 'wiki' | 'icon' | 'planner';
   activeTypeKey: string;
   activeRecipeGroups: RecipeGroup[];
   allRecipeGroups: RecipeGroup[];
@@ -385,9 +435,40 @@ const wikiCatalogMap = computed<CatalogItemMap>(() => {
 
 const imageUseProxy = computed(() => settingsStore.wikiImageUseProxy);
 const imageProxyUrl = computed(() => settingsStore.wikiImageProxyUrl);
+const iconSrcRaw = computed(() => props.currentItemDef?.icon ?? '');
+const iconSrc = useCachedImageUrl(useRuntimeImageUrl(iconSrcRaw));
+const iconSpriteSrcRaw = computed(() => props.currentItemDef?.iconSprite?.url ?? '');
+const iconSpriteSrc = useCachedImageUrl(useRuntimeImageUrl(iconSpriteSrcRaw));
+const iconViewerSrc = computed(() => iconSrc.value || iconSpriteSrc.value || '');
+const iconViewerName = computed(() => props.currentItemDef?.name ?? '');
+const iconSourceLabel = computed(() => (iconSrc.value ? t('iconSourceIcon') : t('iconSourceSprite')));
 const viewerOpen = ref(false);
 const viewerSrc = ref('');
 const viewerName = ref('');
+
+const iconSpritePreviewStyle = computed(() => {
+  const sprite = props.currentItemDef?.iconSprite;
+  if (!sprite) return {};
+  return {
+    backgroundColor: sprite.color ?? 'transparent',
+  };
+});
+
+const iconSpritePreviewImageStyle = computed(() => {
+  const sprite = props.currentItemDef?.iconSprite;
+  if (!sprite) return {};
+  const size = sprite.size ?? 64;
+  const scale = 72 / size;
+  return {
+    width: `${size}px`,
+    height: `${size}px`,
+    backgroundImage: iconSpriteSrc.value ? `url(${iconSpriteSrc.value})` : 'none',
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: sprite.position,
+    transform: `scale(${scale})`,
+    transformOrigin: 'top left',
+  };
+});
 
 const emit = defineEmits<{
   'item-click': [keyHash: ItemKey];
@@ -570,5 +651,26 @@ provide('wikiImageOpen', openViewer);
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+
+.icon-tab-viewer {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  overflow: hidden;
+  height: clamp(280px, 52vh, 540px);
+}
+
+.icon-tab-sprite-preview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-tab-sprite {
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
 }
 </style>

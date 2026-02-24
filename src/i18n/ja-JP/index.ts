@@ -25,6 +25,8 @@ export default {
   tabsUsesWithLabel: '用途 (U)',
   tabsWiki: 'Wiki',
   tabsWikiWithLabel: 'Wiki (W)',
+  tabsIcon: 'アイコン',
+  tabsIconWithLabel: 'アイコン (I)',
   tabsPlanner: 'プランナー',
   tabsPlannerWithLabel: 'プランナー (P)',
   tabsAdvanced: '高度なプランナー',
@@ -76,13 +78,14 @@ export default {
   close: '閉じる',
 
   // Context Menu
-  recipes: 'レシピ (R)',
-  uses: '用途 (U)',
-  wiki: 'Wiki (W)',
-  planner: 'プランナー (P)',
-  addToAdvanced: '高度なプランナーに追加 (D)',
-  favorite: 'お気に入り (A)',
-  unfavorite: 'お気に入り削除 (A)',
+  recipes: 'レシピ',
+  uses: '用途',
+  wiki: 'Wiki',
+  viewIcon: 'アイコンを表示',
+  planner: 'プランナー',
+  addToAdvanced: '高度なプランナーに追加',
+  favorite: 'お気に入り',
+  unfavorite: 'お気に入り削除',
 
   // Recipe Groups
   allRecipes: 'すべて',
@@ -188,6 +191,10 @@ export default {
   // Recipe Content
   noTags: 'タグなし',
   description: '説明',
+  noIconFound: 'このアイテムには表示可能なアイコンがありません。',
+  iconSourceIcon: 'ソース: icon',
+  iconSourceSprite: 'ソース: iconSprite',
+  openImageViewer: '全画面で表示',
   noRecipesFound: '関連レシピが見つかりません。',
 
   // Planner Details
@@ -225,6 +232,7 @@ export default {
   keybindingViewRecipes: 'レシピを表示',
   keybindingViewUses: '用途を表示',
   keybindingViewWiki: 'Wikiを表示',
+  keybindingViewIcon: 'アイコンを表示',
   keybindingViewPlanner: 'プランナーを表示',
   keybindingPlannerTree: 'プランナーツリー',
   keybindingPlannerGraph: 'プランナーグラフ',

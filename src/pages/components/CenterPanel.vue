@@ -76,10 +76,11 @@
                 inline-label
                 class="q-px-sm q-pt-sm"
               >
-                <q-tab name="recipes" :label="t('tabsRecipesWithLabel')" />
-                <q-tab name="uses" :label="t('tabsUsesWithLabel')" />
-                <q-tab name="wiki" :label="t('tabsWikiWithLabel')" />
-                <q-tab name="planner" :label="t('tabsPlannerWithLabel')" />
+                <q-tab name="recipes" :label="recipesTabLabel" />
+                <q-tab name="uses" :label="usesTabLabel" />
+                <q-tab name="wiki" :label="wikiTabLabel" />
+                <q-tab name="icon" :label="iconTabLabel" />
+                <q-tab name="planner" :label="plannerTabLabel" />
               </q-tabs>
             </div>
             <q-separator v-if="navStackLength" />
@@ -149,10 +150,16 @@ import type {
   PlannerLiveState,
   PlannerSavePayload,
 } from 'src/jei/planner/plannerUi';
+import {
+  useKeyBindingsStore,
+  keyBindingToString,
+  type KeyAction,
+} from 'src/stores/keybindings';
 import RecipeContentView from './RecipeContentView.vue';
 import AdvancedPlanner from './AdvancedPlanner.vue';
 
 const { t } = useI18n();
+const keyBindingsStore = useKeyBindingsStore();
 
 interface RecipeGroup {
   typeKey: string;
@@ -175,7 +182,7 @@ const props = defineProps<{
   centerTab?: 'recipe' | 'advanced';
   navStackLength: number;
   currentItemTitle: string;
-  activeTab: 'recipes' | 'uses' | 'wiki' | 'planner';
+  activeTab: 'recipes' | 'uses' | 'wiki' | 'icon' | 'planner';
   pack?: PackData | null;
   index?: JeiIndex | null;
   currentItemKey?: ItemKey | null;
@@ -195,7 +202,7 @@ const props = defineProps<{
 defineEmits<{
   'update:collapsed': [value: boolean];
   'update:center-tab': [value: 'recipe' | 'advanced'];
-  'update:active-tab': [value: 'recipes' | 'uses' | 'wiki' | 'planner'];
+  'update:active-tab': [value: 'recipes' | 'uses' | 'wiki' | 'icon' | 'planner'];
   'update:active-type-key': [typeKey: string];
   'go-back': [];
   close: [];
@@ -218,6 +225,16 @@ const currentViewTitle = computed(() => {
   }
   return props.navStackLength ? props.currentItemTitle : '中间区域';
 });
+
+function labelWithShortcut(label: string, action: KeyAction) {
+  return `${label} (${keyBindingToString(keyBindingsStore.getBinding(action))})`;
+}
+
+const recipesTabLabel = computed(() => labelWithShortcut(t('tabsRecipes'), 'viewRecipes'));
+const usesTabLabel = computed(() => labelWithShortcut(t('tabsUses'), 'viewUses'));
+const wikiTabLabel = computed(() => labelWithShortcut(t('tabsWiki'), 'viewWiki'));
+const iconTabLabel = computed(() => labelWithShortcut(t('tabsIcon'), 'viewIcon'));
+const plannerTabLabel = computed(() => labelWithShortcut(t('tabsPlanner'), 'viewPlanner'));
 
 const addToAdvancedPlanner = (itemKey: ItemKey, itemName: string) => {
   advancedPlannerRef.value?.addTarget(itemKey, itemName);

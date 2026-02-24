@@ -52,7 +52,7 @@
       </div>
     </div>
     <q-badge v-if="badgeText" color="primary" class="stack-view__badge">{{ badgeText }}</q-badge>
-    <q-tooltip v-if="tooltipEnabled" max-width="420px">
+    <q-tooltip v-if="tooltipEnabled" ref="tooltipRef" max-width="420px">
       <div class="stack-tooltip">
         <div class="stack-tooltip__title">{{ tooltipTitle }}</div>
         <div class="stack-tooltip__line">{{ tooltipIdLine }}</div>
@@ -153,6 +153,7 @@ const rarityStyle = computed(() => {
 });
 
 const stackViewEl = ref<HTMLElement | null>(null);
+const tooltipRef = ref<{ hide?: () => void } | null>(null);
 const shouldRenderVisual = ref(!props.lazyVisual);
 
 const hasImageVisual = computed(() => !!iconSrc.value || !!iconSprite.value);
@@ -403,6 +404,7 @@ function onMouseLeave() {
 }
 
 function onContextMenu(evt: Event) {
+  tooltipRef.value?.hide?.();
   const s = stack.value;
   if (!s || s.kind !== 'item') return;
   const keyHash = stackItemKeyHash(s);
@@ -410,6 +412,7 @@ function onContextMenu(evt: Event) {
 }
 
 function onTouchHold(evt: unknown) {
+  tooltipRef.value?.hide?.();
   const s = stack.value;
   if (!s || s.kind !== 'item') return;
   const keyHash = stackItemKeyHash(s);

@@ -472,7 +472,9 @@ function onTouchHold(evt: unknown, keyHash: string) {
   contextMenuRef.value?.show();
 }
 
-function onContextMenuAction(action: 'recipes' | 'uses' | 'wiki' | 'planner' | 'fav' | 'advanced') {
+function onContextMenuAction(
+  action: 'recipes' | 'uses' | 'wiki' | 'icon' | 'planner' | 'fav' | 'advanced',
+) {
   const keyHash = contextMenuKeyHash.value;
   if (!keyHash) return;
 
@@ -507,7 +509,7 @@ watch(
 );
 
 const centerTab = ref<'recipe' | 'advanced'>('recipe');
-const activeTab = ref<'recipes' | 'uses' | 'wiki' | 'planner'>('recipes');
+const activeTab = ref<'recipes' | 'uses' | 'wiki' | 'icon' | 'planner'>('recipes');
 const lastRecipeTab = ref<'recipes' | 'uses'>('recipes');
 const activeRecipesTypeKey = ref('');
 const activeUsesTypeKey = ref('');
@@ -779,8 +781,8 @@ const pageCount = computed(() => {
   return Math.max(1, Math.ceil(total / size));
 });
 
-const validTabs = new Set(['recipes', 'uses', 'wiki', 'planner'] as const);
-type JeiTab = 'recipes' | 'uses' | 'wiki' | 'planner';
+const validTabs = new Set(['recipes', 'uses', 'wiki', 'icon', 'planner'] as const);
+type JeiTab = 'recipes' | 'uses' | 'wiki' | 'icon' | 'planner';
 
 function parseTab(v: unknown): JeiTab | null {
   if (typeof v !== 'string') return null;
@@ -1604,7 +1606,7 @@ function ensurePlannerAutoForCurrentItem() {
 
 function openDialogByKeyHash(
   keyHash: string,
-  tab: 'recipes' | 'uses' | 'wiki' | 'planner' = 'recipes',
+  tab: 'recipes' | 'uses' | 'wiki' | 'icon' | 'planner' = 'recipes',
 ) {
   const def = index.value?.itemsByKeyHash.get(keyHash);
   if (!def) return;
@@ -1626,7 +1628,7 @@ function openDialogByKeyHash(
 
 function openDialogByItemKey(
   key: ItemKey,
-  tab: 'recipes' | 'uses' | 'wiki' | 'planner' = 'recipes',
+  tab: 'recipes' | 'uses' | 'wiki' | 'icon' | 'planner' = 'recipes',
 ) {
   // 如果当前在高级计划器，切换到资料查看器
   if (centerTab.value === 'advanced') {
@@ -1653,7 +1655,7 @@ function openDialogByItemKey(
 
 function openStackDialog(
   keyHash: string,
-  tab: 'recipes' | 'uses' | 'wiki' | 'planner' = 'recipes',
+  tab: 'recipes' | 'uses' | 'wiki' | 'icon' | 'planner' = 'recipes',
 ) {
   const def = index.value?.itemsByKeyHash.get(keyHash);
   if (!def) return;
@@ -1723,7 +1725,7 @@ function onKeyDown(e: KeyboardEvent) {
       hoveredSource.value !== 'list' &&
       (hoveredSource.value !== 'favorites' || settingsStore.favoritesOpensNewStack) &&
       hoveredKeyHash.value !== (currentItemKey.value ? itemKeyHash(currentItemKey.value) : '');
-    const openHoverInDialog = (tab: 'recipes' | 'uses' | 'wiki' | 'planner') => {
+    const openHoverInDialog = (tab: 'recipes' | 'uses' | 'wiki' | 'icon' | 'planner') => {
       if (!canStackFromHover || !hoveredKeyHash.value) return false;
       const def = index.value?.itemsByKeyHash.get(hoveredKeyHash.value);
       if (!def) return false;
@@ -1747,6 +1749,12 @@ function onKeyDown(e: KeyboardEvent) {
       e.preventDefault();
       if (openHoverInDialog('wiki')) return;
       activeTab.value = 'wiki';
+      return;
+    }
+    if (eventMatchesBinding(e, bindings.viewIcon)) {
+      e.preventDefault();
+      if (openHoverInDialog('icon')) return;
+      activeTab.value = 'icon';
       return;
     }
     if (eventMatchesBinding(e, bindings.viewPlanner)) {
@@ -1807,7 +1815,7 @@ function onKeyDown(e: KeyboardEvent) {
   const useStack =
     hoveredSource.value === 'recipe' ||
     (hoveredSource.value === 'favorites' && settingsStore.favoritesOpensNewStack);
-  const openTarget = (tab: 'recipes' | 'uses' | 'wiki' | 'planner') => {
+  const openTarget = (tab: 'recipes' | 'uses' | 'wiki' | 'icon' | 'planner') => {
     if (useStack) openStackDialog(hoveredKeyHash.value!, tab);
     else openDialogByKeyHash(hoveredKeyHash.value!, tab);
   };
@@ -1821,6 +1829,9 @@ function onKeyDown(e: KeyboardEvent) {
   } else if (eventMatchesBinding(e, bindings.viewWiki)) {
     e.preventDefault();
     openTarget('wiki');
+  } else if (eventMatchesBinding(e, bindings.viewIcon)) {
+    e.preventDefault();
+    openTarget('icon');
   } else if (eventMatchesBinding(e, bindings.viewPlanner)) {
     e.preventDefault();
     plannerTab.value = 'tree';

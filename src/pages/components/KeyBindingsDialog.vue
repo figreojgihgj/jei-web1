@@ -90,6 +90,7 @@ const bindingGroups = computed<BindingGroup[]>(() => [
       { id: 'viewRecipes', label: t('keybindingViewRecipes'), description: '' },
       { id: 'viewUses', label: t('keybindingViewUses'), description: '' },
       { id: 'viewWiki', label: t('keybindingViewWiki'), description: '' },
+      { id: 'viewIcon', label: t('keybindingViewIcon'), description: '' },
       { id: 'viewPlanner', label: t('keybindingViewPlanner'), description: '' },
     ],
   },

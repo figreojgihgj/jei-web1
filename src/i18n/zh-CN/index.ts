@@ -25,6 +25,8 @@ export default {
   tabsUsesWithLabel: '用途 (U)',
   tabsWiki: '维基',
   tabsWikiWithLabel: '维基 (W)',
+  tabsIcon: '图标',
+  tabsIconWithLabel: '图标 (I)',
   tabsPlanner: '规划器',
   tabsPlannerWithLabel: '规划器 (P)',
   tabsAdvanced: '高级计划器',
@@ -77,13 +79,14 @@ export default {
   close: '关闭',
 
   // Context Menu
-  recipes: '配方 (R)',
-  uses: '用途 (U)',
-  wiki: '维基 (W)',
-  planner: '规划器 (P)',
-  addToAdvanced: '添加到高级计划 (D)',
-  favorite: '收藏 (A)',
-  unfavorite: '取消收藏 (A)',
+  recipes: '配方',
+  uses: '用途',
+  wiki: '维基',
+  viewIcon: '查看图标',
+  planner: '规划器',
+  addToAdvanced: '添加到高级计划',
+  favorite: '收藏',
+  unfavorite: '取消收藏',
 
   // Recipe Groups
   allRecipes: '全部',
@@ -189,6 +192,10 @@ export default {
   // Recipe Content
   noTags: '无标签',
   description: '描述',
+  noIconFound: '当前物品没有可用图标。',
+  iconSourceIcon: '来源: icon',
+  iconSourceSprite: '来源: iconSprite',
+  openImageViewer: '全屏查看',
   noRecipesFound: '没有找到相关配方。',
 
   // Planner Details
@@ -226,6 +233,7 @@ export default {
   keybindingViewRecipes: '查看配方',
   keybindingViewUses: '查看用途',
   keybindingViewWiki: '查看维基',
+  keybindingViewIcon: '查看图标',
   keybindingViewPlanner: '查看规划器',
   keybindingPlannerTree: '规划器树结构',
   keybindingPlannerGraph: '规划器节点图',

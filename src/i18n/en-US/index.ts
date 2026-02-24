@@ -25,6 +25,8 @@ export default {
   tabsUsesWithLabel: 'Uses (U)',
   tabsWiki: 'Wiki',
   tabsWikiWithLabel: 'Wiki (W)',
+  tabsIcon: 'Icon',
+  tabsIconWithLabel: 'Icon (I)',
   tabsPlanner: 'Planner',
   tabsPlannerWithLabel: 'Planner (P)',
   tabsAdvanced: 'Advanced Planner',
@@ -77,13 +79,14 @@ export default {
   close: 'Close',
 
   // Context Menu
-  recipes: 'Recipes (R)',
-  uses: 'Uses (U)',
-  wiki: 'Wiki (W)',
-  planner: 'Planner (P)',
-  addToAdvanced: 'Add to Advanced Planner (D)',
-  favorite: 'Favorite (A)',
-  unfavorite: 'Unfavorite (A)',
+  recipes: 'Recipes',
+  uses: 'Uses',
+  wiki: 'Wiki',
+  viewIcon: 'View Icon',
+  planner: 'Planner',
+  addToAdvanced: 'Add to Advanced Planner',
+  favorite: 'Favorite',
+  unfavorite: 'Unfavorite',
 
   // Recipe Groups
   allRecipes: 'All',
@@ -189,6 +192,10 @@ export default {
   // Recipe Content
   noTags: 'No tags',
   description: 'Description',
+  noIconFound: 'No icon is available for this item.',
+  iconSourceIcon: 'Source: icon',
+  iconSourceSprite: 'Source: iconSprite',
+  openImageViewer: 'Open Fullscreen',
   noRecipesFound: 'No recipes found.',
 
   // Planner Details
@@ -226,6 +233,7 @@ export default {
   keybindingViewRecipes: 'View Recipes',
   keybindingViewUses: 'View Uses',
   keybindingViewWiki: 'View Wiki',
+  keybindingViewIcon: 'View Icon',
   keybindingViewPlanner: 'View Planner',
   keybindingPlannerTree: 'Planner Tree',
   keybindingPlannerGraph: 'Planner Graph',

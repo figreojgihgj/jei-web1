@@ -23,10 +23,11 @@
           inline-label
           class="q-px-sm q-pt-sm"
         >
-          <q-tab name="recipes" :label="t('tabsRecipesWithLabel')" />
-          <q-tab name="uses" :label="t('tabsUsesWithLabel')" />
-          <q-tab name="wiki" :label="t('tabsWikiWithLabel')" />
-          <q-tab name="planner" :label="t('tabsPlannerWithLabel')" />
+          <q-tab name="recipes" :label="recipesTabLabel" />
+          <q-tab name="uses" :label="usesTabLabel" />
+          <q-tab name="wiki" :label="wikiTabLabel" />
+          <q-tab name="icon" :label="iconTabLabel" />
+          <q-tab name="planner" :label="plannerTabLabel" />
         </q-tabs>
         <div class="jei-dialog__hint text-caption">{{ keyHint }}</div>
       </div>
@@ -71,7 +72,11 @@ import type { PackData, ItemDef, ItemKey } from 'src/jei/types';
 import type { JeiIndex } from 'src/jei/indexing/buildIndex';
 import type { PlannerInitialState, PlannerLiveState } from 'src/jei/planner/plannerUi';
 import RecipeContentView from './RecipeContentView.vue';
-import { useKeyBindingsStore, keyBindingToString } from 'src/stores/keybindings';
+import {
+  useKeyBindingsStore,
+  keyBindingToString,
+  type KeyAction,
+} from 'src/stores/keybindings';
 
 const { t } = useI18n();
 const keyBindingsStore = useKeyBindingsStore();
@@ -82,6 +87,16 @@ const keyHint = computed(() => {
   const escape = keyBindingToString(keyBindingsStore.getBinding('closeDialog'));
   return `${backspace}: ${t('goBack')} · ${escape}: ${t('close')}`;
 });
+
+function labelWithShortcut(label: string, action: KeyAction) {
+  return `${label} (${keyBindingToString(keyBindingsStore.getBinding(action))})`;
+}
+
+const recipesTabLabel = computed(() => labelWithShortcut(t('tabsRecipes'), 'viewRecipes'));
+const usesTabLabel = computed(() => labelWithShortcut(t('tabsUses'), 'viewUses'));
+const wikiTabLabel = computed(() => labelWithShortcut(t('tabsWiki'), 'viewWiki'));
+const iconTabLabel = computed(() => labelWithShortcut(t('tabsIcon'), 'viewIcon'));
+const plannerTabLabel = computed(() => labelWithShortcut(t('tabsPlanner'), 'viewPlanner'));
 
 interface RecipeGroup {
   typeKey: string;
@@ -106,7 +121,7 @@ defineProps<{
   currentItemDef: ItemDef | null;
   itemDefsByKeyHash: Record<string, ItemDef>;
   renderedDescription: string;
-  activeTab: 'recipes' | 'uses' | 'wiki' | 'planner';
+  activeTab: 'recipes' | 'uses' | 'wiki' | 'icon' | 'planner';
   activeTypeKey: string;
   activeRecipeGroups: RecipeGroup[];
   allRecipeGroups: RecipeGroup[];
@@ -119,7 +134,7 @@ defineProps<{
 
 defineEmits<{
   'update:open': [value: boolean];
-  'update:active-tab': [tab: 'recipes' | 'uses' | 'wiki' | 'planner'];
+  'update:active-tab': [tab: 'recipes' | 'uses' | 'wiki' | 'icon' | 'planner'];
   'update:active-type-key': [typeKey: string];
   close: [];
   'item-click': [keyHash: ItemKey];
