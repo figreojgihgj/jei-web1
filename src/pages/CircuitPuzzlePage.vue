@@ -512,6 +512,63 @@ function openAdvancedShare(): void {
   if (isMultiMode.value) {
     const encoded = encodeMultiLevelForUrlV3(activePuzzle.value);
     const multiJson = JSON.stringify(multiPuzzleToJson(activePuzzle.value));
+    const singleLevelInMulti = activePuzzle.value.levels.length === 1
+      ? activePuzzle.value.levels[0]
+      : null;
+    const singlePayload = singleLevelInMulti ? buildSharePayload(singleLevelInMulti) : null;
+    const singleAutoMode = singlePayload ? resolveShareMode(singlePayload, 'auto') : null;
+    const singleAutoLength = singlePayload && singleAutoMode ? singlePayload.lengths[singleAutoMode] : 0;
+
+    if (singlePayload && singleAutoMode) {
+      $q.dialog({
+        title: '高级共享',
+        message: '单关题组可选择更短的 v1/v2 链接，或保留 v3 题组格式。',
+        options: {
+          type: 'radio',
+          model: 'auto',
+          isValid: (val: unknown) =>
+            ['auto', 'v2', 'v1', 'v3', 'json'].includes(String(val)),
+          items: [
+            { label: `自动最短（当前 ${singleAutoMode}，${singleAutoLength} 字符）`, value: 'auto' },
+            { label: `v2 链接（${singlePayload.lengths.v2} 字符）`, value: 'v2' },
+            { label: `v1 链接（${singlePayload.lengths.v1} 字符）`, value: 'v1' },
+            { label: `v3 题组链接（${encoded.length} 字符）`, value: 'v3' },
+            { label: `复制多关 JSON（${multiJson.length} 字符）`, value: 'json' },
+          ],
+        },
+        cancel: true,
+        ok: { label: '复制' },
+      }).onOk((modeValue: unknown) => {
+        void (async () => {
+          const mode = ['auto', 'v1', 'v2', 'v3', 'json'].includes(String(modeValue))
+            ? (String(modeValue) as 'auto' | 'v1' | 'v2' | 'v3' | 'json')
+            : 'auto';
+
+          if (mode === 'json') {
+            await copyText(multiJson);
+            $q.notify({ type: 'positive', message: `多关 JSON 已复制（${multiJson.length} 字符）。` });
+            return;
+          }
+
+          if (mode === 'v3') {
+            const url = buildShareUrl(encoded);
+            await copyText(url);
+            $q.notify({ type: 'positive', message: `v3 分享链接已复制（${encoded.length} 字符）。` });
+            return;
+          }
+
+          const resolvedMode = resolveShareMode(singlePayload, mode);
+          const content = getShareValue(singlePayload, mode);
+          const url = buildShareUrl(content);
+          await copyText(url);
+          $q.notify({
+            type: 'positive',
+            message: `分享链接已复制（${resolvedMode}，${content.length} 字符）。`,
+          });
+        })();
+      });
+      return;
+    }
 
     $q.dialog({
       title: '高级共享',
