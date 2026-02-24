@@ -1,16 +1,52 @@
 # About
 
 ## Build
-- Version: 83607ea-dirty
-- Commit: 83607ea (83607eab57e7d643d87febec3e4796ac07d56ebc)
-- Commit count: 101
-- Subject: feat(planner): 添加目标速率预设和启动对话框说明
+- Version: 3c4bd14-dirty
+- Commit: 3c4bd14 (3c4bd14873b8ddc706d066c9b1578444666bc100)
+- Commit count: 108
+- Subject: feat: 修复type2数据的y坐标反转问题
 - Author: AndreaFrederica
-- Date: 2026-02-18T06:26:40+08:00
-- Generated at: 2026-02-24T16:31:31.152Z
+- Date: 2026-02-25T02:39:30+08:00
+- Generated at: 2026-02-24T19:38:12.343Z
 - Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History
+
+### r108 (2026-02-25T02:39:30+08:00)
+- 3c4bd14
+  feat: 修复type2数据的y坐标反转问题
+
+### r107 (2026-02-25T01:38:01+08:00)
+- cae715e
+  refactor: 优化 CircuitPuzzleBoard 组件的代码格式和可读性
+
+### r106 (2026-02-25T01:30:12+08:00)
+- 9332112
+  feat: 添加自动解密功能到PlayUI，优化重置逻辑和状态管理
+
+### r105 (2026-02-25T01:20:23+08:00)
+- 3b53792
+  refactor: 精简 type2 格式解析逻辑，移除不必要的颜色权重处理
+
+### r104 (2026-02-25T01:11:02+08:00)
+- 95f625e
+  Merge branch 'master' of https://github.com/AndreaFrederica/jei-web
+
+### r103 (2026-02-25T01:10:57+08:00)
+- 1158df7
+  feat: add Type2 puzzle format support and enhance CircuitPuzzleCollectionPage with search functionality
+  
+  - Implemented Type2 puzzle format parsing and validation in `type2-format.ts`.
+  - Added search functionality in `CircuitPuzzleCollectionPage.vue` to filter levels by title, ID, tags, author, and difficulty.
+  - Enhanced entry handling to support Type2 puzzles, including block library loading and error handling.
+  - Updated UI to display messages for no matching levels and improved navigation for multi-stage puzzles.
+  - Introduced syncing functionality from play mode to editor mode in `CircuitPuzzlePage.vue`.
+
+### r102 (2026-02-19T05:00:17+08:00)
+- 0f99a5d
+  Revise README for Arknights:Endfield data details
+  
+  Updated the README to reflect changes in data package location and description for Arknights:Endfield.
 
 ### r101 (2026-02-18T06:26:40+08:00)
 - 83607ea

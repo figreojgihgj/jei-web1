@@ -74,6 +74,44 @@ describe('type2-format', () => {
     expect(cellKeys(parsed.cells ?? [])).toEqual(['0,0', '1,0', '1,1']);
   });
 
+  it('applies attachBlocks.rotation to imported piece shapes', () => {
+    const blocks = new Map<string, GridCell[]>([
+      ['line-2', [{ x: 0, y: 0 }, { x: 1, y: 0 }]],
+    ]);
+
+    const raw = [
+      {
+        minigameId: 'rot-test',
+        title: 'Rotation Test',
+        puzzleData: {
+          chessBoardID: 'rot-test',
+          sizeX: 2,
+          sizeY: 2,
+          rowCondition: {
+            Color1: [0, 0],
+          },
+          columnCondition: {
+            Color1: [0, 0],
+          },
+          bannedGrids: [],
+          preGrids: {},
+          refAnswerGrids: {},
+          attachBlocks: [
+            { blockID: 'line-2', number: 1, color: 1, rotation: 1 },
+          ],
+        },
+      },
+    ];
+
+    const parsed = parseType2PuzzleDocument(raw, blocks);
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.document?.kind).toBe('single');
+    if (!parsed.document || parsed.document.kind !== 'single') {
+      throw new Error('expected single document');
+    }
+    expect(cellKeys(parsed.document.level.pieces[0]?.cells ?? [])).toEqual(['0,0', '0,1']);
+  });
+
   it('converts type2 list to multi puzzle and uses single-point totals across colors', () => {
     const blocks = new Map<string, GridCell[]>([
       ['line-2', [{ x: 0, y: 0 }, { x: 1, y: 0 }]],

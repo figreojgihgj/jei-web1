@@ -148,7 +148,7 @@ defineEmits<{
 
 const boardGap = 4;
 const boardPadding = 8;
-const outlineWidth = 4;
+const outlineWidth = 8;
 
 const cellSize = computed(() => {
   const axis = Math.max(props.rows, props.cols);
@@ -567,7 +567,7 @@ function getContrastOutlineColor(color: string): string {
 
 .locked-mark {
   position: absolute;
-  right: 10px;
+  right: 14px;
   bottom: 6px;
   z-index: 6;
   font-size: 20px;

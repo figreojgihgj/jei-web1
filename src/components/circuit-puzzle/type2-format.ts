@@ -23,6 +23,7 @@ type Type2AttachBlock = {
   blockID?: string;
   number?: number;
   color?: number;
+  rotation?: number;
 };
 
 type Type2BlockJson = {
@@ -83,6 +84,17 @@ function uniqueCells(cells: GridCell[]): GridCell[] {
     out.push(cell);
   }
   return out;
+}
+
+function rotateCells(cells: GridCell[], rotation: number): GridCell[] {
+  const normRotation = ((rotation % 4) + 4) % 4;
+  if (normRotation === 0) return cells.map((cell) => ({ ...cell }));
+  const rotated = cells.map((cell) => {
+    if (normRotation === 1) return { x: cell.y, y: -cell.x };
+    if (normRotation === 2) return { x: -cell.x, y: -cell.y };
+    return { x: -cell.y, y: cell.x };
+  });
+  return normalizeShapeCells(rotated);
 }
 
 function parseColorCodeFromKey(key: string): number | null {
@@ -199,6 +211,7 @@ function parseAttachBlocks(
     const blockId = asString(item?.blockID);
     const count = Number(item?.number ?? 1);
     const colorCode = Number(item?.color ?? 1);
+    const rotationRaw = Number(item?.rotation ?? 0);
     if (!blockId) {
       errors.push(`attachBlocks[${i}].blockID is required`);
       continue;
@@ -211,6 +224,10 @@ function parseAttachBlocks(
       errors.push(`attachBlocks[${i}].color must be a positive integer`);
       continue;
     }
+    if (!Number.isInteger(rotationRaw)) {
+      errors.push(`attachBlocks[${i}].rotation must be an integer`);
+      continue;
+    }
     if (count === 0) continue;
 
     const cells = blockCellsById.get(blockId);
@@ -219,7 +236,9 @@ function parseAttachBlocks(
       continue;
     }
 
-    const baseId = `${blockId}-c${colorCode}`;
+    const rotation = ((rotationRaw % 4) + 4) % 4;
+    const rotatedCells = rotateCells(cells, rotation);
+    const baseId = `${blockId}-c${colorCode}-r${rotation}`;
     const seq = (idSeqByBase.get(baseId) ?? 0) + 1;
     idSeqByBase.set(baseId, seq);
     const pieceId = seq > 1 ? `${baseId}-${seq}` : baseId;
@@ -227,9 +246,9 @@ function parseAttachBlocks(
 
     pieces.push({
       id: pieceId,
-      name: blockId,
+      name: rotation === 0 ? blockId : `${blockId} (rot${rotation})`,
       color,
-      cells: cells.map((cell) => ({ ...cell })),
+      cells: rotatedCells.map((cell) => ({ ...cell })),
       count,
     });
   }
