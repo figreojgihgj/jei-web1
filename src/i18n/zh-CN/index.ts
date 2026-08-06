@@ -338,6 +338,7 @@ export default {
   preferSingleRecipeChain: '避免同质线路分流',
   preferSingleRecipeChainTooltip:
     '启用后，LP 对每个物品默认只保留一个确定性的候选配方链；优先使用已选配方，否则按稳定排序选择一个，避免相近线路被均分。',
+  plannerScenario: '规划场景',
   autoRecipePlusLP: '自动配方 + LP',
   autoRecipePlusLPTooltip: '自动选择最优配方，然后用 LP 求解',
   lpRawData: 'LP 原始数据',
@@ -430,6 +431,7 @@ export default {
   setupWizardPluginProtocolTerminalDesc: '提供协议终端相关的独立工具页。',
   setupWizardPluginBilibiliWikiDesc: '在物品详情里直接打开 BilibiliWiki。',
   setupWizardPluginEndfieldPlannerDesc: '在武器/装备详情中启用基质规划和词条对照能力。',
+  setupWizardPluginEndfieldBlueprintsDesc: '按当前物品名打开终末地蓝图库搜索。',
   setupWizardPluginRecommended: '推荐',
   setupWizardIntentPreviewWiki: '更偏向资料检索，默认会优先打开 Wiki 页。',
   setupWizardIntentPreviewRecipes: '更偏向查合成和用途，默认会优先打开配方页。',

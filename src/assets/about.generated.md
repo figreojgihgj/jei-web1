@@ -1,18 +1,31 @@
 # About
 
 ## Build
-- Version: pages-build-11-g3ec72c6-dirty
-- Commit: 3ec72c6 (3ec72c630fb337c364b0bea6bd8a406306b2a798)
-- Commit count: 169
-- Subject: feat(planner): add advanced planner views and state management
+- Version: pages-build-14-g9b5b7eb-dirty
+- Commit: 9b5b7eb (9b5b7eb9a8ceff9679b762289f4402680143717b)
+- Commit count: 172
+- Subject: feat: 添加终末地蓝图库插件，支持按物品名搜索蓝图
 - Author: AndreaFrederica
-- Date: 2026-04-22T03:59:03+08:00
-- Generated at: 2026-04-21T20:44:06.551Z
+- Date: 2026-04-26T00:24:18+08:00
+- Generated at: 2026-07-27T11:39:46.724Z
 - Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History
 
-### Unreleased (2026-04-22T03:59:03+08:00)
+### Unreleased (2026-04-26T00:24:18+08:00)
+- 9b5b7eb 2026-04-26T00:24:18+08:00
+  feat: 添加终末地蓝图库插件，支持按物品名搜索蓝图
+- 2f7e471 2026-04-22T05:34:32+08:00
+  fix: 重置规划器状态以解决加载保存计划时的潜在问题
+- b321ce1 2026-04-22T05:03:48+08:00
+  feat: Enhance planner tab with settings and embedded mode
+  
+  - Added a settings button to the planner tab for configuring planner modes.
+  - Introduced a dialog for planner settings, allowing users to switch between 'advanced' and 'classic' modes.
+  - Updated the RecipeContentView to conditionally render the appropriate planner based on the selected mode.
+  - Created a new component for adding targets in the advanced planner.
+  - Enhanced various advanced planner components to emit item click events for better interactivity.
+  - Improved UI elements for better user experience, including collapsible sections and dynamic labels based on context.
 - 3ec72c6 2026-04-22T03:59:03+08:00
   feat(planner): add advanced planner views and state management
   

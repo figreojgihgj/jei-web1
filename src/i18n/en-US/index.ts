@@ -342,6 +342,7 @@ export default {
   preferSingleRecipeChain: 'Avoid Homogeneous Route Splits',
   preferSingleRecipeChainTooltip:
     'When enabled, LP keeps one deterministic candidate recipe chain per item by default; it prefers the selected recipe when present, otherwise it picks one by stable ordering instead of splitting across similar routes.',
+  plannerScenario: 'Planning Scenario',
   autoRecipePlusLP: 'Auto Recipe + LP',
   autoRecipePlusLPTooltip: 'Auto-select optimal recipes, then solve with LP',
   lpRawData: 'LP Raw Data',
@@ -439,6 +440,8 @@ export default {
   setupWizardPluginBilibiliWikiDesc: 'Open BilibiliWiki directly from the item detail view.',
   setupWizardPluginEndfieldPlannerDesc:
     'Enable essence planner and affix comparison tools in weapon and gear details.',
+  setupWizardPluginEndfieldBlueprintsDesc:
+    'Search the Endfield blueprint library by the current item name.',
   setupWizardPluginRecommended: 'Recommended',
   setupWizardIntentPreviewWiki:
     'Best for reference browsing. Item clicks will prefer the Wiki page.',

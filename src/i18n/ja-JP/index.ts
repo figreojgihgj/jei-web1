@@ -340,6 +340,7 @@ export default {
   preferSingleRecipeChain: '同質ルートの分流を避ける',
   preferSingleRecipeChainTooltip:
     '有効時、LP は各アイテムについて既定で 1 本の決定的な候補レシピチェーンだけを保持します。選択済みレシピを優先し、未選択なら安定した順序で 1 つ選び、類似ルートへの分散を避けます。',
+  plannerScenario: '計画シナリオ',
   autoRecipePlusLP: '自動レシピ + LP',
   autoRecipePlusLPTooltip: '最適なレシピを自動選択し、LPで解決',
   lpRawData: 'LP生データ',
@@ -435,6 +436,8 @@ export default {
   setupWizardPluginProtocolTerminalDesc: 'プロトコルターミナル用の独立ツールページを追加します。',
   setupWizardPluginBilibiliWikiDesc: 'アイテム詳細から BilibiliWiki を直接開きます。',
   setupWizardPluginEndfieldPlannerDesc: '武器・装備詳細で基質計画や詞条比較を使えるようにします。',
+  setupWizardPluginEndfieldBlueprintsDesc:
+    '現在のアイテム名で終末地ブループリントライブラリを検索します。',
   setupWizardPluginRecommended: 'おすすめ',
   setupWizardIntentPreviewWiki: '資料確認向けです。アイテムクリック時は Wiki を優先します。',
   setupWizardIntentPreviewRecipes:
